@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@solidjs/testing-library';
 
 import {
+	follow,
 	goTo,
 	loadLog,
 	mountApp,
@@ -52,8 +53,7 @@ describe('analysing a log in the app', () => {
 			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 
 			// One kind of mistake: its hands, with the filter there to take off.
-			fireEvent.click(screen.getByRole('link', { name: 'Called without the price' }));
-			await settle();
+			await follow(screen.getByRole('link', { name: 'Called without the price' }));
 			expect(window.location.hash).toBe('#review?kind=call-without-odds');
 			expect(screen.getByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
 			expect(screen.getByRole('status').textContent).toMatch(/^1 hand · −/);

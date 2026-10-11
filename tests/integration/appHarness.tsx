@@ -71,13 +71,33 @@ export async function switchTo(
 	await settle();
 }
 
-/** Follows a link, or a hash typed into the address bar. */
-export async function goTo(hash: string): Promise<void> {
-	window.location.hash = hash;
-	await settle();
+/**
+ * Resolves once the app has heard of the hash `change` sets. jsdom both follows
+ * a link and delivers `hashchange` on later tasks, so there is nothing to poll:
+ * `change` must really move the hash, or this never resolves.
+ */
+function hashChange(change: () => void): Promise<void> {
+	// Added after the app's own listener, so it runs after the route has moved.
+	const heard = new Promise<void>((resolve) =>
+		window.addEventListener('hashchange', () => resolve(), { once: true })
+	);
+	change();
+	return heard;
 }
 
-/** The route is the URL hash, and jsdom delivers `hashchange` asynchronously. */
+/** A hash typed into the address bar: one other than the current one. */
+export function goTo(hash: string): Promise<void> {
+	return hashChange(() => {
+		window.location.hash = hash;
+	});
+}
+
+/** Clicks a link in the page and waits for the view it leads to. */
+export function follow(link: HTMLElement): Promise<void> {
+	return hashChange(() => fireEvent.click(link));
+}
+
+/** A tick, for a control that takes a click on the next one. */
 export function settle(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));
 }
