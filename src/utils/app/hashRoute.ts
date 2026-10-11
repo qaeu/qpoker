@@ -3,8 +3,8 @@
  * `#review` / `#openings` / `#ranges`) rather than an always-mounted tab-panel
  * set, so switching is a real navigation, the view is linkable, and it
  * survives a reload. Review carries its whole state after a `?`
- * (`#review?show=mistakes&street=post&hand=5001`), so a filtered list and the
- * hand being read survive the same things.
+ * (`#review?show=mistakes&street=post&hand=5001&step=7`), so a filtered list,
+ * the hand being read and the step it is replayed to survive the same things.
  */
 
 import { createSignal, onCleanup, onMount } from 'solid-js';
@@ -60,6 +60,8 @@ export function parseRoute(hash: string): Route {
 
 	const params = new URLSearchParams(search);
 	const kind = params.get('kind');
+	const hand = params.get('hand') || null;
+	const step = params.get('step') ?? '';
 	return {
 		tab,
 		review: {
@@ -68,7 +70,9 @@ export function parseRoute(hash: string): Route {
 			street: oneOf(REVIEW_STREETS, params.get('street')) ?? DEFAULT_REVIEW.street,
 			kind: kind !== null && Object.hasOwn(MISTAKES, kind) ? (kind as MistakeType) : null,
 			order: oneOf(REVIEW_ORDERS, params.get('order')),
-			hand: params.get('hand') || null,
+			hand,
+			// A step belongs to a hand: without one there is nothing to be a step of.
+			step: hand !== null && /^\d+$/.test(step) ? Number(step) : null,
 		},
 	};
 }
@@ -81,6 +85,9 @@ export function formatRoute(route: Route): string {
 	for (const key of ['show', 'floor', 'street', 'kind', 'order', 'hand'] as const) {
 		const value = review[key];
 		if (value !== null && value !== DEFAULT_REVIEW[key]) params.set(key, value);
+	}
+	if (review.hand !== null && review.step !== null) {
+		params.set('step', String(review.step));
 	}
 	const search = params.toString();
 	return search ? `#review?${search}` : '#review';

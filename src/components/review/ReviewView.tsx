@@ -22,6 +22,7 @@ import HandDetail from '#c/hand/HandDetail';
 import { MISTAKES } from '#utils/coach/mistakes';
 import type { AnalysisReport, HandReport } from '#utils/coach/report';
 import { signed } from '#utils/ui/format';
+import { resolveStep, tableSteps } from '#utils/ui/tableReplay';
 import {
 	countsOf,
 	listHands,
@@ -73,6 +74,9 @@ const ORDERS: SegmentOption<ReviewOrder>[] = [
 /** Somewhere a J or a K is being typed rather than pressed. */
 const TYPING = 'input:not([type="radio"]), textarea, select, [contenteditable]';
 
+/** Ark's segments take the arrow keys for themselves. */
+const ARROWED = '[role="radiogroup"]';
+
 const ReviewView: Component<ReviewViewProps> = (props) => {
 	const counts = createMemo(() => countsOf(props.report));
 	const listed = createMemo(() => listHands(props.report, props.query));
@@ -104,12 +108,35 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 	const prev = createMemo(() => (position() > 0 ? listed()[position() - 1] : undefined));
 	const next = createMemo(() => listed()[position() + 1]);
 	const open = (hand: HandReport | undefined) => {
-		if (hand) props.onQuery({ hand: hand.id }, { replace: true });
+		if (hand) props.onQuery({ hand: hand.id, step: null }, { replace: true });
+	};
+
+	const steps = createMemo(() => {
+		const hand = current();
+		return hand ? tableSteps(hand) : [];
+	});
+	const step = createMemo(() => {
+		const hand = current();
+		return hand ? resolveStep(steps(), hand, props.query.step) : 0;
+	});
+	// Names the hand as well: a step is of a hand, and the one being read may be
+	// the list's first rather than one the route has named.
+	const goStep = (to: number) => {
+		const hand = current();
+		if (!hand || to < 0 || to >= steps().length || to === step()) return;
+		props.onQuery({ hand: hand.id, step: to }, { replace: true });
 	};
 
 	const onKey = (event: KeyboardEvent) => {
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		if (event.target instanceof Element && event.target.closest(TYPING)) return;
+		if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+			if (event.target instanceof Element && event.target.closest(ARROWED)) return;
+			if (steps().length === 0) return;
+			event.preventDefault();
+			goStep(step() + (event.key === 'ArrowRight' ? 1 : -1));
+			return;
+		}
 		const key = event.key.toLowerCase();
 		const target =
 			key === 'j' ? next()
@@ -132,7 +159,7 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 	});
 
 	const narrow = (change: Partial<ReviewQuery>) =>
-		props.onQuery({ ...change, hand: null });
+		props.onQuery({ ...change, hand: null, step: null });
 
 	return (
 		<section class="review-view" classList={{ 'has-hand': props.query.hand !== null }}>
@@ -210,7 +237,7 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 											hand={hand}
 											number={numbers().get(hand.id) ?? 0}
 											current={hand === current()}
-											onSelect={(id) => props.onQuery({ hand: id })}
+											onSelect={(id) => props.onQuery({ hand: id, step: null })}
 										/>
 									</li>
 								)}
@@ -227,7 +254,7 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 									<button
 										type="button"
 										class="review-view__back-link"
-										onClick={() => props.onQuery({ hand: null })}
+										onClick={() => props.onQuery({ hand: null, step: null })}
 									>
 										<ChevronLeft aria-hidden="true" />
 										{SHOW_LABELS[props.query.show]}

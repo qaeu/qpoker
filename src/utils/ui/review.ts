@@ -30,6 +30,8 @@ export interface ReviewQuery {
 	order: ReviewOrder | null;
 	/** The id of the hand being read. */
 	hand: string | null;
+	/** Where in that hand's replay; null for where the hand opens by itself. */
+	step: number | null;
 }
 
 export const DEFAULT_REVIEW: ReviewQuery = {
@@ -39,6 +41,7 @@ export const DEFAULT_REVIEW: ReviewQuery = {
 	kind: null,
 	order: null,
 	hand: null,
+	step: null,
 };
 
 /** Findings are read biggest first; a plain list of hands, as it was played. */

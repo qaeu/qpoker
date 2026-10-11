@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSignal } from 'solid-js';
-import { fireEvent, render, screen, within } from '@solidjs/testing-library';
+import { cleanup, fireEvent, render, screen, within } from '@solidjs/testing-library';
 
 import ReviewView from '#c/review/ReviewView';
 import { analyzeLog } from '#utils/coach/report';
 import { DEFAULT_REVIEW, listHands, type ReviewQuery } from '#utils/ui/review';
+import { defaultStep, tableSteps } from '#utils/ui/tableReplay';
 
 import { TWO_HAND_LOG } from '../../integration/appHarness';
 import {
@@ -121,6 +122,7 @@ describe('ReviewView', () => {
 				kind: null,
 				order: null,
 				hand: null,
+				step: null,
 			});
 		});
 
@@ -153,7 +155,7 @@ describe('ReviewView', () => {
 						name: 'Stop filtering by: Called without the price',
 					})
 				);
-				expect(onQuery).toHaveBeenLastCalledWith({ kind: null, hand: null });
+				expect(onQuery).toHaveBeenLastCalledWith({ kind: null, hand: null, step: null });
 				expect(screen.queryByRole('button', { name: /^Stop filtering by/ })).toBeNull();
 				expect(rows().length).toBeGreaterThan(1);
 			});
@@ -214,14 +216,14 @@ describe('ReviewView', () => {
 		it('opens a row that is clicked', () => {
 			const { onQuery } = mount({ show: 'all' });
 			fireEvent.click(screen.getByRole('button', { name: /^Hand 2,/ }));
-			expect(onQuery).toHaveBeenLastCalledWith({ hand: '5002' });
+			expect(onQuery).toHaveBeenLastCalledWith({ hand: '5002', step: null });
 			expect(heading()).toBe('Hand 2 of 5');
 		});
 
 		it('goes back to the list', () => {
 			const { onQuery } = mount({ show: 'all', hand: '6001' });
 			fireEvent.click(screen.getByRole('button', { name: /^All · 3 of 5/ }));
-			expect(onQuery).toHaveBeenLastCalledWith({ hand: null });
+			expect(onQuery).toHaveBeenLastCalledWith({ hand: null, step: null });
 		});
 
 		it('still opens a hand the list has filtered out', () => {
@@ -238,7 +240,10 @@ describe('ReviewView', () => {
 				expect(step('Previous').disabled).toBe(true);
 
 				fireEvent.click(step('Next'));
-				expect(onQuery).toHaveBeenLastCalledWith({ hand: '5002' }, { replace: true });
+				expect(onQuery).toHaveBeenLastCalledWith(
+					{ hand: '5002', step: null },
+					{ replace: true }
+				);
 				expect(heading()).toBe('Hand 2 of 5');
 
 				fireEvent.click(step('Previous'));
@@ -280,6 +285,63 @@ describe('ReviewView', () => {
 				unmount();
 				fireEvent.keyDown(window, { key: 'j' });
 				expect(onQuery).not.toHaveBeenCalled();
+			});
+		});
+
+		describe('stepping through the hand', () => {
+			// 7001 opens on its river call, the hand's one mistake.
+			const opensAt = () => {
+				const hand = report.hands.find(({ id }) => id === '7001')!;
+				const steps = tableSteps(hand);
+				return { at: defaultStep(steps, hand), last: steps.length - 1 };
+			};
+
+			it('takes the arrow keys, rewriting the entry and naming the hand', () => {
+				const { onQuery, query } = mount({ show: 'all', hand: '7001' });
+				const { at } = opensAt();
+				fireEvent.keyDown(window, { key: 'ArrowLeft' });
+				expect(onQuery).toHaveBeenLastCalledWith(
+					{ hand: '7001', step: at - 1 },
+					{ replace: true }
+				);
+				fireEvent.keyDown(window, { key: 'ArrowRight' });
+				fireEvent.keyDown(window, { key: 'ArrowRight' });
+				expect(query().step).toBe(at + 1);
+			});
+
+			it('names the list’s first hand when the route has named none', () => {
+				const { onQuery } = mount({ show: 'all' });
+				fireEvent.keyDown(window, { key: 'ArrowRight' });
+				expect(onQuery).toHaveBeenLastCalledWith(
+					{ hand: '5001', step: expect.any(Number) },
+					{ replace: true }
+				);
+			});
+
+			it('stops at the deal and at the result', () => {
+				const { last } = opensAt();
+				const { onQuery } = mount({ show: 'all', hand: '7001', step: 0 });
+				fireEvent.keyDown(window, { key: 'ArrowLeft' });
+				expect(onQuery).not.toHaveBeenCalled();
+				cleanup();
+				const end = mount({ show: 'all', hand: '7001', step: last + 40 });
+				fireEvent.keyDown(window, { key: 'ArrowRight' });
+				expect(end.onQuery).not.toHaveBeenCalled();
+			});
+
+			it('leaves the arrows to a filter that has the focus', () => {
+				const { onQuery } = mount({ show: 'all', hand: '7001' });
+				fireEvent.keyDown(radio(/^All/), { key: 'ArrowRight' });
+				expect(onQuery).not.toHaveBeenCalled();
+			});
+
+			it('starts the next hand where that hand opens', () => {
+				const { onQuery } = mount({ show: 'all', hand: '6001', step: 3 });
+				fireEvent.keyDown(window, { key: 'j' });
+				expect(onQuery).toHaveBeenLastCalledWith(
+					{ hand: '7001', step: null },
+					{ replace: true }
+				);
 			});
 		});
 	});

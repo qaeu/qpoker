@@ -22,7 +22,7 @@ describe('the hash route', () => {
 		it('reads every Review parameter', () => {
 			expect(
 				parseRoute(
-					'#review?show=mistakes&floor=mistake&street=post&kind=missed-value&order=time&hand=5001'
+					'#review?show=mistakes&floor=mistake&street=post&kind=missed-value&order=time&hand=5001&step=7'
 				)
 			).toEqual({
 				tab: 'review',
@@ -33,7 +33,25 @@ describe('the hash route', () => {
 					kind: 'missed-value',
 					order: 'time',
 					hand: '5001',
+					step: 7,
 				},
+			});
+		});
+
+		describe('the step', () => {
+			const stepOf = (hash: string) => parseRoute(hash).review.step;
+
+			it('is a whole number from zero', () => {
+				expect(stepOf('#review?hand=5001&step=0')).toBe(0);
+				expect(stepOf('#review?hand=5001&step=12')).toBe(12);
+			});
+
+			it.each(['-1', '1.5', 'seven', '', '1e3', ' 2'])('drops %j', (step) => {
+				expect(stepOf(`#review?hand=5001&step=${encodeURIComponent(step)}`)).toBeNull();
+			});
+
+			it('is dropped without a hand to be a step of', () => {
+				expect(stepOf('#review?show=all&step=4')).toBeNull();
 			});
 		});
 
@@ -80,6 +98,18 @@ describe('the hash route', () => {
 			).toBe('#review?show=all&street=pre&hand=5001');
 		});
 
+		it('writes the step last, and only with its hand', () => {
+			expect(
+				formatRoute({
+					tab: 'review',
+					review: { ...DEFAULT_REVIEW, show: 'all', hand: '5001', step: 0 },
+				})
+			).toBe('#review?show=all&hand=5001&step=0');
+			expect(formatRoute({ tab: 'review', review: { ...DEFAULT_REVIEW, step: 4 } })).toBe(
+				'#review'
+			);
+		});
+
 		it('drops Review state on any other view', () => {
 			expect(
 				formatRoute({ tab: 'summary', review: { ...DEFAULT_REVIEW, hand: '5001' } })
@@ -107,6 +137,7 @@ describe('the hash route', () => {
 					kind: 'call-without-odds',
 					order: 'time',
 					hand: '260012345678',
+					step: 14,
 				},
 			},
 			{ tab: 'review', review: { ...DEFAULT_REVIEW, show: 'plays', order: 'impact' } },
