@@ -15,7 +15,7 @@ Prettier.
 src/
 ├── cli/                   # main.ts (args, file, stdout) and format.ts (the text report)
 ├── App.tsx, index.tsx     # Shell and bootstrap
-├── components/<view>/     # common, upload, report, hand, ranges
+├── components/<view>/     # common, upload, report, review, hand, ranges
 ├── styles/                # _palette, _theme, _base; <view>/ mirrors components/
 └── utils/
     ├── history/           # decode -> parse -> replay: text to hands to decision points
@@ -23,7 +23,7 @@ src/
     ├── ranges/            # notation, charts/ (the preflop baseline, as data), spot classifier
     ├── postflop/          # opponent-range model, texture, the postflop judgement
     ├── coach/             # grade, mistakes, goodPlays, explain, session, openings, report
-    ├── app/ ui/           # Hash route, storage, rng; display helpers
+    ├── app/ ui/           # Hash route, storage, rng; display helpers, the Review list
     ├── analysis.worker.ts
     └── analysisWorkerProtocol.ts   # Worker protocol, shared with the test stub
 tests/                     # Mirrors src/ by folder; tests/integration/ drives <App />
@@ -39,6 +39,9 @@ docs/                      # Model and design reasoning (see below)
 - **Subpath imports**: `#c/*` → `src/components/*`, `#styles/*` → `src/styles/*.scss`,
   `#*` → `src/*`. Use them instead of `../../`. In `vitest.config.ts` aliases, list the
   most specific prefix first.
+- **The views are Summary, Review, Openings and Ranges**, addressed by the URL hash
+  (`utils/app/hashRoute.ts`). Review keeps its whole state there (`#review?show=…&hand=…`):
+  add a filter to `ReviewQuery` and the route, not to a signal in the view.
 - Hand-history `.txt` files in the repo root are git-ignored: they carry other players'
   screen names. Tests use `tests/fixtures/` (anonymised) and `tests/utils/history/handText.ts`.
 

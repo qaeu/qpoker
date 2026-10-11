@@ -96,6 +96,12 @@
 		&__link {
 			justify-self: start;
 			font-size: 12px;
+
+			// The same line of type, with a thumb's worth of room round it.
+			@include touch {
+				margin-block: -10px;
+				padding-block: 14px;
+			}
 		}
 	}
 }

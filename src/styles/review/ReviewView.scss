@@ -10,6 +10,13 @@
 			margin-bottom: 18px;
 			padding-bottom: 14px;
 			border-bottom: 1px solid $rule-strong;
+
+			// Each group takes the line, its label over its keys.
+			@include phone {
+				.segmented {
+					flex: 1 1 100%;
+				}
+			}
 		}
 
 		// A filter that came in on a link rather than from a control here, so the
@@ -109,7 +116,8 @@
 			@include print(12px, 0.01em, $caps: false);
 			max-width: 78ch;
 			margin: 16px 0 0;
-			color: $ink-faint;
+			// On bare felt, where faint ink falls short of 4.5:1.
+			color: $ink-muted;
 			line-height: 1.5;
 		}
 

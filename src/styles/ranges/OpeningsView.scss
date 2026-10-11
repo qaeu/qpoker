@@ -115,7 +115,18 @@
 
 			td {
 				padding-right: 0;
-				color: $ink-faint;
+				color: $ink-muted;
+			}
+
+			@include touch {
+				a {
+					display: inline-block;
+					padding-block: 13px;
+				}
+
+				td {
+					padding-block: 0;
+				}
 			}
 		}
 
@@ -124,7 +135,8 @@
 			@include print(12px, 0.01em, $caps: false);
 			max-width: 62ch;
 			margin: 12px 0 0;
-			color: $ink-faint;
+			// On bare felt, where faint ink falls short of 4.5:1.
+			color: $ink-muted;
 			line-height: 1.5;
 		}
 

@@ -50,6 +50,27 @@ Cream on baize is the app's voice, in three steps: a figure is `$ink`, the label
 house rule, a footnote). They exist because the sheets had each derived their own, at
 several alphas for the same job.
 
+The two reduced steps are cream at 0.8 and 0.7 alpha, set by measured contrast rather than
+by eye, because both carry text as small as 12px and that needs 4.5:1. Against the grounds
+text actually sits on:
+
+| Ink                | Felt (`$felt`) | Panel in a `card` | Opaque `$panel` |
+| ------------------ | -------------- | ----------------- | --------------- |
+| `$ink` (1.0)       | 6.6            | 7.7 to 8.3        | 10.4            |
+| `$ink-muted` (0.8) | 4.8            | 5.5 to 5.9        | 7.2             |
+| `$ink-faint` (0.7) | 4.1            | 4.6 to 4.9        | 5.9             |
+
+They were 0.6 and 0.35, which measured 3.4 and 2.1 on felt: a label under a figure failed,
+and a footnote was barely there. A `card`'s range is because it is half-transparent over
+felt that is lit at the top of the page and not at the foot. Two things follow from the
+table. Faint ink clears 4.5:1 only on a panel, so a footnote set on bare felt (under the
+Review hand, under the Openings table) takes `$ink-muted` instead. And directly under the
+pit light, where the felt is `$felt-lit`, muted ink measures 4.2: that patch is the top of
+the first screen, which the header's shadow and the stat band occupy, and raising muted
+further would leave it indistinguishable from full ink. Faint keeps one job where contrast
+is not the point: the label of a range-grid cell that was never held, which is meant to
+recede.
+
 `PlayingCards.scss` is the one inverted ground: a card is card stock, with black and red
 ink (`$stock-ink`, `$stock-ink-red`). Mint and ruby go muddy on cream, so nothing on a
 card is coloured by sign.
@@ -106,7 +127,14 @@ A good play is marked the same way in mint, with its gain as a signed figure. "G
 "great" share the one colour and are told apart by the label: a second green would have to
 be decoded.
 
+In the Review list a finding is a line of text with no edge to mark, so its rank is set in
+the scale's lighter step (`fg-light`): the `base` step that draws a card's edge is too
+dark to read as 10px lettering on felt.
+
 Mint is money the player's way, ruby the other way, on any signed figure.
+
+A link in the page is gold and underlined. Gold alone would not do, since gold also marks
+the selected thing, which goes nowhere; the underline is what says "this leads somewhere".
 
 ### Cards are card stock
 
@@ -114,11 +142,19 @@ Hole cards and boards are small tiles of the `card-stock` material, the one inve
 ground in the app: black and red ink on cream. Suits are told apart by pip and by the
 usual two colours, not four, because that is how the cards in the log's own client look.
 
-### One inline style
+### Two inline styles
 
 `RangeGrid` sets two custom properties per cell (`--raise`, `--call`) and the sheet turns
 them into the fill. The frequencies are data, 169 of them, and there is no class that
-could carry them. Everything else stays in the sheets.
+could carry them.
+
+The Summary's "Where the losses went" does the same with one: each row's bar takes
+`--share`, that kind's loss as a fraction of the costliest kind's, and the sheet turns it
+into a width. The bar is drawn against the worst leak rather than the total so that the
+first row is always full and the rest are read against it; against the total, a session
+with many small leaks would show a column of slivers.
+
+Everything else stays in the sheets.
 
 ## Motion
 
@@ -143,3 +179,27 @@ meaning "selected".
 
 Anything the pointer or keyboard lands on is marked gold, and a rule the table forbids
 looks forbidden the same way everywhere (`disabled-control`).
+
+### The segmented control
+
+`Segmented` (`#c/common/Segmented`) is one choice out of a few with all of them on show: a
+row of keys, each the `button` mixin, the chosen one in `.active` gold. It replaced the
+`<select>`s on the Review filters because there the options are few, their counts are
+worth seeing before choosing, and a menu hid both. A `<select>` is still right where the
+options are many (the Ranges spot list). It is Ark's segment group underneath, so it is a
+radio group to the keyboard and to a screen reader: arrow keys move the choice, and focus
+is shown on the key because the radio itself is hidden. Ark's sliding indicator is not
+used, since it positions itself with an inline style and nothing here animates on its own.
+
+The same gold-when-chosen key is the seat toggle in the Openings table, where the row's
+name and the control that picks it are one thing; that one is a plain `aria-pressed`
+button, because it sits in a table cell rather than in a group of its own.
+
+### The "on baseline" tag
+
+In a replayed hand, a decision the baseline has no quarrel with is a small outlined tag at
+the end of its line, in muted ink, and not a card. Most decisions in most hands are right,
+and a card for each buried the one or two that were not. The tag is deliberately not mint:
+mint is a good play, which is a hard decision got right, and an easy fold is not that.
+Where the baseline leaned the other way but not by enough to name a mistake, the tag reads
+"near baseline", so the page does not claim agreement it does not have.

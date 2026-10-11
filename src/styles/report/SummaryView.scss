@@ -99,8 +99,14 @@
 
 		// A kind of mistake is a way into Review: the whole cell is the link.
 		&__leak {
-			display: block;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
 			padding: 1px 0 3px;
+
+			@include touch {
+				min-height: $control-height-touch;
+			}
 		}
 
 		// Its share of the costliest kind's loss, as a bar under its name. The width

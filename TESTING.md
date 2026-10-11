@@ -31,7 +31,11 @@ the spot classifier.
 - `tests/utils/history/handText.ts` — writes a hand in the client's plain format, for
   tests that need a particular spot. The caller supplies the action lines and the pot;
   the grader refuses a hand whose pot does not reconcile, so get the arithmetic right
-  (`grade()` in `grade.test.ts` asserts it).
+  (`grade()` in `grade.test.ts` asserts it). It also exports whole hands the view tests
+  share: a good play (`TOUGH_FOLD`), a postflop blunder (`RIVER_HERO_CALL`), an open
+  outside the chart (`BUTTON_TRASH_OPEN`) and a hand that does not reconcile
+  (`UNRECONCILED`). The parser orders hands by time and `handText` derives the time from
+  the id, so pick ids in the order the hands should be listed.
 
 Real hand histories are git-ignored and never used by a test.
 
@@ -44,7 +48,9 @@ asserts. Both inherit the plugin, aliases and setup file.
   a component rendered on its own with the props it is handed.
 - **integration** — renders the whole `<App />` over the real worker protocol and the
   real engine, and drives it as a user would: pick a file, read the summary, switch
-  tabs, open a hand. `appHarness.tsx` holds the mount, `loadLog`, `switchTo`, and
+  tabs, filter the Review list, open a hand. `appHarness.tsx` holds the mount (which
+  returns the unmount, for a reload), `loadLog`, `switchTo`, `goTo` for a link or a typed
+  hash, `settle` for the tick jsdom takes to deliver `hashchange`, and
   `resetBrowserState`, which a `beforeEach` must call because the URL hash outlives a
   test. Each case carries `RUN_TIMEOUT_MS`.
 
@@ -67,6 +73,12 @@ The protocol can also be tested without a Worker at all, as
   the constants behind them are tuned.
 - Chart properties that must hold whatever the ranges are tuned to: frequencies sum to
   at most one, later seats open wider, aces are always played.
+
+## Driving the controls
+
+- An Ark control (a tab, a segment) takes a click on the next microtask: `await
+Promise.resolve()` (or the harness's `settle`) before asserting what it changed.
+- Two Review groups have an "All" key, so ask for a radio within its `radiogroup`.
 
 ## CI
 

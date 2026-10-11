@@ -47,10 +47,13 @@ npm run dev      # http://localhost:3000
 npm run build    # static site in dist/
 ```
 
-Drop a log on the page. **Summary** has the result and the frequencies, **Mistakes** the
-ranked list, **Good plays** the right decisions that were hard to make, **Hands** every hand replayed with its grades and the chart each preflop
-decision was judged against, **Openings** the hands you opened from each seat drawn over
-the chart for it, and **Ranges** the preflop charts themselves.
+Drop a log on the page. **Summary** has the result, where the losses went and the
+frequencies, each linked to the hands behind it. **Review** lists the hands (all of them,
+those played, those with a mistake or a good play) beside the one being read, replayed
+with its grades and the chart each preflop decision was judged against; the list, its
+filters and the open hand are in the address, so a view can be linked or reloaded.
+**Openings** has the hands you opened from each seat drawn over the chart for it, and
+**Ranges** the preflop charts themselves.
 
 ## What it reads
 

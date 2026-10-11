@@ -45,9 +45,10 @@ $background: get($neutrals, 'bg');
 // Cream at reduced alpha, in three steps. A figure is full ink, the label
 // naming it is muted, and faint is for text that qualifies something else
 // rather than saying it -- a placeholder, a footnote to a figure already there.
+// The alphas are set by measured contrast: see docs/design-language.md.
 $ink: $foreground;
-$ink-muted: oklch(from $foreground l c h / 0.6);
-$ink-faint: oklch(from $foreground l c h / 0.35);
+$ink-muted: oklch(from $foreground l c h / 0.8);
+$ink-faint: oklch(from $foreground l c h / 0.7);
 
 // Greys - container surfaces, borders and separators
 $greys: $neutrals;
