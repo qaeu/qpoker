@@ -43,6 +43,24 @@ export function handText(spec: HandSpec): string {
 	].join('\n');
 }
 
+/** Button in seat 6, so `hero` in seat 1 is the small blind and p2 the big. */
+export const BLINDS_HERO_SB = [
+	'hero: posts small blind $0.05',
+	'p2: posts big blind $0.10',
+];
+
+/** Button in seat 4: p5 and p6 post, `hero` is first to act (UTG). */
+export const BLINDS_HERO_UTG = [
+	'p5: posts small blind $0.05',
+	'p6: posts big blind $0.10',
+];
+
+/** Button in seat 1: `hero` is on the button, p2 and p3 post. */
+export const BLINDS_HERO_BTN = [
+	'p2: posts small blind $0.05',
+	'p3: posts big blind $0.10',
+];
+
 /**
  * Hero 4-bets ace-queen under the gun and folds it to a shove for stacks: a
  * premium laid down without the price, which the coach calls a good play.
@@ -71,20 +89,59 @@ export const TOUGH_FOLD: HandSpec = {
 	winner: 'p6',
 };
 
-/** Button in seat 6, so `hero` in seat 1 is the small blind and p2 the big. */
-export const BLINDS_HERO_SB = [
-	'hero: posts small blind $0.05',
-	'p2: posts big blind $0.10',
-];
+/**
+ * Hero opens five-four from the small blind, barrels twice, checks the river
+ * and calls a shove with five high: a postflop blunder.
+ */
+export const RIVER_HERO_CALL: HandSpec = {
+	id: 7001,
+	heroCards: '5h 4h',
+	button: 6,
+	lines: [
+		...BLINDS_HERO_SB,
+		'*** HOLE CARDS ***',
+		'p3: folds',
+		'p4: folds',
+		'p5: folds',
+		'p6: folds',
+		'hero: raises $0.20 to $0.30',
+		'p2: calls $0.20',
+		'*** FLOP *** [Kd 7s 2c]',
+		'hero: bets $0.20',
+		'p2: calls $0.20',
+		'*** TURN *** [Kd 7s 2c] [3h]',
+		'hero: bets $0.50',
+		'p2: calls $0.50',
+		'*** RIVER *** [Kd 7s 2c 3h] [9d]',
+		'hero: checks',
+		'p2: bets $4',
+		'hero: calls $4',
+		'*** SHOW DOWN ***',
+		'p2: shows [Kc Qc] (a pair of Kings)',
+		'hero: mucks hand',
+		'p2 collected $10 from pot',
+	],
+	pot: '10',
+	winner: 'p2',
+};
 
-/** Button in seat 4: p5 and p6 post, `hero` is first to act (UTG). */
-export const BLINDS_HERO_UTG = [
-	'p5: posts small blind $0.05',
-	'p6: posts big blind $0.10',
-];
-
-/** Button in seat 1: `hero` is on the button, p2 and p3 post. */
-export const BLINDS_HERO_BTN = [
-	'p2: posts small blind $0.05',
-	'p3: posts big blind $0.10',
-];
+/** A steal whose stated pot is a dollar out, so the hand is not graded. */
+export const UNRECONCILED: HandSpec = {
+	id: 7002,
+	heroCards: 'Kh Kd',
+	button: 4,
+	lines: [
+		...BLINDS_HERO_UTG,
+		'*** HOLE CARDS ***',
+		'hero: raises $0.15 to $0.25',
+		'p2: folds',
+		'p3: folds',
+		'p4: folds',
+		'p5: folds',
+		'p6: folds',
+		'Uncalled bet ($0.15) returned to hero',
+		'hero collected $0.25 from pot',
+	],
+	pot: '1.25',
+	winner: 'hero',
+};

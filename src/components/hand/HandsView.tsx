@@ -6,8 +6,9 @@
 import { createMemo, createSignal, For, Show, type Component } from 'solid-js';
 
 import PlayingCards from '#c/common/PlayingCards';
-import type { AnalysisReport, HandReport } from '#utils/coach/report';
+import type { AnalysisReport } from '#utils/coach/report';
 import { signClass, signed } from '#utils/ui/format';
+import { isPlayed } from '#utils/ui/review';
 
 import HandDetail from './HandDetail';
 
@@ -20,11 +21,6 @@ interface HandsViewProps {
 }
 
 type HandFilter = 'all' | 'played' | 'mistakes' | 'plays';
-
-const isPlayed = (hand: HandReport): boolean =>
-	hand.gradings.some(
-		(grading) => grading.chosen !== 'fold' && grading.chosen !== 'check'
-	);
 
 const HandsView: Component<HandsViewProps> = (props) => {
 	const [filter, setFilter] = createSignal<HandFilter>('all');
