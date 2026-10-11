@@ -195,3 +195,21 @@ with a good play, most valuable first. No decision is in both, though a hand can
 worker posts and the UI renders. It is a pure function of the log text and the seed, and
 is versioned (`REPORT_VERSION`) so a cached report from an older build is dropped rather
 than rendered wrong. Bump the version when its shape changes.
+
+### What a hand carries for the replay table
+
+The browser keeps the report and nothing else, so a `HandReport` has to be enough to put
+the hand back on a table (`utils/ui/tableReplay.ts`). It carries the raw facts, in integer
+cents like the rest of the engine, and the view derives every table state from them:
+
+- `bigBlind`, and `seats`: who was dealt in, in preflop acting order (which is clockwise),
+  each with its position, its starting stack and whether it is the hero.
+- On each `ActionLine`, the action as data (`player`, `kind`, `amount`, `to`, `allIn`)
+  beside the `text` the CLI prints.
+- `returned`, the uncalled bets handed back, and `paid`, what each player took: a cash-out
+  where there was one, else the pot's credit, as `replayHand` settles `net`.
+
+Facts rather than a snapshot per step, because a snapshot of six seats for each of twenty
+actions in each of a few hundred hands would multiply what goes into `localStorage`. The
+price is a second walk through the hand, outside the engine; it is held to the engine's by
+test (the pot and the amount to call at every action, and every final stack).

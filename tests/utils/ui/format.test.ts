@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { MIN_SAMPLE } from '#utils/coach/session';
-import { readingOf } from '#utils/ui/format';
+import { bbText, readingOf } from '#utils/ui/format';
 
 describe('readingOf', () => {
 	it('names the direction of a leak', () => {
@@ -23,5 +23,18 @@ describe('readingOf', () => {
 	it('says nothing of a frequency that is where it should be', () => {
 		expect(readingOf(null, MIN_SAMPLE)).toBe('');
 		expect(readingOf(null, 400)).toBe('');
+	});
+});
+
+describe('bbText', () => {
+	it('gives cents as big blinds, with a decimal only where one is needed', () => {
+		expect(bbText(1000, 10)).toBe('100');
+		expect(bbText(25, 10)).toBe('2.5');
+		expect(bbText(2, 5)).toBe('0.4');
+		expect(bbText(0, 10)).toBe('0');
+	});
+
+	it('does not divide by a missing blind', () => {
+		expect(bbText(40, 0)).toBe('40');
 	});
 });

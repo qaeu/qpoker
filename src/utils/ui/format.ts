@@ -14,6 +14,12 @@ export function signed(value: number, digits = 1): string {
 	return `${value < 0 ? '−' : '+'}${fixed}`;
 }
 
+/** Cents as big blinds, to a decimal place where one is needed: `25` at 10 -> `2.5`. */
+export function bbText(cents: number, bigBlind: number): string {
+	const bb = cents / (bigBlind || 1);
+	return Number.isInteger(bb) ? String(bb) : bb.toFixed(1);
+}
+
 /** `2026-10-06T03:37:57` -> `2026-10-06 03:37`. */
 export function shortTime(timestamp: string): string {
 	return timestamp.replace('T', ' ').slice(0, 16);

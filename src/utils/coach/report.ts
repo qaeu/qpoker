@@ -9,7 +9,7 @@
  */
 
 import { cardsText } from '../cards/cards';
-import type { Action, Hand, Street } from '../history/hand';
+import type { Action, ActionKind, Hand, Street } from '../history/hand';
 import { parseHistory } from '../history/parse';
 import { decisionsOf, replayHand, type Position, type Replay } from '../history/replay';
 import { gradeDecision, type GradeOptions, type Grading } from './grade';
@@ -17,7 +17,7 @@ import { MISTAKES, type MistakeType } from './mistakes';
 import { summariseOpenings, type OpeningSummary } from './openings';
 import { summariseSession, type SessionSummary } from './session';
 
-export const REPORT_VERSION = 4;
+export const REPORT_VERSION = 5;
 
 export interface AnalysisOptions {
 	/** Defaults to the player the log was dealt to. */
@@ -36,6 +36,20 @@ export interface ActionLine {
 	hero: boolean;
 	/** Index into the hand's actions, which is what a grading's `stepIndex` is. */
 	stepIndex: number;
+	/** The action itself, in cents, for replaying the table: see `ui/tableReplay.ts`. */
+	player: string;
+	kind: ActionKind;
+	amount: number;
+	to?: number;
+	allIn: boolean;
+}
+
+export interface SeatReport {
+	name: string;
+	position: Position;
+	/** Cents, at the start of the hand. */
+	stack: number;
+	hero: boolean;
 }
 
 export interface HandReport {
@@ -54,6 +68,14 @@ export interface HandReport {
 	gradings: Grading[];
 	shown: Record<string, string>;
 	warnings: string[];
+	/** Cents. */
+	bigBlind: number;
+	/** Players dealt in, in preflop acting order, which is clockwise. Empty with no layout. */
+	seats: SeatReport[];
+	/** Uncalled bets handed back, in cents by player. */
+	returned: Record<string, number>;
+	/** What each player took from the pot, or for cashing out, in cents. */
+	paid: Record<string, number>;
 }
 
 export interface LeakReport {
@@ -179,8 +201,18 @@ function reportHand(replay: Replay, hero: string, options: GradeOptions): HandRe
 			text: `${action.player}${seat ? ` (${seat})` : ''} ${actionText(action, currency)}`,
 			hero: action.player === hero,
 			stepIndex,
+			player: action.player,
+			kind: action.kind,
+			amount: action.amount,
+			...(action.to === undefined ? {} : { to: action.to }),
+			allIn: action.allIn,
 		};
 	});
+
+	const returned: Record<string, number> = {};
+	for (const { player, amount } of hand.uncalled) {
+		returned[player] = (returned[player] ?? 0) + amount;
+	}
 
 	return {
 		id: hand.id,
@@ -199,6 +231,16 @@ function reportHand(replay: Replay, hero: string, options: GradeOptions): HandRe
 			Object.entries(hand.shown).map(([name, cards]) => [name, cardsText(cards)])
 		),
 		warnings: hand.warnings,
+		bigBlind: hand.stakes.bigBlind,
+		seats: (layout?.players ?? []).map((name) => ({
+			name,
+			position: layout!.positions[name],
+			stack: layout!.stacks[name],
+			hero: name === hero,
+		})),
+		returned,
+		// As `replayHand` settles `net`: a cash-out replaces the pot's credit.
+		paid: { ...hand.won, ...hand.cashedOut },
 	};
 }
 

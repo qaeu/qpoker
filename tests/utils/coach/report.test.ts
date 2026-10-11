@@ -81,6 +81,53 @@ describe('the report', () => {
 		expect(stackOff.gradings[0].stepIndex).toBe(open.stepIndex);
 	});
 
+	describe('what a hand carries for replaying its table', () => {
+		const stackOff = report.hands.at(-1)!;
+
+		it('is at the version that added it', () => {
+			expect(REPORT_VERSION).toBe(5);
+		});
+
+		it('seats the players in acting order with their stacks in cents', () => {
+			expect(stackOff.bigBlind).toBe(5);
+			expect(stackOff.seats.map((seat) => [seat.name, seat.position])).toEqual([
+				['hero77', 'HJ'],
+				['N1K0-ARG', 'CO'],
+				['Brakeman1990', 'BTN'],
+				['Olaf Two', 'SB'],
+				['d.quill2021', 'BB'],
+			]);
+			expect(stackOff.seats.filter((seat) => seat.hero).map((seat) => seat.name)).toEqual(
+				['hero77']
+			);
+			expect(stackOff.seats.every((seat) => Number.isInteger(seat.stack))).toBe(true);
+		});
+
+		it('keeps each action as data beside its text', () => {
+			const open = stackOff.lines.find(
+				(line) => line.hero && line.text.includes('raises')
+			)!;
+			expect(open).toMatchObject({
+				player: 'hero77',
+				kind: 'raise',
+				to: 15,
+				allIn: false,
+			});
+			expect(stackOff.lines[0]).toMatchObject({ kind: 'post-sb', amount: 2 });
+			expect('to' in stackOff.lines[0]).toBe(false);
+		});
+
+		it('pays a cash-out what it took, not the pot', () => {
+			expect(stackOff.paid.Brakeman1990).toBe(83);
+		});
+
+		it('records an uncalled bet handed back', () => {
+			const fold = analyzeLog(handText(TOUGH_FOLD)).hands[0];
+			expect(fold.returned).toEqual({ p6: 760 });
+			expect(fold.paid).toEqual({ p6: 485 });
+		});
+	});
+
 	it('lists the mistakes costliest first and sums them', () => {
 		const costs = report.mistakes.map((grading) => grading.evLostBb);
 		expect(costs).toEqual([...costs].sort((a, b) => a - b));
