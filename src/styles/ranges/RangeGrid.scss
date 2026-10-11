@@ -1,0 +1,88 @@
+@use '../base' as *;
+
+@layer screen {
+	.range-grid {
+		display: grid;
+		grid-template-columns: repeat(13, minmax(0, 1fr));
+		gap: 1px;
+		max-width: 560px;
+		padding: 1px;
+		border: 1px solid $rule-strong;
+		border-radius: 2px;
+		background-color: $cut-light;
+		container-type: inline-size;
+
+		&__cell {
+			--raise-stop: calc(var(--raise) * 100%);
+			--call-stop: calc((var(--raise) + var(--call)) * 100%);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			aspect-ratio: 1;
+			// Raise from the left in gold, call after it in mint, and the felt for the
+			// share that folds: a mixed hand reads as a split cell.
+			background-image: linear-gradient(
+				90deg,
+				get($primaries, 'sep') 0 var(--raise-stop),
+				get($successes, 'sep-light') var(--raise-stop) var(--call-stop),
+				$cut-trace var(--call-stop) 100%
+			);
+			font-family: 'Archivo Narrow', 'Archivo', sans-serif;
+			font-size: clamp(8px, 2.6cqw, 13px);
+			font-weight: 600;
+			color: get($neutrals, 'fg');
+
+			&.is-empty {
+				color: $ink-faint;
+				font-weight: 400;
+			}
+
+			// A second range laid over the fill, as a printed rule round its hands.
+			&.is-outlined {
+				box-shadow: inset 0 0 0 1px get($neutrals, 'fg-light');
+			}
+
+			&.is-marked {
+				outline: 2px solid get($neutrals, 'fg');
+				outline-offset: -1px;
+				z-index: 1;
+			}
+		}
+	}
+
+	.range-key {
+		@include print(11px, 0.1em);
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px 16px;
+		margin: 10px 0 0;
+		padding: 0;
+		list-style: none;
+		color: $ink-muted;
+
+		&__swatch {
+			display: inline-block;
+			width: 10px;
+			height: 10px;
+			margin-right: 6px;
+			border-radius: 1px;
+
+			&--raise {
+				background-color: get($primaries, 'sep');
+			}
+
+			&--call {
+				background-color: get($successes, 'sep-light');
+			}
+
+			&--fold {
+				background-color: $cut-deep;
+				border: 1px solid $rule;
+			}
+
+			&--outline {
+				border: 1px solid get($neutrals, 'fg-light');
+			}
+		}
+	}
+}

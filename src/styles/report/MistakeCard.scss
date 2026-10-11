@@ -1,0 +1,84 @@
+@use '../base' as *;
+
+@layer screen {
+	.mistake-card {
+		--mark: #{$rule-strong};
+		@include card;
+		margin-bottom: 0;
+		padding: 16px 18px;
+		border-left: 3px solid var(--mark);
+
+		&.is-inaccuracy {
+			--mark: #{get($infos, 'base')};
+		}
+
+		&.is-mistake {
+			--mark: #{get($warnings, 'base')};
+		}
+
+		&.is-blunder {
+			--mark: #{get($errors, 'base')};
+		}
+
+		&.is-ok {
+			--mark: #{get($successes, 'sep')};
+		}
+
+		&.is-good-play {
+			--mark: #{get($successes, 'base')};
+		}
+
+		&__head {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: baseline;
+			gap: 6px 12px;
+		}
+
+		&__severity {
+			@include print(10px, 0.18em);
+			color: var(--mark);
+			font-weight: 700;
+		}
+
+		&__title {
+			flex: 1;
+			margin: 0;
+		}
+
+		&__cost {
+			font-family: 'Archivo Narrow', 'Archivo', sans-serif;
+			font-size: 18px;
+			font-weight: 700;
+			font-variant-numeric: tabular-nums;
+			color: get($errors, 'fg-light');
+
+			&.is-positive {
+				color: get($successes, 'fg-light');
+			}
+		}
+
+		&__spot {
+			@include print(12px, 0.04em, $caps: false);
+			margin: 10px 0 0;
+			color: $ink-muted;
+		}
+
+		&__verdict {
+			margin: 10px 0 0;
+			font-size: 14px;
+		}
+
+		&__text {
+			max-width: 78ch;
+			margin: 8px 0 0;
+			font-size: 14px;
+			line-height: 1.55;
+			color: get($neutrals, 'fg-light');
+		}
+
+		&__open {
+			margin-top: 12px;
+		}
+	}
+}

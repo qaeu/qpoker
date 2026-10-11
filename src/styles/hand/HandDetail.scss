@@ -1,0 +1,100 @@
+@use '../base' as *;
+
+@layer screen {
+	.hand-detail {
+		@include card;
+		margin-bottom: 0;
+
+		&__head {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 14px;
+			padding-bottom: 16px;
+			border-bottom: 1px solid $rule-strong;
+		}
+
+		&__facts {
+			flex: 1;
+			min-width: 0;
+		}
+
+		&__title {
+			margin: 0;
+		}
+
+		&__meta {
+			@include print(12px, 0.04em, $caps: false);
+			margin: 4px 0 0;
+			color: $ink-muted;
+		}
+
+		&__result {
+			font-family: 'Archivo Narrow', 'Archivo', sans-serif;
+			font-size: 24px;
+			font-weight: 700;
+			font-variant-numeric: tabular-nums;
+
+			&.is-positive {
+				color: get($successes, 'fg-light');
+			}
+
+			&.is-negative {
+				color: get($errors, 'fg-light');
+			}
+		}
+
+		&__ungraded {
+			@include print(13px, 0.01em, $caps: false);
+			margin: 14px 0 0;
+			color: $ink-muted;
+		}
+
+		&__street {
+			margin-top: 18px;
+		}
+
+		&__street-name {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin: 0 0 8px;
+			color: $ink-muted;
+		}
+
+		&__lines {
+			display: grid;
+			gap: 3px;
+			margin: 0;
+			padding: 0;
+			list-style: none;
+		}
+
+		&__line {
+			padding: 2px 0 2px 10px;
+			border-left: 2px solid transparent;
+			font-size: 14px;
+			color: get($neutrals, 'fg-light');
+
+			&.is-hero {
+				border-left-color: $primary;
+				color: get($neutrals, 'fg');
+			}
+		}
+
+		&__grade {
+			margin: 8px 0 10px;
+		}
+
+		&__chart {
+			margin-top: 10px;
+
+			summary {
+				@include print(11px, 0.14em);
+				margin-bottom: 10px;
+				color: $ink-muted;
+				cursor: pointer;
+			}
+		}
+	}
+}

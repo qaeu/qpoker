@@ -1,0 +1,15 @@
+@use 'base' as *;
+
+@layer screen {
+	.app {
+		@include container;
+	}
+
+	.app__empty {
+		@include print(13px, 0.01em, $caps: false);
+		max-width: 620px;
+		margin: 8vh auto 0;
+		color: $ink-muted;
+		text-align: center;
+	}
+}

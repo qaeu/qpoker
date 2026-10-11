@@ -1,0 +1,97 @@
+# The preflop baseline
+
+How `src/utils/ranges/` decides what the baseline does before the flop.
+
+## What the charts are, and are not
+
+`charts/data.ts` holds a raise range and a call range for each preflop spot, in a
+shorthand (`22+,A2s+,KTo+,T9s:0.5`). Folding is the rest.
+
+**They are hand-written approximations of published rake-adjusted 6-max solver output
+for 2.5bb opens. They are not solver exports.** That has consequences worth stating
+plainly:
+
+- The ranges are about right in size and shape (UTG opens about 17% of hands, the button
+  about 47%), and right about the hands that are clearly in or clearly out.
+- At the edge of a range they are an opinion. A solver mixes many borderline hands at
+  frequencies these charts round to 0, 0.5 or 1.
+- So the grader is forgiving at the edge (see "Mixed hands" in
+  [coach-model.md](./coach-model.md)) and its preflop findings are most reliable when a
+  hand is well inside or well outside a range.
+
+The file is the only place to change. Replacing its strings with real solver ranges
+needs no code change; the tests in `tests/utils/ranges/` check properties any sane set
+of ranges has (frequencies sum to at most one, later seats open wider, aces always play)
+rather than these particular hands.
+
+## Notation
+
+| Token     | Means                                                  |
+| --------- | ------------------------------------------------------ |
+| `77`      | one class; `AK` is both `AKs` and `AKo`                |
+| `77+`     | that pair and every higher one                         |
+| `ATs+`    | the kicker climbs to just under the high card: ATs–AKs |
+| `99-66`   | a run of pairs                                         |
+| `K9s-K7s` | a run of kickers under one high card                   |
+| `T9s:0.5` | any token, at a frequency                              |
+
+Later tokens overwrite earlier ones. In a strategy the raise is kept whole where the two
+ranges overlap and the call takes what is left, so a chart can list a broad calling range
+and carve the raises out of it.
+
+## Spots
+
+`classifyPreflop` names the situation from the action so far:
+
+| Scenario        | When                                            | Chart                                  |
+| --------------- | ----------------------------------------------- | -------------------------------------- |
+| `rfi`           | folded to the player                            | by seat                                |
+| `vsLimp`        | limpers, no raise                               | the seat-before's open, or the blinds' |
+| `vsOpen`        | one raise                                       | by the two seats                       |
+| `squeeze`       | one raise and a caller                          | the `vsOpen` chart, medium confidence  |
+| `vs3bet`        | the player opened and was re-raised             | by seat and where the 3-bettor sits    |
+| `vs4bet`        | the player 3-bet and was re-raised              | by how early the opener was            |
+| `cold4bet`      | an open and a 3-bet before the player has acted | one chart                              |
+| `limpedVsRaise` | the player limped and was raised                | one chart, low confidence              |
+
+The same classifier serves the hero's grade and every opponent's range, so the two can
+never disagree about what a spot was.
+
+## Stack depth
+
+Three buckets by effective stack: **deep** (70bb and up), **mid** (30 to 70bb), **short**
+(under 30bb).
+
+`MID` holds charts only for the spots where a shorter stack changes the answer: facing a
+3-bet or 4-bet, where a re-raise is now a shove, made for value and called less. Opening
+ranges and ranges against an open change little between 40bb and 100bb and use the deep
+charts at both.
+
+There are no short-stack charts. Under 30bb the mid charts are used and every finding is
+marked low confidence. This was a deliberate cut: push-fold play is a different game, and
+a guess dressed as a chart would be worse than an honest "low".
+
+## Shoves are priced, not looked up
+
+When calling would put the player all-in, or the raiser already is, a chart frequency is
+the wrong tool. `JAM_RANGES` gives the range a shove is taken to represent (by how many
+raises were already in, and how deep), and the grader computes the call's equity against
+it and compares with the pot odds. See [coach-model.md](./coach-model.md).
+
+## Opponents' ranges
+
+`preflopRange(replay, player)` multiplies the ranges of each action the player took:
+opening from the cutoff and then calling a 3-bet is the cutoff's opening range times the
+call range against that 3-bet.
+
+A line the charts do not contain, such as an open-limp, would multiply to nothing. A
+range under 12 combos is treated as off the charts and falls back, first to the last
+action's range alone, then to `LIMP_RANGE`, a deliberately wide, capped range. This is
+where a real opponent at small stakes departs furthest from the baseline, and the
+fallback keeps the postflop model from reasoning about a range of three hands.
+
+## Tiers
+
+`tiers.ts` reads a strength ladder off the charts: a hand's tier is the earliest seat
+that opens it, with three rungs of premiums above and the big blind's defence below.
+The coach uses it to size a mistake, since a chart alone says only in or out.

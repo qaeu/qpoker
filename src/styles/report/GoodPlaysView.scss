@@ -1,0 +1,31 @@
+@use '../base' as *;
+
+@layer screen {
+	.good-plays-view {
+		&__list {
+			display: grid;
+			gap: 14px;
+			margin: 0;
+			padding: 0;
+			list-style: none;
+		}
+
+		&__empty {
+			@include print(12px, 0.01em, $caps: false);
+			margin: 0;
+			padding: 24px;
+			border: 1px dashed $rule-strong;
+			border-radius: 3px;
+			color: $ink-muted;
+			text-align: center;
+		}
+
+		&__note {
+			@include print(12px, 0.01em, $caps: false);
+			max-width: 78ch;
+			margin: 20px 0 0;
+			color: $ink-faint;
+			line-height: 1.5;
+		}
+	}
+}

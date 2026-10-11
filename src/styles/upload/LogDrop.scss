@@ -1,0 +1,102 @@
+@use '../base' as *;
+
+@layer screen {
+	.log-drop {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 14px;
+		max-width: 620px;
+		margin: 8vh auto 0;
+		padding: 44px 28px;
+		border: 1px dashed $rule-strong;
+		border-radius: 3px;
+		text-align: center;
+		transition:
+			background-color $dur-base $ease,
+			border-color $dur-base $ease;
+
+		@include phone {
+			padding: 30px 16px;
+		}
+
+		&.is-dragging {
+			border-color: $primary;
+			background-color: get($primaries, 'fade-light');
+		}
+
+		// With a report on the page the zone is a line at its foot, not the page.
+		&--compact {
+			flex-direction: row;
+			flex-wrap: wrap;
+			justify-content: center;
+			max-width: none;
+			margin: 30px 0 0;
+			padding: 16px;
+		}
+
+		&__icon {
+			width: 30px;
+			height: 30px;
+			color: $ink-muted;
+		}
+
+		&__title {
+			margin: 0;
+		}
+
+		&__text {
+			@include print(13px, 0.01em, $caps: false);
+			max-width: 46ch;
+			margin: 0;
+			color: $ink-muted;
+			line-height: 1.5;
+		}
+
+		&__input {
+			display: none;
+		}
+
+		&__progress {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 12px;
+			width: 100%;
+		}
+
+		&__progress-label {
+			@include print(12px, 0.14em);
+			color: $ink-muted;
+			font-variant-numeric: tabular-nums;
+		}
+
+		&__bar {
+			width: min(100%, 360px);
+			height: 6px;
+			appearance: none;
+			border: none;
+			border-radius: 2px;
+			background-color: $cut-deep;
+			overflow: hidden;
+
+			&::-webkit-progress-bar {
+				background-color: $cut-deep;
+			}
+
+			&::-webkit-progress-value {
+				background-color: $primary;
+			}
+
+			&::-moz-progress-bar {
+				background-color: $primary;
+			}
+		}
+
+		&__error {
+			@include print(13px, 0.01em, $caps: false);
+			margin: 0;
+			color: get($errors, 'fg-light');
+		}
+	}
+}

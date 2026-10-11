@@ -1,0 +1,46 @@
+@use '../base' as *;
+
+@layer screen {
+	.ranges-view {
+		@include card;
+		max-width: 640px;
+
+		&__controls {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 14px;
+			margin-bottom: 16px;
+		}
+
+		&__field {
+			display: flex;
+			flex: 1 1 220px;
+			flex-direction: column;
+			gap: 5px;
+		}
+
+		&__label {
+			@include print(10px, 0.16em);
+			color: $ink-muted;
+		}
+
+		&__select {
+			@include form-control;
+		}
+
+		&__figures {
+			@include print(13px, 0.01em, $caps: false);
+			margin: 0 0 12px;
+			color: $ink-muted;
+			font-variant-numeric: tabular-nums;
+		}
+
+		&__note {
+			@include print(12px, 0.01em, $caps: false);
+			max-width: 62ch;
+			margin: 16px 0 0;
+			color: $ink-faint;
+			line-height: 1.5;
+		}
+	}
+}

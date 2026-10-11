@@ -1,0 +1,88 @@
+@use '../base' as *;
+
+@layer screen {
+	.summary-view {
+		&__meta {
+			@include print(12px, 0.08em, $caps: false);
+			margin: 0 0 14px;
+			color: $ink-muted;
+		}
+
+		&__warning {
+			@include info-box(get($warnings, 'fade'), get($warnings, 'base'));
+			@include print(13px, 0.01em, $caps: false);
+			margin: 20px 0 0;
+		}
+
+		&__panels {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+			gap: 30px;
+			margin-top: 30px;
+		}
+
+		&__panel {
+			@include card;
+			margin-bottom: 0;
+		}
+
+		&__title {
+			@include panel-title;
+			margin-bottom: 12px;
+
+			&--spaced {
+				margin-top: 28px;
+			}
+		}
+
+		&__table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 14px;
+			font-variant-numeric: tabular-nums;
+
+			th,
+			td {
+				padding: 7px 8px 7px 0;
+				border-bottom: 1px solid $rule;
+				text-align: left;
+				font-weight: 400;
+			}
+
+			thead th {
+				@include print(10px, 0.16em);
+				border-bottom-color: $rule-strong;
+				color: $ink-muted;
+			}
+
+			tbody th {
+				color: get($neutrals, 'fg');
+			}
+
+			.is-positive {
+				color: get($successes, 'fg-light');
+			}
+
+			.is-negative {
+				color: get($errors, 'fg-light');
+			}
+
+			tr.is-leak td:nth-child(2) {
+				color: get($errors, 'fg-light');
+				font-weight: 600;
+			}
+		}
+
+		&__flag {
+			@include print(10px, 0.12em);
+			margin-left: 8px;
+		}
+
+		&__note {
+			@include print(12px, 0.01em, $caps: false);
+			margin: 12px 0 0;
+			color: $ink-faint;
+			line-height: 1.5;
+		}
+	}
+}

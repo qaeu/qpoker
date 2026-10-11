@@ -1,0 +1,578 @@
+@forward 'sass:map';
+@use 'sass:map' as *;
+@use 'sass:list';
+
+@use 'palette';
+
+// The colour, material, depth, motion and control vocabulary the component
+// sheets are built from. docs/design-language.md holds the reasoning behind it;
+// keep new reasoning there rather than in a comment here.
+
+/* - THEME COLOURS - */
+
+// Maps a 12-step scale onto semantic slot names. Every value is a CSS custom
+// property, so switching `.dark-theme` on <body> reskins the app without
+// recompiling.
+@function _colourset($colour-name) {
+	@return (
+		'fg': var(--#{$colour-name}-12),
+		'fg-light': var(--#{$colour-name}-11),
+		'base-dark': var(--#{$colour-name}-10),
+		'base': var(--#{$colour-name}-9),
+		'sep-dark': var(--#{$colour-name}-8),
+		'sep': var(--#{$colour-name}-7),
+		'sep-light': var(--#{$colour-name}-6),
+		'highlight-dark': var(--#{$colour-name}-5),
+		'highlight': var(--#{$colour-name}-4),
+		'bg-light': var(--#{$colour-name}-3),
+		'bg-dark': var(--#{$colour-name}-2),
+		'bg': var(--#{$colour-name}-1),
+		'fade-less': var(--#{$colour-name}-a3),
+		'fade': var(--#{$colour-name}-a2),
+		'fade-light': var(--#{$colour-name}-a1)
+	);
+}
+
+// The accent, and the one bright object on a real table: the cut card.
+$primaries: _colourset('gold');
+$primary: get($primaries, 'base');
+
+// Neutrals - the baize, and the cream the layout is printed in
+$neutrals: _colourset('baize');
+$foreground: get($neutrals, 'fg');
+$background: get($neutrals, 'bg');
+
+// Cream at reduced alpha, in three steps. A figure is full ink, the label
+// naming it is muted, and faint is for text that qualifies something else
+// rather than saying it -- a placeholder, a footnote to a figure already there.
+$ink: $foreground;
+$ink-muted: oklch(from $foreground l c h / 0.6);
+$ink-faint: oklch(from $foreground l c h / 0.35);
+
+// Greys - container surfaces, borders and separators
+$greys: $neutrals;
+
+// Semantic colours
+$successes: _colourset('mint');
+$warnings: _colourset('gold');
+$errors: _colourset('ruby');
+$infos: _colourset('sky');
+
+// The printed ink, and the fill a Surrender cell carries. Held apart from the
+// neutrals because baize has a real green in it and sand does not.
+$sands: _colourset('sand');
+
+$white: var(--white-a12);
+$black: var(--black-a12);
+
+/* - MATERIALS - */
+
+$stock: var(--stock);
+$stock-lit: var(--stock-lit);
+$stock-shade: var(--stock-shade);
+$stock-ink: var(--stock-ink);
+$stock-ink-red: var(--stock-ink-red);
+
+// The felt's own ramp, lit centre to the unlit far end. Named rather than reached
+// for by scale number: here the scale is read as a material, not as slots.
+$felt-lit: var(--baize-4);
+$felt: var(--baize-3);
+$felt-deep: var(--baize-2);
+
+$panel: var(--panel);
+$rail: var(--rail-4);
+$rail-lit: var(--rail-6);
+$rail-deep: var(--rail-2);
+
+// Hairlines printed on the felt: the data views are structured in ink, not in
+// borders of a lighter grey -- there is no lighter grey here.
+$rule: var(--baize-a3);
+$rule-strong: var(--baize-a4);
+
+// Black over baize: how far into the table a surface is sunk. $scrim ends the
+// ramp although it is the darkness *behind* a lifted object rather than a cut.
+$cut-trace: rgb(0 0 0 / 0.12); // barely sunk: the Play felt, a disabled fill
+$cut-light: rgb(0 0 0 / 0.22); // a button at rest, the tab in play
+$cut: rgb(0 0 0 / 0.3); // a field or a key cap -- somewhere you write
+$cut-deep: rgb(0 0 0 / 0.35); // genuinely hollow: a discard rack, a focused field
+$cut-pressed: rgb(0 0 0 / 0.45); // the bottom of a press, and nothing else
+$scrim: rgb(0 0 0 / 0.55); // behind a dialog or the drawer
+
+// Radius is left as literals, on a three-step ladder matching the shadows: 2px
+// cut into the felt, 3px for a panel laid on it, 6px for a lifted object. See
+// docs/design-language.md, including the two objects too small to follow it.
+
+// The baize: a woven nap over a lit centre falling away to the rail. The two
+// repeating gradients are the weave and scroll with the document; the radial is
+// the pit light and is pinned to the viewport, hanging over the table rather
+// than over the page. Its fall-off is widened to compensate for being
+// compressed into one screen -- see docs/design-language.md.
+@mixin baize {
+	background-color: $felt;
+	background-attachment: scroll, scroll, fixed;
+	background-image:
+		repeating-linear-gradient(45deg, rgb(255 255 255 / 0.014) 0 1px, transparent 1px 3px),
+		repeating-linear-gradient(-45deg, rgb(0 0 0 / 0.035) 0 1px, transparent 1px 3px),
+		radial-gradient(150% 90% at 50% 0%, $felt-lit 0%, $felt 45%, $felt-deep 100%);
+}
+
+// The padded rail bounding the table, carrying the header and the footer.
+@mixin rail {
+	background: linear-gradient(180deg, $rail-lit 0%, $rail 62%, $rail-deep 100%);
+	border-bottom: 1px solid var(--rail-1);
+}
+
+// Lettering stencilled onto the felt: the layout print, and every label that
+// takes its voice from it. `$caps: false` for anything that is a sentence rather
+// than a label -- the face and the tracking carry the voice without capitals.
+@mixin print($size: 12px, $tracking: 0.18em, $caps: true) {
+	font-family: 'Archivo Narrow', 'Archivo', system-ui, sans-serif;
+	font-size: $size;
+	font-weight: 500;
+	letter-spacing: $tracking;
+	@if $caps {
+		text-transform: uppercase;
+	}
+	color: get($neutrals, 'fg-light');
+}
+
+// Card stock: warm, bevelled, and dropped onto the felt rather than drawn on it.
+@mixin card-stock {
+	background: linear-gradient(160deg, $stock-lit 0%, $stock 46%, $stock-shade 100%);
+	color: $stock-ink;
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.6),
+		0 8px 16px rgb(0 0 0 / 0.42),
+		0 2px 4px rgb(0 0 0 / 0.3);
+}
+
+/* - SHADOWS - */
+
+// Black, and heavier than a shadow on white needs to be: on baize an object is
+// told from its surface by the light it blocks.
+$shadow-base: $black;
+$shadow-light: $black;
+
+@mixin shadow-short($colour: $shadow-base) {
+	box-shadow:
+		0 1px 2px oklch(from $colour l c h / 0.25),
+		0 2px 6px oklch(from $colour l c h / 0.2);
+}
+
+// Which way the light is blocked. Almost everything casts downward; the rail
+// overhangs the felt and the drawer slides in from the side.
+$_shadow-directions: (
+	'down': (
+		0,
+		1,
+	),
+	'up': (
+		0,
+		-1,
+	),
+	'right': (
+		1,
+		0,
+	),
+	'left': (
+		-1,
+		0,
+	),
+);
+
+@mixin shadow($colour: $shadow-base, $direction: 'down') {
+	$vector: get($_shadow-directions, $direction);
+	$x: list.nth($vector, 1);
+	$y: list.nth($vector, 2);
+	box-shadow:
+		($x * 2px) ($y * 2px) 4px oklch(from $colour l c h / 0.28),
+		($x * 8px) ($y * 8px) 20px oklch(from $colour l c h / 0.3);
+}
+
+@mixin shadow-inset($colour: $shadow-base) {
+	box-shadow:
+		inset 0 1px 3px oklch(from $colour l c h / 0.35),
+		inset 0 4px 12px oklch(from $colour l c h / 0.25);
+}
+
+// Two kinds of local box-shadow stay hand-written rather than reaching for the
+// three above -- a cut a few pixels deep, and the chips. See
+// docs/design-language.md.
+
+/* - MOTION - */
+
+// Three speeds, so a control's states are told apart by how fast they arrive.
+// Everything eases the same way: fast out of rest, settling into the new state.
+$dur-fast: 120ms; // press, hover-in
+$dur-base: 180ms; // hover-out, colour changes
+$dur-slow: 300ms; // a recalculated figure settling
+$ease: cubic-bezier(0.2, 0, 0, 1);
+
+// The height every control lands on, so a field, a button and a tab in one row
+// line up. The touch floor is the 44px tap target the mixins apply.
+$control-height: 34px;
+$control-height-touch: 44px;
+
+/* - BREAKPOINTS - */
+
+$breakpoint-tablet: 800px;
+$breakpoint-mobile: 560px;
+$breakpoint-short: 600px;
+
+// Narrow *or* short: a phone in landscape clears $breakpoint-tablet on width
+// while having less height than a settings card needs. Keep in sync with
+// COMPACT_LAYOUT_QUERY in `utils/media.ts`.
+@mixin compact {
+	@media (max-width: $breakpoint-tablet), (max-height: $breakpoint-short) {
+		@content;
+	}
+}
+
+@mixin phone {
+	@media (max-width: $breakpoint-mobile) {
+		@content;
+	}
+}
+
+// Devices with no hover: hotkey hints and hover cards are inert there.
+@mixin touch {
+	@media (hover: none) {
+		@content;
+	}
+}
+
+/* - LAYOUT MIXINS - */
+
+// Main content areas
+@mixin container {
+	padding: 20px;
+	max-width: 1400px;
+	margin: 0 auto;
+
+	@include phone {
+		padding: 12px;
+	}
+}
+
+// A panel on the felt: a deeper patch of table bounded by a printed hairline,
+// not a card lifted off a light page. Nothing in the data views floats. Held
+// just short of opaque so the lit felt reads through and the panel stays the
+// same depth of table wherever it sits -- see docs/design-language.md.
+@mixin card($bg-colour: null) {
+	padding: 20px;
+	margin-bottom: 30px;
+	background-color: $bg-colour or oklch(from $panel l c h / 0.5);
+	border: 1px solid $rule;
+	border-radius: 3px;
+	contain: layout;
+}
+
+// Info box styling with left border accent
+@mixin info-box($bg-colour, $border-colour) {
+	padding: 15px;
+	background-color: $bg-colour;
+	border-left: 3px solid $border-colour;
+	margin-bottom: 20px;
+	border-radius: 2px;
+
+	p {
+		margin: 0;
+		font-size: 14px;
+	}
+}
+
+// One answer to "this is not available": flattened off the surface, dimmed, and
+// blocked at the cursor. A rule the table forbids should look forbidden the same
+// way wherever it is met.
+@mixin disabled-control {
+	opacity: 0.55;
+	box-shadow: none;
+	cursor: not-allowed;
+}
+
+// A control on the felt: recessed, printed, and marked in gold when it is the
+// one in play.
+@mixin button($colourset: $primaries) {
+	@include print(13px, 0.14em);
+	min-height: $control-height;
+	padding: 9px 14px;
+	border: 1px solid $rule-strong;
+	border-radius: 3px;
+	color: get($neutrals, 'fg');
+	background-color: $cut-light;
+	cursor: pointer;
+	font-weight: 600;
+	// The lit top edge of a key cut into the felt; the press below sinks it.
+	box-shadow: inset 0 1px 0 rgb(236 223 180 / 0.05);
+	transition:
+		background-color $dur-base $ease,
+		border-color $dur-base $ease,
+		color $dur-base $ease,
+		box-shadow $dur-fast $ease,
+		transform $dur-fast $ease;
+
+	&:hover:not(:disabled, .active) {
+		border-color: get($colourset, 'sep-dark');
+		background-color: $cut-deep;
+		color: get($colourset, 'fg');
+	}
+
+	// The button moves under the finger, so the click is known to have landed
+	// before its result arrives.
+	&:active:not(:disabled) {
+		transform: translateY(1px);
+		background-color: $cut-pressed;
+		box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.45);
+		transition-duration: $dur-fast;
+	}
+
+	// The one to press: a gold hairline, gold ink and a lit top edge, but no fill,
+	// so `.active`'s gold keeps meaning "this is the selected one".
+	&.highlight {
+		border-color: get($colourset, 'base-dark');
+		color: get($colourset, 'fg');
+		box-shadow: inset 0 1px 0 oklch(from get($colourset, 'base') l c h / 0.18);
+	}
+
+	&.highlight:hover:not(:disabled, .active) {
+		background-color: get($colourset, 'fade');
+	}
+
+	&.active {
+		background-color: get($colourset, 'base');
+		border-color: get($colourset, 'base-dark');
+		color: var(--rail-1);
+	}
+
+	&:disabled {
+		background-color: $cut-trace;
+		border-color: $rule;
+		color: get($neutrals, 'sep-dark');
+		box-shadow: none;
+		cursor: not-allowed;
+	}
+
+	@include touch {
+		min-height: $control-height-touch;
+	}
+}
+
+// Text/number inputs and select triggers: cut into the felt rather than laid on
+// it, so a field reads as somewhere to write.
+@mixin form-control {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: $control-height;
+	padding: 7px 9px;
+	border: 1px solid $rule-strong;
+	border-radius: 2px;
+	background-color: $cut;
+	color: $foreground;
+	box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.25);
+	transition:
+		background-color $dur-base $ease,
+		border-color $dur-base $ease,
+		box-shadow $dur-base $ease;
+
+	&:hover:not(:disabled, [data-disabled]) {
+		border-color: get($neutrals, 'sep');
+	}
+
+	// The cut edge itself lights up rather than the global ring floating 2px off a
+	// recess: the border is where the field ends.
+	&:focus-visible {
+		outline: none;
+		border-color: $primary;
+		background-color: $cut-deep;
+		box-shadow:
+			inset 0 1px 2px rgb(0 0 0 / 0.25),
+			0 0 0 1px $primary;
+	}
+
+	&:disabled,
+	&[data-disabled] {
+		@include disabled-control;
+	}
+
+	&::placeholder {
+		color: $ink-faint;
+	}
+
+	// Every field wearing this is typed into rather than nudged.
+	&[type='number'] {
+		appearance: textfield;
+	}
+
+	&::-webkit-outer-spin-button,
+	&::-webkit-inner-spin-button {
+		appearance: none;
+		margin: 0;
+	}
+
+	@include touch {
+		min-height: $control-height-touch;
+	}
+}
+
+// A grid of small fields under one settings caption -- the bet spread, the tag
+// values. `SettingsItem` is a `<label>`, so the browser lights its *first* field
+// whenever the pointer is anywhere inside the label; these rules put that right,
+// so a field marks itself rather than its neighbour and a cell's own caption
+// stands in for the field beside it.
+@mixin grouped-fields($cell) {
+	&:has(#{$cell}:hover) #{$cell}:not(:hover) input:not(:disabled, :focus-visible) {
+		border-color: $rule-strong;
+	}
+
+	#{$cell}:hover input:not(:disabled) {
+		border-color: get($neutrals, 'sep');
+	}
+}
+
+// A label in a tab strip, marked underneath in gold while it is the live one.
+// The three strips pass in their own size, tracking and padding; only the
+// states are shared.
+@mixin tab($size: 12px, $tracking: 0.16em) {
+	@include print($size, $tracking);
+	display: flex;
+	align-items: center;
+	min-height: $control-height;
+	border: none;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background-color: transparent;
+	box-shadow: none;
+	font-weight: 600;
+	cursor: pointer;
+	transition:
+		color $dur-base $ease,
+		background-color $dur-base $ease,
+		border-color $dur-base $ease;
+
+	// Previewed in the felt's own hairline, so gold keeps meaning "you are here".
+	&:hover:not(:disabled, [data-selected]) {
+		color: get($neutrals, 'fg');
+		background-color: get($neutrals, 'fade-light');
+		border-bottom-color: $rule-strong;
+	}
+
+	&:active:not(:disabled) {
+		background-color: $cut-light;
+		box-shadow: none;
+		transform: none;
+	}
+
+	&[data-selected] {
+		color: get($neutrals, 'fg');
+		border-bottom-color: get($primaries, 'base');
+	}
+
+	&:disabled {
+		color: get($neutrals, 'sep-dark');
+		cursor: not-allowed;
+	}
+
+	@include touch {
+		min-height: $control-height-touch;
+	}
+}
+
+// The key that fires the button it sits in, printed as a cap on the face.
+// Hidden on touch; the handlers stay wired, so an attached keyboard still works.
+@mixin key-cap {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 17px;
+	height: 17px;
+	padding: 0 4px;
+	border: 1px solid $rule;
+	border-radius: 2px;
+	background-color: $cut;
+	color: get($neutrals, 'fg-light');
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+
+	@include touch {
+		display: none;
+	}
+}
+
+// A button that is only its icon: square, chromeless at rest, growing a hairline
+// under the pointer so it reads as pressable without drawing a box on the rail.
+@mixin icon-button($size: $control-height) {
+	display: inline-grid;
+	place-items: center;
+	flex: none;
+	width: $size;
+	height: $size;
+	// Restated: the base button's control-height floor outranks `height` above and
+	// would stretch a smaller square into a tall rectangle.
+	min-height: $size;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	background-color: transparent;
+	box-shadow: none;
+	color: get($neutrals, 'fg-light');
+	cursor: pointer;
+	transition:
+		color $dur-base $ease,
+		background-color $dur-base $ease,
+		border-color $dur-base $ease;
+
+	&:hover:not(:disabled) {
+		color: get($neutrals, 'fg');
+		background-color: get($neutrals, 'fade-light');
+		border-color: $rule;
+	}
+
+	&:active:not(:disabled) {
+		background-color: $cut;
+		box-shadow: none;
+		transform: none;
+	}
+
+	&:disabled {
+		@include disabled-control;
+	}
+
+	svg {
+		width: 18px;
+		height: 18px;
+	}
+
+	@include touch {
+		width: $control-height-touch;
+		height: $control-height-touch;
+		min-height: $control-height-touch;
+	}
+}
+
+// Heading for a section within a settings panel or card
+@mixin panel-title {
+	@include print(12px, 0.2em);
+	margin: 0;
+	font-weight: 600;
+}
+
+// A setting's label text plus its optional trailing help icon
+@mixin label-row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+// The help icon that opens its hint on hover, click or Enter -- see
+// `#c/HintPopover`. The shared icon button at label size, keeping `cursor: help`
+// since what it opens is an explanation rather than a place to go.
+@mixin hint-icon {
+	@include icon-button(22px);
+	cursor: help;
+
+	svg {
+		width: 12px;
+		height: 12px;
+	}
+}

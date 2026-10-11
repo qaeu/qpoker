@@ -1,0 +1,46 @@
+@use '../base' as *;
+
+@layer screen {
+	.playing-cards {
+		display: inline-flex;
+		gap: 3px;
+		vertical-align: middle;
+
+		&__card {
+			@include card-stock;
+			display: inline-flex;
+			align-items: baseline;
+			justify-content: center;
+			gap: 1px;
+			min-width: 30px;
+			padding: 3px 4px;
+			// Too small for the lifted object's 6px: it would round into a lozenge.
+			border-radius: 3px;
+			box-shadow:
+				inset 0 1px 0 rgb(255 255 255 / 0.6),
+				0 1px 2px rgb(0 0 0 / 0.4);
+			font-family: 'Archivo Narrow', 'Archivo', sans-serif;
+			font-size: 14px;
+			font-weight: 700;
+			line-height: 1.1;
+
+			&.is-red {
+				color: $stock-ink-red;
+			}
+		}
+
+		&__pip {
+			font-size: 12px;
+		}
+
+		&--large &__card {
+			min-width: 40px;
+			padding: 6px 6px;
+			font-size: 19px;
+		}
+
+		&--large &__pip {
+			font-size: 16px;
+		}
+	}
+}

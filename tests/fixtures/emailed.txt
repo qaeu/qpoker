@@ -1,0 +1,157 @@
+*********** # 1 **************
+PokerStars Hand #900000064774:  Hold'em No Limit ($0.02/$0.05 USD) - 2026/1=
+0/06 3:37:57 WET [2026/10/05 22:37:57 ET]
+Table 'Fixture I' 6-max Seat #3 is the button
+Seat 1: hero77 ($2.33 in chips)=20
+Seat 2: N1K0-ARG ($5 in chips)=20
+Seat 3: Brakeman1990 ($3.27 in chips)=20
+Seat 4: Olaf Two ($10.25 in chips)=20
+Seat 5: d.quill2021 ($5.36 in chips)=20
+Olaf Two: posts small blind $0.02
+d.quill2021: posts big blind $0.05
+*** HOLE CARDS ***
+Dealt to hero77 [Kd Ks]
+XoBoTHuK leaves the table
+hero77: raises $0.10 to $0.15
+N1K0-ARG: folds=20
+Brakeman1990: raises $0.10 to $0.25
+Olaf Two: folds=20
+d.quill2021: folds=20
+hero77: raises $0.57 to $0.82
+Brakeman1990: raises $2.45 to $3.27 and is all-in
+hero77: calls $1.51 and is all-in
+Uncalled bet ($0.94) returned to Brakeman1990
+*** FLOP *** [6s Qs 4c]
+*** TURN *** [6s Qs 4c] [Jd]
+*** RIVER *** [6s Qs 4c Jd] [5h]
+*** SHOW DOWN ***
+hero77: shows [Kd Ks] (a pair of Kings)
+Brakeman1990: shows [Jc Jh] (three of a kind, Jacks)
+Brakeman1990 cashed out the hand for $0.83 | Cash Out Fee $0.02
+*** SUMMARY ***
+Total pot $4.73 | Rake $0.24=20
+Board [6s Qs 4c Jd 5h]
+Seat 1: hero77 showed [Kd Ks] and lost with a pair of Kings
+Seat 2: N1K0-ARG folded before Flop (didn't bet)
+Seat 3: Brakeman1990 (button) showed [Jc Jh] and won ($4.49) with three of =
+a kind, Jacks (pot not awarded as player cashed out)
+Seat 4: Olaf Two (small blind) folded before Flop
+Seat 5: d.quill2021 (big blind) folded before Flop
+
+
+*********** # 2 **************
+PokerStars Hand #900000062516:  Hold'em No Limit ($0.02/$0.05 USD) - 2026/1=
+0/06 3:37:30 WET [2026/10/05 22:37:30 ET]
+Table 'Fixture I' 6-max Seat #2 is the button
+Seat 1: hero77 ($1.86 in chips)=20
+Seat 2: N1K0-ARG ($5 in chips)=20
+Seat 3: Brakeman1990 ($3.29 in chips)=20
+Seat 4: Olaf Two ($10.30 in chips)=20
+Seat 5: d.quill2021 ($5.36 in chips)=20
+Brakeman1990: posts small blind $0.02
+Olaf Two: posts big blind $0.05
+*** HOLE CARDS ***
+Dealt to hero77 [Ad Kh]
+d.quill2021: folds=20
+hero77: raises $0.10 to $0.15
+tessa0wren leaves the table
+N1K0-ARG: raises $0.25 to $0.40
+Brakeman1990: folds=20
+Olaf Two: folds=20
+hero77: raises $0.77 to $1.17
+N1K0-ARG: folds=20
+Uncalled bet ($0.77) returned to hero77
+hero77 collected $0.87 from pot
+XoBoTHuK joins the table at seat #6=20
+*** SUMMARY ***
+Total pot $0.87 | Rake $0=20
+Seat 1: hero77 collected ($0.87)
+Seat 2: N1K0-ARG (button) folded before Flop
+Seat 3: Brakeman1990 (small blind) folded before Flop
+Seat 4: Olaf Two (big blind) folded before Flop
+Seat 5: d.quill2021 folded before Flop (didn't bet)
+
+
+*********** # 3 **************
+PokerStars Hand #900000061635:  Hold'em No Limit ($0.02/$0.05 USD) - 2026/1=
+0/06 3:37:19 WET [2026/10/05 22:37:19 ET]
+Table 'Fixture I' 6-max Seat #1 is the button
+Seat 1: hero77 ($1.86 in chips)=20
+Seat 2: N1K0-ARG ($5 in chips)=20
+Seat 3: Brakeman1990 ($3.27 in chips)=20
+Seat 4: Olaf Two ($10.30 in chips)=20
+Seat 5: d.quill2021 ($5.36 in chips)=20
+Seat 6: tessa0wren ($5 in chips)=20
+N1K0-ARG: posts small blind $0.02
+Brakeman1990: posts big blind $0.05
+*** HOLE CARDS ***
+Dealt to hero77 [Tc 5h]
+Olaf Two: folds=20
+d.quill2021: folds=20
+tessa0wren: folds=20
+hero77: folds=20
+N1K0-ARG: folds=20
+Uncalled bet ($0.03) returned to Brakeman1990
+Brakeman1990 collected $0.04 from pot
+Brakeman1990: doesn't show hand=20
+*** SUMMARY ***
+Total pot $0.04 | Rake $0=20
+Seat 1: hero77 (button) folded before Flop (didn't bet)
+Seat 2: N1K0-ARG (small blind) folded before Flop
+Seat 3: Brakeman1990 (big blind) collected ($0.04)
+Seat 4: Olaf Two folded before Flop (didn't bet)
+Seat 5: d.quill2021 folded before Flop (didn't bet)
+Seat 6: tessa0wren folded before Flop (didn't bet)
+
+
+*********** # 5 **************
+PokerStars Hand #900000055686:  Hold'em No Limit ($0.02/$0.05 USD) - 2026/1=
+0/06 3:36:07 WET [2026/10/05 22:36:07 ET]
+Table 'Fixture I' 6-max Seat #5 is the button
+Seat 1: hero77 ($1.98 in chips)=20
+Seat 2: N1K0-ARG ($5 in chips)=20
+Seat 3: Brakeman1990 ($3.47 in chips)=20
+Seat 4: Olaf Two ($10.30 in chips)=20
+Seat 5: d.quill2021 ($5 in chips)=20
+Seat 6: tessa0wren ($5.02 in chips)=20
+tessa0wren: posts small blind $0.02
+hero77: posts big blind $0.05
+*** HOLE CARDS ***
+Dealt to hero77 [6h 8h]
+N1K0-ARG: folds=20
+Brakeman1990: calls $0.05
+Olaf Two: folds=20
+d.quill2021: raises $0.05 to $0.10
+tessa0wren: folds=20
+hero77: calls $0.05
+Brakeman1990: calls $0.05
+*** FLOP *** [2c 9d 5s]
+hero77: checks=20
+Brakeman1990: checks=20
+d.quill2021: checks=20
+*** TURN *** [2c 9d 5s] [Jd]
+hero77: checks=20
+Brakeman1990: checks=20
+d.quill2021: checks=20
+*** RIVER *** [2c 9d 5s Jd] [Jc]
+hero77: checks=20
+Brakeman1990: bets $0.10
+d.quill2021: calls $0.10
+hero77: folds=20
+*** SHOW DOWN ***
+Brakeman1990: shows [3s 3h] (two pair, Jacks and Threes)
+d.quill2021: shows [7h 9h] (two pair, Jacks and Nines)
+d.quill2021 collected $0.49 from pot
+*** SUMMARY ***
+Total pot $0.52 | Rake $0.03=20
+Board [2c 9d 5s Jd Jc]
+Seat 1: hero77 (big blind) folded on the River
+Seat 2: N1K0-ARG folded before Flop (didn't bet)
+Seat 3: Brakeman1990 showed [3s 3h] and lost with two pair, Jacks and Three=
+s
+Seat 4: Olaf Two folded before Flop (didn't bet)
+Seat 5: d.quill2021 (button) showed [7h 9h] and won ($0.49) with two pair, =
+Jacks and Nines
+Seat 6: tessa0wren (small blind) folded before Flop
+
+

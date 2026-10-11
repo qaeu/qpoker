@@ -1,0 +1,29 @@
+{
+	"compilerOptions": {
+		// General
+		"jsx": "preserve",
+		"jsxImportSource": "solid-js",
+		"target": "ESNext",
+
+		// Modules
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true,
+		"isolatedModules": true,
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"noEmit": true,
+		"paths": {
+			"#c/*": ["./src/components/*"],
+			"#styles/*": ["./src/styles/*.scss"],
+			"#*": ["./src/*"]
+		},
+
+		// Type Checking & Safety
+		// `node` is here for src/cli/ alone; nothing under src/utils/ may import
+		// `node:*`, since the same modules run in the browser worker.
+		"skipLibCheck": true,
+		"strict": true,
+		"types": ["vite/client", "vitest/globals", "node"]
+	},
+	"include": ["src", "tests", "*.ts"]
+}

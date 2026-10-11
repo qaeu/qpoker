@@ -1,0 +1,54 @@
+{
+	"name": "pokeranalysis",
+	"version": "0.1.0",
+	"description": "GTO hand-history coach for No-Limit Hold'em cash games",
+	"type": "module",
+	"bin": {
+		"pokeranalysis": "./bin/pokeranalysis.js"
+	},
+	"scripts": {
+		"start": "vite",
+		"dev": "vite",
+		"build": "vite build",
+		"serve": "vite preview",
+		"analyze": "tsx src/cli/main.ts",
+		"test": "vitest run",
+		"test:unit": "vitest run --project unit",
+		"test:integration": "vitest run --project integration",
+		"test:ui": "vitest --ui",
+		"test:coverage": "vitest --coverage",
+		"typecheck": "tsc --noEmit",
+		"lint": "eslint .",
+		"format": "prettier --write ."
+	},
+	"license": "AGPL-3.0-only",
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@solidjs/testing-library": "^0.8.10",
+		"@types/node": "^22.0.0",
+		"@vitest/coverage-v8": "^5.0.0",
+		"@vitest/ui": "^5.0.0",
+		"eslint": "^10.10.0",
+		"eslint-plugin-solid": "^0.17.1",
+		"globals": "^17.12.0",
+		"jsdom": "^30.0.1",
+		"prettier": "^3.6.2",
+		"sass": "^1.93.2",
+		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.46.2",
+		"vite": "^8.2.0",
+		"vite-plugin-solid": "^2.11.13",
+		"vitest": "^5.0.0"
+	},
+	"dependencies": {
+		"@ark-ui/solid": "5.38.1",
+		"lucide-solid": "^1.31.0",
+		"solid-js": "^1.9.14",
+		"tsx": "^4.23.13"
+	},
+	"imports": {
+		"#c/*": "./src/components/*",
+		"#styles/*": "./src/styles/*.scss",
+		"#*": "./src/*"
+	}
+}
