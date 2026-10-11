@@ -23,6 +23,12 @@
 			margin: 0;
 		}
 
+		// The count the number is out of: said, but not at the number's weight.
+		&__of {
+			font-weight: 500;
+			color: $ink-muted;
+		}
+
 		&__meta {
 			@include print(12px, 0.04em, $caps: false);
 			margin: 4px 0 0;
@@ -42,6 +48,29 @@
 			&.is-negative {
 				color: get($errors, 'fg-light');
 			}
+		}
+
+		&__unit {
+			margin-left: 2px;
+			font-size: 13px;
+			font-weight: 500;
+			color: $ink-muted;
+		}
+
+		&__nav {
+			display: flex;
+			gap: 4px;
+
+			button {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+			}
+		}
+
+		&__key {
+			@include key-cap;
+			font-family: inherit;
 		}
 
 		&__ungraded {
@@ -80,6 +109,17 @@
 				border-left-color: $primary;
 				color: get($neutrals, 'fg');
 			}
+		}
+
+		// A decision with nothing to say about it: a tag in the line, not a card.
+		&__baseline {
+			@include print(10px, 0.12em);
+			margin-left: 10px;
+			padding: 1px 6px;
+			border: 1px solid $rule;
+			border-radius: 2px;
+			color: $ink-muted;
+			white-space: nowrap;
 		}
 
 		&__grade {

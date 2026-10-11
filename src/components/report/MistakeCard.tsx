@@ -1,24 +1,20 @@
 /**
  * One graded decision: a mistake and how bad, a good play and what it was
- * worth, or neither; the hand it was in, and why.
+ * worth, or neither; why, and how far the finding can be trusted.
  */
 
 import { Match, Show, Switch, type Component } from 'solid-js';
 
-import PlayingCards from '#c/common/PlayingCards';
+import Confidence from '#c/common/Confidence';
 import { GOOD_PLAYS } from '#utils/coach/goodPlays';
 import type { Grading } from '#utils/coach/grade';
 import { MISTAKES } from '#utils/coach/mistakes';
-import type { HandReport } from '#utils/coach/report';
 import { signed } from '#utils/ui/format';
 
 import '#styles/report/MistakeCard';
 
 interface MistakeCardProps {
 	grading: Grading;
-	/** The hand the decision was made in, when the card is shown outside it. */
-	hand?: HandReport;
-	onOpenHand?: (handId: string) => void;
 }
 
 const MistakeCard: Component<MistakeCardProps> = (props) => (
@@ -35,7 +31,7 @@ const MistakeCard: Component<MistakeCardProps> = (props) => (
 					{(play) => `${play().rank} play`}
 				</Show>
 			</span>
-			<h3 class="mistake-card__title">
+			<h4 class="mistake-card__title">
 				<Show
 					when={props.grading.goodPlay}
 					fallback={
@@ -44,7 +40,7 @@ const MistakeCard: Component<MistakeCardProps> = (props) => (
 				>
 					{(play) => GOOD_PLAYS[play().type].title}
 				</Show>
-			</h3>
+			</h4>
 			<Show when={props.grading.mistake}>
 				<span class="mistake-card__cost">{signed(props.grading.evLostBb, 2)}bb</span>
 			</Show>
@@ -56,18 +52,6 @@ const MistakeCard: Component<MistakeCardProps> = (props) => (
 				)}
 			</Show>
 		</header>
-		<p class="mistake-card__spot">
-			<Show when={props.hand}>
-				{(hand) => (
-					<>
-						<PlayingCards cards={hand().heroCards} /> <span>{hand().position}</span>{' '}
-						·{' '}
-					</>
-				)}
-			</Show>
-			{props.grading.street} · {props.grading.spot} · {props.grading.confidence}{' '}
-			confidence
-		</p>
 		<p class="mistake-card__verdict">
 			<Switch
 				fallback={
@@ -96,15 +80,12 @@ const MistakeCard: Component<MistakeCardProps> = (props) => (
 			</Switch>
 		</p>
 		<p class="mistake-card__text">{props.grading.explanation}</p>
-		<Show when={props.hand && props.onOpenHand}>
-			<button
-				type="button"
-				class="mistake-card__open"
-				onClick={() => props.onOpenHand?.(props.grading.handId)}
-			>
-				Open hand #{props.grading.handId}
-			</button>
-		</Show>
+		<footer class="mistake-card__foot">
+			<Confidence level={props.grading.confidence} />
+			<span class="mistake-card__spot">
+				{props.grading.street} · {props.grading.spot}
+			</span>
+		</footer>
 	</article>
 );
 

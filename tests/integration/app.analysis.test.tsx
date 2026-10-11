@@ -7,6 +7,7 @@ import {
 	mountApp,
 	resetBrowserState,
 	RUN_TIMEOUT_MS,
+	settle,
 	switchTo,
 	TWO_HAND_LOG,
 } from './appHarness';
@@ -39,58 +40,148 @@ describe('analysing a log in the app', () => {
 		RUN_TIMEOUT_MS
 	);
 
-	it(
-		'lists the mistake and opens its hand',
-		async () => {
-			mountApp();
-			loadLog(TWO_HAND_LOG);
-			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+	describe('Review', () => {
+		const radio = (name: string | RegExp) =>
+			within(
+				screen.getByRole('radiogroup', { name: 'Show' })
+			).getByRole<HTMLInputElement>('radio', { name });
 
-			await goTo('#mistakes');
-			expect(await screen.findByText('1 of 1')).toBeTruthy();
-			expect(
-				screen.getByRole('heading', { name: 'Folded a standard open' })
-			).toBeTruthy();
-			expect(screen.getByText(/AA, UTG, first in/)).toBeTruthy();
+		it(
+			'lists the hands with a mistake and reads one',
+			async () => {
+				mountApp();
+				loadLog(TWO_HAND_LOG);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 
-			fireEvent.click(screen.getByRole('button', { name: 'Open hand #5001' }));
-			expect(await screen.findByRole('heading', { name: 'Hand #5001' })).toBeTruthy();
-			expect(screen.getByText('hero (UTG) folds')).toBeTruthy();
-			// The chart the fold was graded against is there to open.
-			expect(screen.getByText('Baseline range: UTG, first in')).toBeTruthy();
-			expect(screen.getByTitle(/^AA: raises 100%/).classList.contains('is-marked')).toBe(
-				true
-			);
+				await switchTo('Review');
+				expect(radio(/^Mistakes/).checked).toBe(true);
+				expect((await screen.findByRole('status')).textContent).toMatch(
+					/^1 hand · −\d+\.\dbb estimated$/
+				);
+				expect(screen.getByRole('heading', { name: 'Hand 1 of 2' })).toBeTruthy();
+				expect(
+					screen.getByRole('heading', { name: 'Folded a standard open' })
+				).toBeTruthy();
+				expect(screen.getByText('hero (UTG) folds')).toBeTruthy();
+				// The chart the fold was graded against is there to open.
+				expect(screen.getByText('Baseline range: UTG, first in')).toBeTruthy();
+				expect(
+					screen.getByTitle(/^AA: raises 100%/).classList.contains('is-marked')
+				).toBe(true);
+			},
+			RUN_TIMEOUT_MS
+		);
 
-			fireEvent.click(screen.getByRole('button', { name: 'Hand 5002' }));
-			expect(await screen.findByRole('heading', { name: 'Hand #5002' })).toBeTruthy();
-			expect(screen.getByText('hero (UTG) raises to $0.25')).toBeTruthy();
-		},
-		RUN_TIMEOUT_MS
-	);
+		it(
+			'widens the list, opens a row and keeps both in the address',
+			async () => {
+				mountApp();
+				loadLog(TWO_HAND_LOG);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+				await switchTo('Review');
 
-	it(
-		'lists the good plays and opens the hand of one',
-		async () => {
-			mountApp();
-			loadLog(TWO_HAND_LOG);
-			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
-			await goTo('#plays');
-			expect(await screen.findByText(/No good plays were picked out/)).toBeTruthy();
+				fireEvent.click(radio(/^All/));
+				await settle();
+				expect(window.location.hash).toBe('#review?show=all');
+				expect(screen.queryByRole('radiogroup', { name: 'Severity' })).toBeNull();
 
-			loadLog(`${TWO_HAND_LOG}\n${handText(TOUGH_FOLD)}`);
-			const title = 'Laid down a strong hand without the price';
-			expect(
-				await screen.findByRole('heading', { name: title }, { timeout: RUN_TIMEOUT_MS })
-			).toBeTruthy();
-			expect(screen.getByText('great play')).toBeTruthy();
+				fireEvent.click(screen.getByRole('button', { name: 'Hand 2, Ah Kd' }));
+				expect(await screen.findByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
+				expect(screen.getByText('hero (UTG) raises to $0.25')).toBeTruthy();
+				expect(screen.getByText('on baseline')).toBeTruthy();
+				expect(window.location.hash).toBe('#review?show=all&hand=5002');
 
-			fireEvent.click(screen.getByRole('button', { name: 'Open hand #6001' }));
-			expect(await screen.findByRole('heading', { name: 'Hand #6001' })).toBeTruthy();
-			expect(screen.getByRole('heading', { name: title })).toBeTruthy();
-		},
-		RUN_TIMEOUT_MS
-	);
+				// A step is not somewhere to come back to: it rewrites the entry.
+				const entries = window.history.length;
+				fireEvent.keyDown(window, { key: 'k' });
+				expect(await screen.findByRole('heading', { name: 'Hand 1 of 2' })).toBeTruthy();
+				expect(window.location.hash).toBe('#review?show=all&hand=5001');
+				expect(window.history.length).toBe(entries);
+			},
+			RUN_TIMEOUT_MS
+		);
+
+		it(
+			'comes back to the same list and hand after a reload',
+			async () => {
+				const unmount = mountApp();
+				loadLog(TWO_HAND_LOG);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+				await goTo('#review?show=all&hand=5002');
+				expect(screen.getByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
+
+				unmount();
+				mountApp();
+				expect(screen.getByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
+				expect(radio(/^All/).checked).toBe(true);
+			},
+			RUN_TIMEOUT_MS
+		);
+
+		it(
+			'lists the good plays',
+			async () => {
+				mountApp();
+				loadLog(TWO_HAND_LOG);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+				await goTo('#review?show=plays');
+				expect(await screen.findByText(/No good plays were picked out/)).toBeTruthy();
+
+				loadLog(`${TWO_HAND_LOG}\n${handText(TOUGH_FOLD)}`);
+				const title = 'Laid down a strong hand without the price';
+				expect(
+					await screen.findByRole('heading', { name: title }, { timeout: RUN_TIMEOUT_MS })
+				).toBeTruthy();
+				expect(screen.getByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
+				expect(screen.getByRole('status').textContent).toMatch(/^1 hand · \+/);
+				// Once in the row, once on the card.
+				expect(screen.getAllByText('great play')).toHaveLength(2);
+			},
+			RUN_TIMEOUT_MS
+		);
+
+		it(
+			'sends the old tabs’ addresses to their lists',
+			async () => {
+				mountApp();
+				loadLog(TWO_HAND_LOG);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+
+				await goTo('#hands');
+				expect(window.location.hash).toBe('#review?show=all');
+				expect(radio(/^All/).checked).toBe(true);
+
+				await goTo('#mistakes');
+				expect(window.location.hash).toBe('#review');
+				expect(radio(/^Mistakes/).checked).toBe(true);
+
+				await goTo('#plays');
+				expect(window.location.hash).toBe('#review?show=plays');
+			},
+			RUN_TIMEOUT_MS
+		);
+
+		it(
+			'drops the open hand when another log is loaded',
+			async () => {
+				mountApp();
+				loadLog(TWO_HAND_LOG);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+				await goTo('#review?show=all&hand=5002');
+
+				loadLog(handText(TOUGH_FOLD));
+				expect(
+					await screen.findByRole(
+						'heading',
+						{ name: 'Hand 1 of 1' },
+						{ timeout: RUN_TIMEOUT_MS }
+					)
+				).toBeTruthy();
+				expect(window.location.hash).toBe('#review?show=all');
+			},
+			RUN_TIMEOUT_MS
+		);
+	});
 
 	it(
 		'shows the opening ranges and opens a hand that strayed',
@@ -119,7 +210,8 @@ describe('analysing a log in the app', () => {
 				screen.getByRole('heading', { name: 'Folded inside the chart' })
 			).toBeTruthy();
 			fireEvent.click(screen.getByRole('button', { name: 'AA · hand #5001' }));
-			expect(await screen.findByRole('heading', { name: 'Hand #5001' })).toBeTruthy();
+			expect(await screen.findByRole('heading', { name: 'Hand 1 of 2' })).toBeTruthy();
+			expect(window.location.hash).toBe('#review?show=all&hand=5001');
 		},
 		RUN_TIMEOUT_MS
 	);
@@ -127,14 +219,13 @@ describe('analysing a log in the app', () => {
 	it(
 		'keeps the report across a remount',
 		async () => {
-			mountApp();
+			const unmount = mountApp();
 			loadLog(TWO_HAND_LOG);
 			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 			const stored = localStorage.getItem('pokeranalysis:report');
 			expect(stored).not.toBeNull();
 
-			document.body.innerHTML = '';
-			localStorage.setItem('pokeranalysis:report', stored!);
+			unmount();
 			mountApp();
 			expect(screen.getByText('Frequencies')).toBeTruthy();
 		},

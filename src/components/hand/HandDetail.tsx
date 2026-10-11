@@ -1,7 +1,8 @@
 /**
  * One hand replayed: the cards, the action street by street, and each of the
- * hero's decisions with its grade. A preflop decision graded off a chart shows
- * that chart, with the hand marked on it.
+ * hero's decisions with its grade. A decision the baseline has no quarrel with
+ * is tagged in its line; a mistake or a good play gets a card, and with it the
+ * chart a preflop one was graded off, the hand marked on it.
  */
 
 import { createMemo, For, Show, type Component } from 'solid-js';
@@ -20,6 +21,12 @@ import '#styles/hand/HandDetail';
 
 interface HandDetailProps {
 	hand: HandReport;
+	/** Where the hand comes in the log, counted from one, and out of how many. */
+	number: number;
+	total: number;
+	/** Steps through whatever list the hand is being read from; absent at its ends. */
+	onPrev?: () => void;
+	onNext?: () => void;
 }
 
 /** The board cards a street turned over. */
@@ -51,21 +58,39 @@ const HandDetail: Component<HandDetailProps> = (props) => {
 				<span class="hand-detail__action">{lineProps.line.text}</span>
 				<Show when={grading()}>
 					{(graded) => (
-						<div class="hand-detail__grade">
-							<MistakeCard grading={graded()} />
-							<Show when={graded().preflop?.chart}>
-								{(chartId) => (
-									<details class="hand-detail__chart">
-										<summary>Baseline range: {CHART_LABELS[chartId()]}</summary>
-										<RangeGrid
-											strategy={chart(chartId(), graded().preflop!.depth)}
-											marked={graded().preflop!.hand}
-										/>
-										<RangeKey />
-									</details>
-								)}
-							</Show>
-						</div>
+						<Show
+							when={graded().mistake || graded().goodPlay}
+							fallback={
+								<span
+									class="hand-detail__baseline"
+									title={
+										graded().chosen === graded().recommended ?
+											undefined
+										:	`The baseline leans to ${graded().recommended}, but not by enough to matter.`
+									}
+								>
+									{graded().chosen === graded().recommended ?
+										'on baseline'
+									:	'near baseline'}
+								</span>
+							}
+						>
+							<div class="hand-detail__grade">
+								<MistakeCard grading={graded()} />
+								<Show when={graded().preflop?.chart}>
+									{(chartId) => (
+										<details class="hand-detail__chart">
+											<summary>Baseline range: {CHART_LABELS[chartId()]}</summary>
+											<RangeGrid
+												strategy={chart(chartId(), graded().preflop!.depth)}
+												marked={graded().preflop!.hand}
+											/>
+											<RangeKey />
+										</details>
+									)}
+								</Show>
+							</div>
+						</Show>
 					)}
 				</Show>
 			</li>
@@ -77,15 +102,42 @@ const HandDetail: Component<HandDetailProps> = (props) => {
 			<header class="hand-detail__head">
 				<PlayingCards cards={props.hand.heroCards} size="large" />
 				<div class="hand-detail__facts">
-					<h2 class="hand-detail__title">Hand #{props.hand.id}</h2>
+					<h2 class="hand-detail__title">
+						Hand {props.number} <span class="hand-detail__of">of {props.total}</span>
+					</h2>
 					<p class="hand-detail__meta">
 						{shortTime(props.hand.timestamp)} · {props.hand.table} · {props.hand.players}
-						-handed · {props.hand.position ?? 'not dealt in'}
+						-handed · {props.hand.position ?? 'not dealt in'} · #{props.hand.id}
 					</p>
 				</div>
 				<span class={`hand-detail__result ${signClass(props.hand.netBb) ?? ''}`}>
-					{signed(props.hand.netBb)}bb
+					{signed(props.hand.netBb)}
+					<span class="hand-detail__unit">bb</span>
 				</span>
+				<div class="hand-detail__nav">
+					<button
+						type="button"
+						aria-label="Previous hand in the list"
+						disabled={!props.onPrev}
+						onClick={() => props.onPrev?.()}
+					>
+						Prev
+						<kbd class="hand-detail__key" aria-hidden="true">
+							K
+						</kbd>
+					</button>
+					<button
+						type="button"
+						aria-label="Next hand in the list"
+						disabled={!props.onNext}
+						onClick={() => props.onNext?.()}
+					>
+						Next
+						<kbd class="hand-detail__key" aria-hidden="true">
+							J
+						</kbd>
+					</button>
+				</div>
 			</header>
 
 			<Show when={!props.hand.gradeable}>

@@ -42,8 +42,11 @@
 		}
 
 		&__title {
+			@include print(13px, 0.2em);
 			flex: 1;
 			margin: 0;
+			font-weight: 600;
+			color: get($neutrals, 'fg');
 		}
 
 		&__cost {
@@ -56,12 +59,6 @@
 			&.is-positive {
 				color: get($successes, 'fg-light');
 			}
-		}
-
-		&__spot {
-			@include print(12px, 0.04em, $caps: false);
-			margin: 10px 0 0;
-			color: $ink-muted;
 		}
 
 		&__verdict {
@@ -77,8 +74,20 @@
 			color: get($neutrals, 'fg-light');
 		}
 
-		&__open {
+		// What the finding rests on, under it: how sure, and of which spot.
+		&__foot {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 6px 16px;
 			margin-top: 12px;
+			padding-top: 10px;
+			border-top: 1px solid $rule;
+		}
+
+		&__spot {
+			@include print(12px, 0.04em, $caps: false);
+			color: $ink-muted;
 		}
 	}
 }

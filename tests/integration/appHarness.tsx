@@ -52,8 +52,9 @@ export function resetBrowserState(): void {
 	window.location.hash = '';
 }
 
-export function mountApp(): void {
-	render(() => <App />);
+/** Returns the way to take the app down again, as closing the tab would. */
+export function mountApp(): () => void {
+	return render(() => <App />).unmount;
 }
 
 /** Picks `text` as the hand-history file, as the file dialog would. */

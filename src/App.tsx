@@ -7,12 +7,10 @@
 import { createSignal, Match, onCleanup, Show, Switch, type Component } from 'solid-js';
 
 import AppHeader from '#c/common/AppHeader';
-import HandsView from '#c/hand/HandsView';
 import OpeningsView from '#c/ranges/OpeningsView';
 import RangesView from '#c/ranges/RangesView';
-import GoodPlaysView from '#c/report/GoodPlaysView';
-import MistakesView from '#c/report/MistakesView';
 import SummaryView from '#c/report/SummaryView';
+import ReviewView from '#c/review/ReviewView';
 import LogDrop, { type Progress } from '#c/upload/LogDrop';
 import type { AnalysisWorkerResponse } from '#utils/analysisWorkerProtocol';
 import { createHashRoute, type AppTab } from '#utils/app/hashRoute';
@@ -49,6 +47,8 @@ const App: Component = () => {
 		setProgress(null);
 		if (response.type === 'complete') {
 			setReport(response.report);
+			// A hand id means nothing in another log.
+			if (route().review.hand) navigate({ review: { hand: null } }, { replace: true });
 			saveReport(fileName, response.report);
 		} else if (response.type === 'error') {
 			setError(response.message);
@@ -103,18 +103,11 @@ const App: Component = () => {
 									<Match when={tab() === 'summary'}>
 										<SummaryView report={loaded} />
 									</Match>
-									{/* Until Review has a view of its own, the three it replaces. */}
-									<Match when={tab() === 'review' && route().review.show === 'mistakes'}>
-										<MistakesView report={loaded} onOpenHand={openHand} />
-									</Match>
-									<Match when={tab() === 'review' && route().review.show === 'plays'}>
-										<GoodPlaysView report={loaded} onOpenHand={openHand} />
-									</Match>
 									<Match when={tab() === 'review'}>
-										<HandsView
+										<ReviewView
 											report={loaded}
-											selected={route().review.hand}
-											onSelect={(hand) => navigate({ review: { hand } })}
+											query={route().review}
+											onQuery={(change, options) => navigate({ review: change }, options)}
 										/>
 									</Match>
 									<Match when={tab() === 'openings'}>

@@ -1,0 +1,109 @@
+@use '../base' as *;
+
+@layer screen {
+	.review-row {
+		--mark: #{$ink-muted};
+		display: grid;
+		grid-template-columns: 40px 34px auto 1fr;
+		align-items: center;
+		gap: 6px 8px;
+		width: 100%;
+		padding: 7px 10px;
+		border-color: transparent;
+		background-color: transparent;
+		box-shadow: none;
+		font-family: 'Archivo', system-ui, sans-serif;
+		font-size: 13px;
+		font-weight: 400;
+		letter-spacing: 0;
+		text-align: left;
+		text-transform: none;
+		font-variant-numeric: tabular-nums;
+
+		// The selected row is marked, not filled: gold on a list this long would
+		// drown the cards.
+		&.active {
+			border-color: $primary;
+			background-color: $cut-light;
+			color: get($neutrals, 'fg');
+		}
+
+		// On its own screen there is no selected row, so each one is a panel to tap.
+		@include compact {
+			padding: 10px;
+			border-color: $rule;
+			background-color: oklch(from $panel l c h / 0.5);
+		}
+
+		&__time,
+		&__seat {
+			color: $ink-muted;
+		}
+
+		&__net {
+			text-align: right;
+			font-weight: 600;
+
+			&.is-positive {
+				color: get($successes, 'fg-light');
+			}
+
+			&.is-negative {
+				color: get($errors, 'fg-light');
+			}
+		}
+
+		// One line per finding, under the hand it was made in.
+		&__finding {
+			display: flex;
+			grid-column: 1 / -1;
+			align-items: baseline;
+			gap: 8px;
+			min-width: 0;
+
+			&.is-inaccuracy {
+				--mark: #{get($infos, 'fg-light')};
+			}
+
+			&.is-mistake {
+				--mark: #{get($warnings, 'fg-light')};
+			}
+
+			&.is-blunder {
+				--mark: #{get($errors, 'fg-light')};
+			}
+
+			&.is-good-play {
+				--mark: #{get($successes, 'fg-light')};
+			}
+		}
+
+		&__rank {
+			@include print(10px, 0.16em);
+			flex: none;
+			color: var(--mark);
+			font-weight: 700;
+		}
+
+		&__title {
+			flex: 1;
+			min-width: 0;
+			color: get($neutrals, 'fg');
+		}
+
+		&__cost {
+			flex: none;
+			font-family: 'Archivo Narrow', 'Archivo', sans-serif;
+			font-size: 14px;
+			font-weight: 700;
+
+			&.is-positive {
+				color: get($successes, 'fg-light');
+			}
+
+			&.is-negative {
+				color: get($errors, 'fg-light');
+			}
+		}
+	}
+}
