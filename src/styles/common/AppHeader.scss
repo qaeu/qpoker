@@ -14,29 +14,28 @@
 
 		&__inner {
 			display: flex;
-			flex-direction: row;
-			align-items: stretch;
-			justify-content: space-between;
+			align-items: center;
+			column-gap: 28px;
 			max-width: 1400px;
 			margin: 0 auto;
 			padding: 0 20px;
 
+			// Narrow: the wordmark over the log, the button beside both, and the
+			// views in a bar of their own underneath.
 			@include compact {
-				flex-direction: column;
-				align-items: stretch;
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto;
+				grid-template-areas:
+					'title load'
+					'session load'
+					'tabs tabs';
+				column-gap: 10px;
+				padding-top: 6px;
 			}
 
 			@include phone {
-				padding: 0 12px;
+				padding-inline: 12px;
 			}
-		}
-
-		&__title-row {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			gap: 12px;
-			min-width: 0;
 		}
 
 		// Stamped into the rail, the way a table's name is printed on the apron.
@@ -51,7 +50,8 @@
 			text-shadow: 0 1px 0 rgb(0 0 0 / 0.6);
 
 			@include compact {
-				padding: 14px 0;
+				grid-area: title;
+				padding: 4px 0 0;
 			}
 		}
 
@@ -66,9 +66,24 @@
 		&__tab-list {
 			display: flex;
 			align-self: stretch;
+			align-items: stretch;
 
 			@include compact {
-				align-self: auto;
+				grid-area: tabs;
+				margin-top: 2px;
+			}
+		}
+
+		// Sets the reference view apart from the three that read the log.
+		&__rule {
+			align-self: center;
+			width: 1px;
+			height: 20px;
+			margin: 0 8px;
+			background-color: $rule-strong;
+
+			@include compact {
+				display: none;
 			}
 		}
 
@@ -79,14 +94,15 @@
 			font-family: 'Archivo', system-ui, sans-serif;
 			// Lighter than the shared tab's 600, which keeps them under the wordmark.
 			font-weight: 500;
-			padding: 0 18px;
+			padding: 0 16px;
 
 			// Even tap targets across the bar, rather than the labels bunched at
 			// one end of it.
 			@include compact {
 				flex: 1;
 				justify-content: center;
-				padding: 12px 8px;
+				min-height: $control-height-touch;
+				padding: 0 8px;
 			}
 
 			// At 360px the tracking and the side padding are what give, since a wrapped
@@ -95,7 +111,98 @@
 			@include phone {
 				font-size: 12px;
 				letter-spacing: 0.1em;
-				padding: 12px 4px;
+				padding: 0 4px;
+				white-space: nowrap;
+			}
+		}
+
+		// The log on the table, said once here rather than at the top of each view.
+		&__session {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+			min-width: 0;
+			margin: 0 0 0 auto;
+			padding: 8px 0;
+			text-align: right;
+
+			@include compact {
+				grid-area: session;
+				margin: 0;
+				padding: 0;
+				text-align: left;
+			}
+		}
+
+		&__session + &__load {
+			margin-left: 0;
+		}
+
+		&__session-log,
+		&__session-file {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		&__session-log {
+			font-size: 13px;
+			font-weight: 600;
+			color: get($neutrals, 'fg');
+
+			@include compact {
+				font-size: 12px;
+				font-weight: 400;
+				color: get($neutrals, 'fg-light');
+			}
+		}
+
+		&__session-file {
+			font-size: 12px;
+			color: get($neutrals, 'fg-light');
+
+			@include compact {
+				display: none;
+			}
+		}
+
+		&__load {
+			display: inline-flex;
+			flex: none;
+			align-items: center;
+			gap: 8px;
+			// With no log there is no session block to push it to the far end.
+			margin-left: auto;
+			white-space: nowrap;
+
+			svg {
+				width: 16px;
+				height: 16px;
+			}
+
+			@include compact {
+				grid-area: load;
+				align-self: center;
+				margin-left: 0;
+			}
+
+			// Only the icon, at the size of a thumb.
+			@include phone {
+				justify-content: center;
+				width: $control-height-touch;
+				height: $control-height-touch;
+				padding: 0;
+			}
+		}
+
+		// Still the button's name to a screen reader when the icon stands alone.
+		&__load-label {
+			@include phone {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				overflow: hidden;
+				clip-path: inset(50%);
 				white-space: nowrap;
 			}
 		}

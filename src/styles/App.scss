@@ -3,6 +3,12 @@
 @layer screen {
 	.app {
 		@include container;
+
+		// A file held over the window: the whole table is where it lands.
+		&.is-dragging {
+			outline: 2px dashed $primary;
+			outline-offset: -8px;
+		}
 	}
 
 	.app__empty {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { fireEvent, screen, within } from '@solidjs/testing-library';
+import { fireEvent, screen, waitFor, within } from '@solidjs/testing-library';
 
 import {
 	goTo,
@@ -34,8 +34,12 @@ describe('analysing a log in the app', () => {
 			expect(within(vpip).getByText('1/2')).toBeTruthy();
 			expect(within(vpip).getByText('50%')).toBeTruthy();
 			expect(screen.getByRole('row', { name: /Folded a standard open 1/ })).toBeTruthy();
-			// The zone shrinks to a line once there is a report on the page.
-			expect(screen.getByRole('button', { name: 'Load another log' })).toBeTruthy();
+			// The log is named in the header, which is also where the next one loads.
+			const header = within(screen.getByRole('banner'));
+			expect(header.getByText('hero · $0.05/$0.10 · 2 hands')).toBeTruthy();
+			expect(header.getByText('hands.txt')).toBeTruthy();
+			expect(header.getByRole('button', { name: 'Load another log' })).toBeTruthy();
+			expect(screen.queryByRole('heading', { name: 'Drop a hand history' })).toBeNull();
 		},
 		RUN_TIMEOUT_MS
 	);
@@ -232,6 +236,70 @@ describe('analysing a log in the app', () => {
 		RUN_TIMEOUT_MS
 	);
 
+	describe('loading another log', () => {
+		it(
+			'keeps the report on the page until the next one lands',
+			async () => {
+				mountApp();
+				loadLog(TWO_HAND_LOG);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+
+				loadLog(handText(TOUGH_FOLD), 'second.txt');
+				const status = await screen.findByRole('status');
+				expect(status.textContent).toMatch(/^Grading hand \d+ of \d+/);
+				// The strip is over the view, not in place of it.
+				expect(status.closest('.log-status')!.nextElementSibling!.className).toBe(
+					'summary-view'
+				);
+				expect(screen.getByText('hero · $0.05/$0.10 · 2 hands')).toBeTruthy();
+
+				expect(
+					await screen.findByText(
+						'hero · $0.05/$0.10 · 1 hand',
+						{},
+						{ timeout: RUN_TIMEOUT_MS }
+					)
+				).toBeTruthy();
+				expect(screen.getByText('second.txt')).toBeTruthy();
+				expect(screen.queryByRole('status')).toBeNull();
+			},
+			RUN_TIMEOUT_MS
+		);
+
+		it(
+			'leaves the report alone when the run is cancelled',
+			async () => {
+				mountApp();
+				loadLog(TWO_HAND_LOG);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+
+				loadLog(handText(TOUGH_FOLD), 'second.txt');
+				fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+				await waitFor(() => expect(screen.queryByRole('status')).toBeNull(), {
+					timeout: RUN_TIMEOUT_MS,
+				});
+				expect(screen.getByText('hero · $0.05/$0.10 · 2 hands')).toBeTruthy();
+				expect(screen.getByText('hands.txt')).toBeTruthy();
+			},
+			RUN_TIMEOUT_MS
+		);
+
+		it(
+			'reports a file with no hands over the report it could not replace',
+			async () => {
+				mountApp();
+				loadLog(TWO_HAND_LOG);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+
+				loadLog('just some notes');
+				const alert = await screen.findByRole('alert', {}, { timeout: RUN_TIMEOUT_MS });
+				expect(alert.textContent).toContain('No PokerStars hands found in that file.');
+				expect(screen.getByText('Frequencies')).toBeTruthy();
+			},
+			RUN_TIMEOUT_MS
+		);
+	});
+
 	it(
 		'says so when the file holds no hands',
 		async () => {
@@ -255,5 +323,10 @@ describe('analysing a log in the app', () => {
 			true
 		);
 		expect(screen.getByTitle(/^ATo: raises 50%/)).toBeTruthy();
+		// With no log there is nothing to grade against them, and one way to get one.
+		expect(
+			screen.getByText(/Load a hand history with the button in the header/)
+		).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Load a log' })).toBeTruthy();
 	});
 });

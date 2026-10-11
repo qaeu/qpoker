@@ -25,16 +25,6 @@
 			background-color: get($primaries, 'fade-light');
 		}
 
-		// With a report on the page the zone is a line at its foot, not the page.
-		&--compact {
-			flex-direction: row;
-			flex-wrap: wrap;
-			justify-content: center;
-			max-width: none;
-			margin: 30px 0 0;
-			padding: 16px;
-		}
-
 		&__icon {
 			width: 30px;
 			height: 30px;
@@ -97,6 +87,26 @@
 			@include print(13px, 0.01em, $caps: false);
 			margin: 0;
 			color: get($errors, 'fg-light');
+		}
+	}
+
+	// With a report on the page a run reports in a strip over the view, not in a
+	// zone of its own: the report stays readable until the next one lands.
+	.log-status {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		margin-bottom: 20px;
+		padding: 10px 14px;
+		border: 1px dashed $rule-strong;
+		border-radius: 3px;
+
+		.log-drop__progress {
+			flex-direction: row;
+			flex-wrap: wrap;
+			justify-content: center;
 		}
 	}
 }

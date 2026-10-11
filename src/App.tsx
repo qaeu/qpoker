@@ -11,7 +11,7 @@ import OpeningsView from '#c/ranges/OpeningsView';
 import RangesView from '#c/ranges/RangesView';
 import SummaryView from '#c/report/SummaryView';
 import ReviewView from '#c/review/ReviewView';
-import LogDrop, { type Progress } from '#c/upload/LogDrop';
+import LogDrop, { createFilePicker, LogStatus, type Progress } from '#c/upload/LogDrop';
 import type { AnalysisWorkerResponse } from '#utils/analysisWorkerProtocol';
 import { createHashRoute, type AppTab } from '#utils/app/hashRoute';
 import { loadReport, saveReport } from '#utils/app/storage';
@@ -24,9 +24,10 @@ const App: Component = () => {
 	const [route, navigate] = createHashRoute();
 	const tab = () => route().tab;
 	const setTab = (next: AppTab) => navigate({ tab: next });
-	const [report, setReport] = createSignal<AnalysisReport | null>(
-		loadReport()?.report ?? null
-	);
+	const stored = loadReport();
+	const [report, setReport] = createSignal<AnalysisReport | null>(stored?.report ?? null);
+	// The file the report on the page came from, not the one being graded.
+	const [fileName, setFileName] = createSignal(stored?.fileName ?? '');
 	const [progress, setProgress] = createSignal<Progress | null>(null);
 	const [error, setError] = createSignal<string | null>(null);
 
@@ -34,7 +35,7 @@ const App: Component = () => {
 	// pays for a second thread.
 	let worker: Worker | undefined;
 	let latestRequestId = 0;
-	let fileName = '';
+	let pendingName = '';
 
 	const onMessage = (event: MessageEvent<AnalysisWorkerResponse>) => {
 		const response = event.data;
@@ -49,7 +50,8 @@ const App: Component = () => {
 			setReport(response.report);
 			// A hand id means nothing in another log.
 			if (route().review.hand) navigate({ review: { hand: null } }, { replace: true });
-			saveReport(fileName, response.report);
+			setFileName(pendingName);
+			saveReport(pendingName, response.report);
 		} else if (response.type === 'error') {
 			setError(response.message);
 		}
@@ -62,7 +64,7 @@ const App: Component = () => {
 			});
 			worker.addEventListener('message', onMessage);
 		}
-		fileName = name;
+		pendingName = name;
 		latestRequestId++;
 		setError(null);
 		setProgress({ done: 0, total: 0 });
@@ -78,54 +80,73 @@ const App: Component = () => {
 	const openHand = (handId: string) =>
 		navigate({ tab: 'review', review: { ...DEFAULT_REVIEW, show: 'all', hand: handId } });
 
-	const drop = (compact: boolean) => (
-		<LogDrop
-			onLoad={analyse}
-			onCancel={cancel}
-			progress={progress()}
-			error={error()}
-			compact={compact}
-		/>
-	);
+	const picker = createFilePicker(analyse);
+
+	const session = () => {
+		const loaded = report();
+		return loaded ?
+				{
+					hero: loaded.hero,
+					stakes: loaded.stakes,
+					hands: loaded.handCount,
+					fileName: fileName(),
+				}
+			:	null;
+	};
 
 	return (
 		<>
-			<AppHeader tab={tab()} onTabChange={setTab} />
-			<main class="app">
+			<AppHeader
+				tab={tab()}
+				onTabChange={setTab}
+				session={session()}
+				onLoad={picker.open}
+			/>
+			<main class="app" classList={{ 'is-dragging': picker.dragging() }}>
+				<picker.Input />
+				<Show when={report() && (progress() || error())}>
+					<div class="log-status">
+						<LogStatus progress={progress()} error={error()} onCancel={cancel} />
+					</div>
+				</Show>
 				<Switch>
 					<Match when={tab() === 'ranges'}>
 						<RangesView />
+						<Show when={!report()}>
+							<p class="app__empty">
+								Load a hand history with the button in the header to have it graded
+								against these ranges.
+							</p>
+						</Show>
 					</Match>
 					<Match when={report()} keyed>
 						{(loaded) => (
-							<>
-								<Switch>
-									<Match when={tab() === 'summary'}>
-										<SummaryView report={loaded} />
-									</Match>
-									<Match when={tab() === 'review'}>
-										<ReviewView
-											report={loaded}
-											query={route().review}
-											onQuery={(change, options) => navigate({ review: change }, options)}
-										/>
-									</Match>
-									<Match when={tab() === 'openings'}>
-										<OpeningsView report={loaded} onOpenHand={openHand} />
-									</Match>
-								</Switch>
-								{drop(true)}
-							</>
+							<Switch>
+								<Match when={tab() === 'summary'}>
+									<SummaryView report={loaded} />
+								</Match>
+								<Match when={tab() === 'review'}>
+									<ReviewView
+										report={loaded}
+										query={route().review}
+										onQuery={(change, options) => navigate({ review: change }, options)}
+									/>
+								</Match>
+								<Match when={tab() === 'openings'}>
+									<OpeningsView report={loaded} onOpenHand={openHand} />
+								</Match>
+							</Switch>
 						)}
 					</Match>
-					<Match when={!report()}>{drop(false)}</Match>
+					<Match when={!report()}>
+						<LogDrop
+							picker={picker}
+							onCancel={cancel}
+							progress={progress()}
+							error={error()}
+						/>
+					</Match>
 				</Switch>
-				<Show when={tab() === 'ranges' && !report()}>
-					<p class="app__empty">
-						Load a hand history from the Summary tab to have it graded against these
-						ranges.
-					</p>
-				</Show>
 			</main>
 		</>
 	);
