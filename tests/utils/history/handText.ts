@@ -145,3 +145,24 @@ export const UNRECONCILED: HandSpec = {
 	pot: '1.25',
 	winner: 'hero',
 };
+
+/** Seven-deuce opened on the button: an open the chart never makes. */
+export const BUTTON_TRASH_OPEN: HandSpec = {
+	id: 5003,
+	heroCards: '7h 2c',
+	button: 1,
+	lines: [
+		...BLINDS_HERO_BTN,
+		'*** HOLE CARDS ***',
+		'p4: folds',
+		'p5: folds',
+		'p6: folds',
+		'hero: raises $0.15 to $0.25',
+		'p2: folds',
+		'p3: folds',
+		'Uncalled bet ($0.15) returned to hero',
+		'hero collected $0.25 from pot',
+	],
+	pot: '0.25',
+	winner: 'hero',
+};

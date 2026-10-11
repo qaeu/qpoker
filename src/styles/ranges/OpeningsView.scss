@@ -1,19 +1,38 @@
 @use '../base' as *;
 
 @layer screen {
+	// The seats and the grid of the one that is picked, side by side; the grid
+	// goes under the table where there is not the width for both.
 	.openings-view {
-		@include card;
-		max-width: 640px;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		gap: 28px 40px;
+
+		&__seats {
+			flex: 1 1 400px;
+			min-width: 0;
+		}
+
+		&__grid {
+			flex: 999 1 420px;
+			min-width: 0;
+			max-width: 560px;
+		}
 
 		&__title {
-			@include panel-title;
-			margin-bottom: 12px;
+			margin: 0 0 4px;
+		}
+
+		&__lead {
+			@include print(13px, 0.01em, $caps: false);
+			margin: 0 0 14px;
+			color: $ink-muted;
+			font-variant-numeric: tabular-nums;
 		}
 
 		&__subtitle {
-			@include print(11px, 0.16em);
-			margin: 20px 0 8px;
-			color: $ink-muted;
+			margin: 26px 0 10px;
 		}
 
 		&__table {
@@ -24,10 +43,15 @@
 
 			th,
 			td {
-				padding: 7px 8px 7px 0;
+				padding: 7px 8px;
 				border-bottom: 1px solid $rule;
-				text-align: left;
+				text-align: right;
 				font-weight: 400;
+			}
+
+			th:first-child {
+				padding-left: 0;
+				text-align: left;
 			}
 
 			thead th {
@@ -36,8 +60,13 @@
 				color: $ink-muted;
 			}
 
+			// The seat's key is the row's height, so the cell gives up its own padding.
 			tbody th {
-				color: get($neutrals, 'fg');
+				padding-block: 4px;
+			}
+
+			tr.is-selected {
+				background-color: $cut-trace;
 			}
 
 			tr.is-leak td:nth-child(3) {
@@ -46,42 +75,48 @@
 			}
 		}
 
-		&__flag {
+		// The row's name and the control that picks it are the same thing.
+		&__seat {
+			min-width: 62px;
+		}
+
+		&__reading:is(th, td) {
+			text-align: left;
+		}
+
+		td#{&}__reading {
 			@include print(10px, 0.12em);
-			margin-left: 8px;
-		}
-
-		&__field {
-			display: flex;
-			flex-direction: column;
-			gap: 5px;
-			max-width: 240px;
-			margin: 24px 0 12px;
-		}
-
-		&__label {
-			@include print(10px, 0.16em);
+			font-weight: 600;
 			color: $ink-muted;
 		}
 
-		&__select {
-			@include form-control;
+		tr.is-leak td#{&}__reading {
+			color: get($errors, 'fg-light');
 		}
 
-		&__figures {
-			@include print(13px, 0.01em, $caps: false);
-			margin: 0 0 12px;
-			color: $ink-muted;
-			font-variant-numeric: tabular-nums;
-		}
-
+		// The three ways a hand strays, each with the hands that did.
 		&__strays {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 8px;
-			margin: 0;
-			padding: 0;
-			list-style: none;
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 14px;
+
+			th,
+			td {
+				padding: 9px 8px 9px 0;
+				border-bottom: 1px solid $rule;
+				text-align: left;
+				font-weight: 400;
+			}
+
+			th {
+				width: 46%;
+				color: $ink-muted;
+			}
+
+			td {
+				padding-right: 0;
+				color: $ink-faint;
+			}
 		}
 
 		&__note,

@@ -233,6 +233,7 @@ describe('analysing a log in the app', () => {
 			).toBeTruthy();
 			// Aces folded and ace-king opened: one of two, where the chart opens both.
 			const seat = screen.getByRole('row', { name: /^UTG/ });
+			expect(within(seat).getByRole('button', { name: 'UTG' })).toBeTruthy();
 			expect(within(seat).getByText('50%')).toBeTruthy();
 			expect(within(seat).getByText('100%')).toBeTruthy();
 			expect(
@@ -243,10 +244,8 @@ describe('analysing a log in the app', () => {
 				screen.getByTitle(/^72o: not held here/).classList.contains('is-empty')
 			).toBe(true);
 
-			expect(
-				screen.getByRole('heading', { name: 'Folded inside the chart' })
-			).toBeTruthy();
-			fireEvent.click(screen.getByRole('button', { name: 'AA · hand #5001' }));
+			const strayed = screen.getByRole('row', { name: /^Folded inside the chart/ });
+			fireEvent.click(within(strayed).getByRole('link', { name: 'AA, hand 1' }));
 			expect(await screen.findByRole('heading', { name: 'Hand 1 of 2' })).toBeTruthy();
 			expect(window.location.hash).toBe('#review?show=all&hand=5001');
 		},

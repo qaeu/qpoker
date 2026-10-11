@@ -1,18 +1,20 @@
 /**
- * The hero's own opening ranges: for each seat, the hands they held when the
- * action folded to them and what they did with each, drawn over the chart for
- * that seat, with the hands that strayed from it listed underneath.
+ * The hero's own opening ranges: a row per seat, which is also what picks the
+ * seat, beside that seat's grid -- the hands they held when the action folded
+ * to them and what they did with each, drawn over the chart -- and under the
+ * table the hands that strayed from it, each a way into Review.
  */
 
 import { createMemo, createSignal, For, Show, type Component } from 'solid-js';
 
 import type { OpeningDeviation, OpeningHand, OpeningRow } from '#utils/coach/openings';
+import { reviewHref } from '#utils/app/hashRoute';
 import type { AnalysisReport } from '#utils/coach/report';
 import { classFromName, className } from '#utils/cards/combos';
 import type { Position } from '#utils/history/replay';
 import { chart } from '#utils/ranges/charts';
 import { emptyRange, type PreflopChoice, type Strategy } from '#utils/ranges/range';
-import { percent } from '#utils/ui/format';
+import { percent, readingOf, type LeakWords } from '#utils/ui/format';
 
 import RangeGrid from './RangeGrid';
 
@@ -28,6 +30,9 @@ const DEVIATIONS: { chosen: PreflopChoice; title: string }[] = [
 	{ chosen: 'fold', title: 'Folded inside the chart' },
 	{ chosen: 'call', title: 'Limped' },
 ];
+
+/** A range is wide or tight where a frequency is high or low. */
+const WIDTH: LeakWords = { high: 'too wide', low: 'too tight' };
 
 const OpeningsView: Component<OpeningsViewProps> = (props) => {
 	const rows = () => props.report.openings.rows;
@@ -69,6 +74,10 @@ const OpeningsView: Component<OpeningsViewProps> = (props) => {
 	};
 	const strays = (chosen: PreflopChoice): OpeningDeviation[] =>
 		(row()?.deviations ?? []).filter((deviation) => deviation.chosen === chosen);
+	// A hand is called by where it comes in the log, as Review calls it.
+	const numbers = createMemo(
+		() => new Map(props.report.hands.map((hand, index) => [hand.id, index + 1]))
+	);
 
 	return (
 		<section class="openings-view">
@@ -83,118 +92,141 @@ const OpeningsView: Component<OpeningsViewProps> = (props) => {
 			>
 				{(current) => (
 					<>
-						<h2 class="openings-view__title">Your opening ranges</h2>
-						<table class="openings-view__table">
-							<thead>
-								<tr>
-									<th scope="col">Seat</th>
-									<th scope="col">Spots</th>
-									<th scope="col">Opened</th>
-									<th scope="col">Chart</th>
-									<th scope="col">Limped</th>
-								</tr>
-							</thead>
-							<tbody>
-								<For each={rows()}>
-									{(item) => (
-										<tr classList={{ 'is-leak': item.leak !== null }}>
-											<th scope="row">{item.position}</th>
-											<td>{item.spots}</td>
-											<td>
-												{percent(item.raised / item.spots)}
-												<Show when={item.leak}>
-													<span class="openings-view__flag">
-														{item.leak === 'high' ? 'too wide' : 'too tight'}
-													</span>
-												</Show>
-											</td>
-											<td>{percent(item.expected / item.spots)}</td>
-											<td>{item.limped}</td>
-										</tr>
-									)}
-								</For>
-							</tbody>
-						</table>
-						<p class="openings-view__note">
-							Every hand where the action folded to you. Chart is what the seat's chart
-							opens with the very cards you held, so a run of good or bad cards does not
-							read as a leak. A seat is flagged only when the sample is large enough to
-							bear it.
-							<Show when={props.report.openings.shortStacked > 0}>
-								{' '}
-								{props.report.openings.shortStacked} spots under 30bb are left out: the
-								opening charts do not cover them.
-							</Show>
-						</p>
-
-						<label class="openings-view__field">
-							<span class="openings-view__label">Seat</span>
-							<select
-								class="openings-view__select"
-								value={current().position}
-								onChange={(event) => setSeat(event.currentTarget.value as Position)}
-							>
-								<For each={rows()}>
-									{(item) => (
-										<option value={item.position}>
-											{item.position}, {item.spots} spots
-										</option>
-									)}
-								</For>
-							</select>
-						</label>
-						<p class="openings-view__figures">
-							Opened {current().raised} of {current().spots}; the chart opens{' '}
-							{current().expected.toFixed(1)} of the same hands, and{' '}
-							{percent(current().chartRange)} of all hands.
-						</p>
-						<RangeGrid
-							strategy={played()}
-							outline={baseline()}
-							faint={(cls) => !held().has(cls)}
-							describe={describe}
-						/>
-						<ul class="range-key">
-							<li>
-								<span class="range-key__swatch range-key__swatch--raise" />
-								Opened
-							</li>
-							<li>
-								<span class="range-key__swatch range-key__swatch--call" />
-								Limped
-							</li>
-							<li>
-								<span class="range-key__swatch range-key__swatch--fold" />
-								Folded
-							</li>
-							<li>
-								<span class="range-key__swatch range-key__swatch--outline" />
-								The chart opens
-							</li>
-							<li>Faint: not held</li>
-						</ul>
-
-						<For each={DEVIATIONS}>
-							{(group) => (
-								<Show when={strays(group.chosen).length > 0}>
-									<h3 class="openings-view__subtitle">{group.title}</h3>
-									<ul class="openings-view__strays">
-										<For each={strays(group.chosen)}>
-											{(deviation) => (
-												<li>
+						<div class="openings-view__seats">
+							<h2 class="openings-view__title">Your opening ranges</h2>
+							<p class="openings-view__lead">
+								Every hand where the action folded to you. Pick a seat to see its grid.
+							</p>
+							<table class="openings-view__table">
+								<thead>
+									<tr>
+										<th scope="col">Seat</th>
+										<th scope="col">Spots</th>
+										<th scope="col">Opened</th>
+										<th scope="col">Chart</th>
+										<th scope="col" class="openings-view__reading">
+											Reading
+										</th>
+										<th scope="col">Limped</th>
+									</tr>
+								</thead>
+								<tbody>
+									<For each={rows()}>
+										{(item) => (
+											<tr
+												classList={{
+													'is-leak': item.leak !== null,
+													'is-selected': item.position === current().position,
+												}}
+											>
+												<th scope="row">
 													<button
 														type="button"
-														onClick={() => props.onOpenHand(deviation.handId)}
+														class="openings-view__seat"
+														classList={{ active: item.position === current().position }}
+														aria-pressed={item.position === current().position}
+														onClick={() => setSeat(item.position)}
 													>
-														{deviation.hand} · hand #{deviation.handId}
+														{item.position}
 													</button>
-												</li>
-											)}
-										</For>
-									</ul>
+												</th>
+												<td>{item.spots}</td>
+												<td>{percent(item.raised / item.spots)}</td>
+												<td>{percent(item.expected / item.spots)}</td>
+												<td class="openings-view__reading">
+													{readingOf(item.leak, item.spots, WIDTH)}
+												</td>
+												<td>{item.limped}</td>
+											</tr>
+										)}
+									</For>
+								</tbody>
+							</table>
+							<p class="openings-view__note">
+								Chart is what the seat's chart opens with the very cards you held, so a
+								run of good or bad cards does not read as a leak. A seat is flagged only
+								when the sample is large enough to bear it; a small one reads "too few to
+								say".
+								<Show when={props.report.openings.shortStacked > 0}>
+									{' '}
+									{props.report.openings.shortStacked} spots under 30bb are left out: the
+									opening charts do not cover them.
 								</Show>
-							)}
-						</For>
+							</p>
+
+							<h3 class="openings-view__subtitle">
+								{current().position} hands that strayed
+							</h3>
+							<table class="openings-view__strays">
+								<tbody>
+									<For each={DEVIATIONS}>
+										{(group) => (
+											<tr>
+												<th scope="row">{group.title}</th>
+												<td>
+													<For each={strays(group.chosen)} fallback="none">
+														{(deviation, index) => (
+															<>
+																{index() > 0 ? ' · ' : ''}
+																<a
+																	href={reviewHref({
+																		show: 'all',
+																		hand: deviation.handId,
+																	})}
+																	onClick={(event) => {
+																		event.preventDefault();
+																		props.onOpenHand(deviation.handId);
+																	}}
+																>
+																	{deviation.hand}, hand {numbers().get(deviation.handId)}
+																</a>
+															</>
+														)}
+													</For>
+												</td>
+											</tr>
+										)}
+									</For>
+								</tbody>
+							</table>
+						</div>
+
+						<div class="openings-view__grid">
+							<h2 class="openings-view__title">
+								{current().position}, {current().spots}{' '}
+								{current().spots === 1 ? 'spot' : 'spots'}
+							</h2>
+							<p class="openings-view__lead">
+								Opened {current().raised} of {current().spots}; the chart opens{' '}
+								{current().expected.toFixed(1)} of the same hands, and{' '}
+								{percent(current().chartRange)} of all hands.
+							</p>
+							<RangeGrid
+								strategy={played()}
+								outline={baseline()}
+								faint={(cls) => !held().has(cls)}
+								describe={describe}
+							/>
+							<ul class="range-key">
+								<li>
+									<span class="range-key__swatch range-key__swatch--raise" />
+									Opened
+								</li>
+								<li>
+									<span class="range-key__swatch range-key__swatch--call" />
+									Limped
+								</li>
+								<li>
+									<span class="range-key__swatch range-key__swatch--fold" />
+									Folded
+								</li>
+								<li>
+									<span class="range-key__swatch range-key__swatch--outline" />
+									The chart opens
+								</li>
+								<li>Faint: not held</li>
+							</ul>
+						</div>
 					</>
 				)}
 			</Show>
