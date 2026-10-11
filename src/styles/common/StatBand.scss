@@ -91,5 +91,11 @@
 			color: $ink-muted;
 			font-variant-numeric: tabular-nums;
 		}
+
+		// In the note's line: where the figure's own list is.
+		&__link {
+			justify-self: start;
+			font-size: 12px;
+		}
 	}
 }

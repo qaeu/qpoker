@@ -75,7 +75,8 @@ const TYPICAL: Partial<Record<StatId, number>> = {
 	wonAtShowdown: 0.52,
 };
 
-const MIN_SAMPLE = 10;
+/** Opportunities below which a frequency is never called a leak. */
+export const MIN_SAMPLE = 10;
 const MIN_GAP = 0.08;
 
 interface Tally {

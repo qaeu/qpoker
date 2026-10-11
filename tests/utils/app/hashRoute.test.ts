@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatRoute, parseRoute, type Route } from '#utils/app/hashRoute';
+import { formatRoute, parseRoute, reviewHref, type Route } from '#utils/app/hashRoute';
 import { DEFAULT_REVIEW } from '#utils/ui/review';
 
 describe('the hash route', () => {
@@ -114,6 +114,17 @@ describe('the hash route', () => {
 
 		it.each(routes)('survives $tab $review.show', (route) => {
 			expect(parseRoute(formatRoute(route))).toEqual(route);
+		});
+	});
+
+	describe('reviewHref', () => {
+		it('addresses a list from the defaults, whatever is on show now', () => {
+			expect(reviewHref({})).toBe('#review');
+			expect(reviewHref({ show: 'ungraded' })).toBe('#review?show=ungraded');
+			expect(reviewHref({ kind: 'missed-value' })).toBe('#review?kind=missed-value');
+			expect(reviewHref({ show: 'all', hand: '5001' })).toBe(
+				'#review?show=all&hand=5001'
+			);
 		});
 	});
 });

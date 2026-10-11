@@ -11,7 +11,7 @@ import {
 	switchTo,
 	TWO_HAND_LOG,
 } from './appHarness';
-import { handText, TOUGH_FOLD } from '../utils/history/handText';
+import { handText, RIVER_HERO_CALL, TOUGH_FOLD } from '../utils/history/handText';
 
 describe('analysing a log in the app', () => {
 	beforeEach(resetBrowserState);
@@ -29,7 +29,7 @@ describe('analysing a log in the app', () => {
 			loadLog(TWO_HAND_LOG);
 			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 
-			expect(screen.getByText(/hero · \$0\.05\/\$0\.10 · Builder/)).toBeTruthy();
+			expect(screen.getByText(/^Builder · 2026-01-02/)).toBeTruthy();
 			const vpip = screen.getByRole('row', { name: /^VPIP/ });
 			expect(within(vpip).getByText('1/2')).toBeTruthy();
 			expect(within(vpip).getByText('50%')).toBeTruthy();
@@ -40,6 +40,39 @@ describe('analysing a log in the app', () => {
 			expect(header.getByText('hands.txt')).toBeTruthy();
 			expect(header.getByRole('button', { name: 'Load another log' })).toBeTruthy();
 			expect(screen.queryByRole('heading', { name: 'Drop a hand history' })).toBeNull();
+		},
+		RUN_TIMEOUT_MS
+	);
+
+	it(
+		'follows the Summary’s links into Review',
+		async () => {
+			mountApp();
+			loadLog(`${TWO_HAND_LOG}\n${handText(RIVER_HERO_CALL)}`);
+			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+
+			// One kind of mistake: its hands, with the filter there to take off.
+			fireEvent.click(screen.getByRole('link', { name: 'Called without the price' }));
+			await settle();
+			expect(window.location.hash).toBe('#review?kind=call-without-odds');
+			expect(screen.getByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
+			expect(screen.getByRole('status').textContent).toMatch(/^1 hand · −/);
+
+			fireEvent.click(
+				screen.getByRole('button', {
+					name: 'Stop filtering by: Called without the price',
+				})
+			);
+			await settle();
+			expect(window.location.hash).toBe('#review');
+			expect(screen.getByRole('status').textContent).toMatch(/^2 hands · −/);
+
+			// Back is the list as it was filtered, then the Summary.
+			window.history.back();
+			await waitFor(() =>
+				expect(window.location.hash).toBe('#review?kind=call-without-odds')
+			);
+			expect(screen.getByRole('status').textContent).toMatch(/^1 hand · −/);
 		},
 		RUN_TIMEOUT_MS
 	);

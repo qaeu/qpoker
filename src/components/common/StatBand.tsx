@@ -26,6 +26,12 @@ export interface StatFigure {
 	 * Bankroll view predicts, against what the sim actually dealt.
 	 */
 	note?: string;
+	/**
+	 * Where the figure's own detail is, and what the link to it says. It takes
+	 * the note's line, so a figure has one or the other.
+	 */
+	href?: string;
+	linkLabel?: string;
 }
 
 interface StatBandProps {
@@ -55,8 +61,17 @@ const StatBand: Component<StatBandProps> = (props) => {
 								<span class="stat-band__unit">{figure.unit}</span>
 							</Show>
 						</span>
-						<Show when={figure.note}>
-							<span class="stat-band__note">{figure.note}</span>
+						<Show
+							when={figure.href}
+							fallback={
+								<Show when={figure.note}>
+									<span class="stat-band__note">{figure.note}</span>
+								</Show>
+							}
+						>
+							<a class="stat-band__link" href={figure.href}>
+								{figure.linkLabel ?? 'Open'}
+							</a>
 						</Show>
 					</div>
 				)}

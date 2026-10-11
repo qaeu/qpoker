@@ -86,6 +86,11 @@ export function formatRoute(route: Route): string {
 	return search ? `#review?${search}` : '#review';
 }
 
+/** The address of a Review list: what a link to it from another view points at. */
+export function reviewHref(change: Partial<ReviewQuery>): string {
+	return formatRoute({ tab: 'review', review: { ...DEFAULT_REVIEW, ...change } });
+}
+
 /**
  * A signal wired to `window.location.hash`. Listens for `hashchange` (covers
  * back/forward navigation) and exposes `navigate`, which merges a change into

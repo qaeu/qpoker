@@ -18,6 +18,7 @@
 			display: grid;
 			grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
 			gap: 30px;
+			align-items: start;
 			margin-top: 30px;
 		}
 
@@ -33,6 +34,13 @@
 			&--spaced {
 				margin-top: 28px;
 			}
+		}
+
+		// What the table under it is for, said before it rather than in a footnote.
+		&__lead {
+			@include print(13px, 0.01em, $caps: false);
+			margin: -6px 0 12px;
+			color: $ink-muted;
 		}
 
 		&__table {
@@ -73,9 +81,45 @@
 			}
 		}
 
-		&__flag {
+		// The verdict on a frequency, in words, in a column of its own: a figure
+		// coloured red says something is wrong but not which way.
+		&__reading:is(th, td) {
+			text-align: left;
+		}
+
+		td#{&}__reading {
 			@include print(10px, 0.12em);
-			margin-left: 8px;
+			font-weight: 600;
+			color: $ink-muted;
+		}
+
+		tr.is-leak td#{&}__reading {
+			color: get($errors, 'fg-light');
+		}
+
+		// A kind of mistake is a way into Review: the whole cell is the link.
+		&__leak {
+			display: block;
+			padding: 1px 0 3px;
+		}
+
+		// Its share of the costliest kind's loss, as a bar under its name. The width
+		// comes in as `--share` -- see docs/design-language.md.
+		&__share {
+			display: block;
+			height: 4px;
+			margin-top: 5px;
+			border-radius: 1px;
+			background-color: $cut;
+
+			&::after {
+				content: '';
+				display: block;
+				width: calc(var(--share) * 100%);
+				height: 100%;
+				border-radius: 1px;
+				background-color: get($errors, 'base');
+			}
 		}
 
 		&__note {

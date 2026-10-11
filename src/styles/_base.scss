@@ -63,6 +63,19 @@
 		margin: 12px 0;
 	}
 
+	// A link in the page is gold and underlined: it goes somewhere, and gold is
+	// what the table marks its "this one" with.
+	a {
+		color: get($primaries, 'fg-light');
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		transition: color $dur-base $ease;
+
+		&:hover {
+			color: get($primaries, 'fg');
+		}
+	}
+
 	button,
 	select {
 		font-family: inherit;
