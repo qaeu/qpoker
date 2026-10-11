@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, within } from '@solidjs/testing-library';
 
 import {
+	goTo,
 	loadLog,
 	mountApp,
 	resetBrowserState,
@@ -45,7 +46,7 @@ describe('analysing a log in the app', () => {
 			loadLog(TWO_HAND_LOG);
 			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 
-			await switchTo('Mistakes');
+			await goTo('#mistakes');
 			expect(await screen.findByText('1 of 1')).toBeTruthy();
 			expect(
 				screen.getByRole('heading', { name: 'Folded a standard open' })
@@ -74,7 +75,7 @@ describe('analysing a log in the app', () => {
 			mountApp();
 			loadLog(TWO_HAND_LOG);
 			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
-			await switchTo('Good plays');
+			await goTo('#plays');
 			expect(await screen.findByText(/No good plays were picked out/)).toBeTruthy();
 
 			loadLog(`${TWO_HAND_LOG}\n${handText(TOUGH_FOLD)}`);

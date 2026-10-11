@@ -64,9 +64,19 @@ export function loadLog(text: string, name = 'hands.txt'): void {
 }
 
 export async function switchTo(
-	tab: 'Summary' | 'Mistakes' | 'Good plays' | 'Hands' | 'Openings' | 'Ranges'
+	tab: 'Summary' | 'Review' | 'Openings' | 'Ranges'
 ): Promise<void> {
 	fireEvent.click(screen.getByRole('tab', { name: tab }));
-	// The route is the URL hash, and jsdom delivers `hashchange` asynchronously.
-	await new Promise((resolve) => setTimeout(resolve, 0));
+	await settle();
+}
+
+/** Follows a link, or a hash typed into the address bar. */
+export async function goTo(hash: string): Promise<void> {
+	window.location.hash = hash;
+	await settle();
+}
+
+/** The route is the URL hash, and jsdom delivers `hashchange` asynchronously. */
+export function settle(): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, 0));
 }

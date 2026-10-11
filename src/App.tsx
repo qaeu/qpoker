@@ -15,20 +15,22 @@ import MistakesView from '#c/report/MistakesView';
 import SummaryView from '#c/report/SummaryView';
 import LogDrop, { type Progress } from '#c/upload/LogDrop';
 import type { AnalysisWorkerResponse } from '#utils/analysisWorkerProtocol';
-import { createHashRoute } from '#utils/app/hashRoute';
+import { createHashRoute, type AppTab } from '#utils/app/hashRoute';
 import { loadReport, saveReport } from '#utils/app/storage';
 import type { AnalysisReport } from '#utils/coach/report';
+import { DEFAULT_REVIEW } from '#utils/ui/review';
 
 import '#styles/App';
 
 const App: Component = () => {
-	const [tab, setTab] = createHashRoute();
+	const [route, navigate] = createHashRoute();
+	const tab = () => route().tab;
+	const setTab = (next: AppTab) => navigate({ tab: next });
 	const [report, setReport] = createSignal<AnalysisReport | null>(
 		loadReport()?.report ?? null
 	);
 	const [progress, setProgress] = createSignal<Progress | null>(null);
 	const [error, setError] = createSignal<string | null>(null);
-	const [selectedHand, setSelectedHand] = createSignal<string | null>(null);
 
 	// Created on first use, so a visit that only reads a cached report never
 	// pays for a second thread.
@@ -47,7 +49,6 @@ const App: Component = () => {
 		setProgress(null);
 		if (response.type === 'complete') {
 			setReport(response.report);
-			setSelectedHand(null);
 			saveReport(fileName, response.report);
 		} else if (response.type === 'error') {
 			setError(response.message);
@@ -73,10 +74,9 @@ const App: Component = () => {
 
 	onCleanup(() => worker?.terminate());
 
-	const openHand = (handId: string) => {
-		setSelectedHand(handId);
-		setTab('hands');
-	};
+	// The hand may be none of the default list's, so the whole log is listed.
+	const openHand = (handId: string) =>
+		navigate({ tab: 'review', review: { ...DEFAULT_REVIEW, show: 'all', hand: handId } });
 
 	const drop = (compact: boolean) => (
 		<LogDrop
@@ -103,17 +103,18 @@ const App: Component = () => {
 									<Match when={tab() === 'summary'}>
 										<SummaryView report={loaded} />
 									</Match>
-									<Match when={tab() === 'mistakes'}>
+									{/* Until Review has a view of its own, the three it replaces. */}
+									<Match when={tab() === 'review' && route().review.show === 'mistakes'}>
 										<MistakesView report={loaded} onOpenHand={openHand} />
 									</Match>
-									<Match when={tab() === 'plays'}>
+									<Match when={tab() === 'review' && route().review.show === 'plays'}>
 										<GoodPlaysView report={loaded} onOpenHand={openHand} />
 									</Match>
-									<Match when={tab() === 'hands'}>
+									<Match when={tab() === 'review'}>
 										<HandsView
 											report={loaded}
-											selected={selectedHand()}
-											onSelect={setSelectedHand}
+											selected={route().review.hand}
+											onSelect={(hand) => navigate({ review: { hand } })}
 										/>
 									</Match>
 									<Match when={tab() === 'openings'}>

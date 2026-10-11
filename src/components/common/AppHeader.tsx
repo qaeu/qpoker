@@ -12,9 +12,7 @@ interface AppHeaderProps {
 
 const TAB_LABELS: Record<AppTab, string> = {
 	summary: 'Summary',
-	mistakes: 'Mistakes',
-	plays: 'Good plays',
-	hands: 'Hands',
+	review: 'Review',
 	openings: 'Openings',
 	ranges: 'Ranges',
 };
