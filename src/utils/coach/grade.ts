@@ -90,7 +90,11 @@ const SCENARIO_WEIGHT: Record<Scenario, number> = {
 	vs3bet: 3,
 	cold4bet: 4,
 	vs4bet: 6,
+	vs5bet: 6,
 };
+
+/** A raise of this share of the stack is a shove in all but name. */
+const COMMITTED = 0.6;
 
 const LOOSE_BB_PER_STEP = 0.07;
 /** The right hand played the wrong way costs a little, and more in bigger pots. */
@@ -316,7 +320,9 @@ function gradePreflop(replay: Replay, step: Step, options: GradeOptions): Gradin
 			facts.suggestedRaiseToBb = spot.raiseToBb;
 			const ratio = to / spot.raiseToBb;
 			const shove = step.action.allIn && spot.raises >= 1 && spot.effectiveBb < 70;
-			if ((ratio < 0.7 || ratio > 1.6) && !shove) {
+			const committed =
+				spot.raiseToBb >= spot.effectiveBb && to >= COMMITTED * spot.effectiveBb;
+			if ((ratio < 0.7 || ratio > 1.6) && !shove && !committed) {
 				return finish(base, 'preflop-sizing', wrongLineBb(Math.min(2, weight)));
 			}
 		}

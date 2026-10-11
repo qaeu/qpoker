@@ -8,8 +8,10 @@ import { RANK_CHARS, rankOf, suitOf, type Card } from '../cards/cards';
 
 export interface Texture {
 	paired: boolean;
-	/** Three or more of one suit. */
+	/** Every card of one suit: a flop of three. */
 	monotone: boolean;
+	/** Three or more of one suit: a flush is possible. */
+	flushPossible: boolean;
 	/** Exactly two of one suit: a flush draw is out there. */
 	twoTone: boolean;
 	/** Three cards within a five-rank span: straights and straight draws abound. */
@@ -20,13 +22,16 @@ export interface Texture {
 	betSize: number;
 }
 
+const FLUSH_COUNT: Record<number, string> = { 3: 'three', 4: 'four', 5: 'five' };
+
 export function textureOf(board: readonly Card[]): Texture {
 	const suits = [0, 0, 0, 0];
 	for (const card of board) suits[suitOf(card)]++;
 	const top = Math.max(...suits);
 	const ranks = [...new Set(board.map(rankOf))].sort((a, b) => a - b);
 	const paired = ranks.length < board.length;
-	const monotone = top >= 3;
+	const flushPossible = top >= 3;
+	const monotone = flushPossible && top === board.length;
 	const twoTone = top === 2 && board.length < 5;
 
 	let connected = false;
@@ -36,7 +41,7 @@ export function textureOf(board: readonly Card[]): Texture {
 	}
 
 	const wet =
-		monotone || (connected && twoTone) || (connected && !paired && board.length < 5);
+		flushPossible || (connected && twoTone) || (connected && !paired && board.length < 5);
 	const high = RANK_CHARS[Math.max(...board.map(rankOf))];
 	// The label is read after an article: "an A-high", "a K-high".
 	const article = high === 'A' || high === '8' ? 'an' : 'a';
@@ -44,6 +49,7 @@ export function textureOf(board: readonly Card[]): Texture {
 		`${article} ${high}-high`,
 		paired ? 'paired' : null,
 		monotone ? 'monotone'
+		: flushPossible ? `${FLUSH_COUNT[top]} to a flush`
 		: twoTone ? 'two-tone'
 		: 'rainbow',
 		connected ? 'connected' : null,
@@ -56,5 +62,5 @@ export function textureOf(board: readonly Card[]): Texture {
 		: wet ? 0.66
 		: paired || (!twoTone && !connected) ? 0.33
 		: 0.5;
-	return { paired, monotone, twoTone, connected, wet, label, betSize };
+	return { paired, monotone, flushPossible, twoTone, connected, wet, label, betSize };
 }

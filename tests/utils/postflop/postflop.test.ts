@@ -67,6 +67,18 @@ describe('board texture', () => {
 		expect(textureOf(cards('Ah 7h 4h')).monotone).toBe(true);
 		expect(textureOf(cards('Ad 5s 3c')).connected).toBe(true);
 	});
+
+	it('calls a board monotone only when every card shares a suit', () => {
+		expect(textureOf(cards('Ah 7h 4h'))).toMatchObject({
+			monotone: true,
+			flushPossible: true,
+		});
+		// A two-tone flop whose third heart comes on the river.
+		const backdoor = textureOf(cards('Kh 7h 4c 2d 9h'));
+		expect(backdoor).toMatchObject({ monotone: false, flushPossible: true, wet: true });
+		expect(backdoor.label).toBe('a K-high, three to a flush');
+		expect(textureOf(cards('Kh 8h 4h 2h Jc')).label).toBe('a K-high, four to a flush');
+	});
 });
 
 describe('the opponent model', () => {
@@ -101,6 +113,18 @@ describe('the opponent model', () => {
 		// Balanced, not face-up: the bottom of the range still bets sometimes.
 		expect(bet[indexOf('5s 4s')]).toBeGreaterThan(0);
 		expect(rangeWeight(bet)).toBeLessThan(rangeWeight(opener));
+	});
+
+	it('gives a raise the bluffs its size asks for, draws included', () => {
+		const turn = cards('Ah Kh 5c 2d');
+		const range = removeDead(toComboRange(chart('rfiBtn').raise), turn);
+		const view = rankRange(range, turn);
+		const raised = applyAction(range, turn, 'raise', 0.75);
+		// A bluff is air, or a draw below the top tenth a raise is made of for value.
+		const bluff = (i: number) =>
+			view.percentile[i] < 0.9 && (view.draws[i] > 0 || view.percentile[i] < 0.3);
+		// size / (1 + 2 × size), and 15% more for the card to come.
+		expect(share(raised, bluff)).toBeCloseTo((0.75 / 2.5) * 1.15, 2);
 	});
 
 	it('sheds strength when a range checks, and the bottom when it calls', () => {

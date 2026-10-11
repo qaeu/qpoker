@@ -144,6 +144,34 @@ describe('grading first in', () => {
 	});
 });
 
+describe('grading a raise that commits the stack', () => {
+	it('does not flag a 4-bet for most of a 40bb stack as too small', () => {
+		const gradings = grade({
+			heroCards: 'As Kd',
+			button: 1,
+			stacks: { hero: 4 },
+			lines: [
+				...BLINDS_HERO_BTN,
+				'*** HOLE CARDS ***',
+				...folds('p4', 'p5', 'p6'),
+				'hero: raises $0.15 to $0.25',
+				'p2: raises $0.55 to $0.80',
+				'p3: folds',
+				'hero: raises $1.70 to $2.50',
+				'p2: folds',
+				'Uncalled bet ($1.70) returned to hero',
+				'hero collected $1.70 from pot',
+			],
+			pot: '1.70',
+			winner: 'hero',
+		});
+		const fourBet = gradings[1];
+		// The standard raise here is a shove, and 62% of the stack is one in effect.
+		expect(fourBet.preflop).toMatchObject({ raiseToBb: 25, suggestedRaiseToBb: 40 });
+		expect(fourBet).toMatchObject({ chosen: 'raise', mistake: null });
+	});
+});
+
 describe('grading against a raise', () => {
 	const versusOpen = (heroCards: string, heroLine: string, tail: string[], pot: string) =>
 		grade({
@@ -313,6 +341,63 @@ describe('grading postflop', () => {
 		// The flop and turn value bets are fine.
 		expect(gradings[1].mistake).toBeNull();
 		expect(gradings[2].mistake).toBeNull();
+	});
+
+	describe('against a short stack', () => {
+		/** The big blind has 20bb; hero opens top pair's worth and they see a flop. */
+		const shortStacked = (streets: string[], pot: string) =>
+			grade({
+				heroCards: 'As Kc',
+				button: 6,
+				stacks: { p2: 2 },
+				lines: [
+					...BLINDS_HERO_SB,
+					'*** HOLE CARDS ***',
+					...folds('p3', 'p4', 'p5', 'p6'),
+					'hero: raises $0.20 to $0.30',
+					'p2: calls $0.20',
+					'*** FLOP *** [Kd 7s 2c]',
+					...streets,
+				],
+				pot,
+				winner: 'hero',
+			});
+
+		it('treats a shove the hero covers as all-in, cards to come or not', () => {
+			const call = shortStacked(
+				[
+					'hero: bets $0.20',
+					'p2: raises $1.50 to $1.70 and is all-in',
+					'hero: calls $1.50',
+					'*** TURN *** [Kd 7s 2c] [3h]',
+					'*** RIVER *** [Kd 7s 2c 3h] [9d]',
+					'*** SHOW DOWN ***',
+					'hero: shows [As Kc] (a pair of Kings)',
+					'p2: mucks hand',
+					'hero collected $4 from pot',
+				],
+				'4'
+			).at(-1)!;
+			// No betting is left, so the equity is all realised and the price is exact.
+			expect(call).toMatchObject({ chosen: 'call', mistake: null, confidence: 'medium' });
+			const { equity, potOdds, callEvBb } = call.postflop!;
+			expect(callEvBb).toBeCloseTo((equity * 0.95 * 4 - 1.5) * 10, 5);
+			expect(potOdds).toBeCloseTo(1.5 / 4, 5);
+		});
+
+		it('prices a bet over the stack on the part that can be called', () => {
+			const bet = shortStacked(
+				[
+					'hero: bets $3',
+					'p2: folds',
+					'Uncalled bet ($3) returned to hero',
+					'hero collected $0.60 from pot',
+				],
+				'0.60'
+			).at(-1)!;
+			expect(bet.chosen).toBe('bet');
+			expect(bet.postflop!.betSize).toBeCloseTo(1.7 / 0.6, 5);
+		});
 	});
 
 	it('flags calling a river shove with nothing', () => {

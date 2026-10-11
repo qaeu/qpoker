@@ -28,26 +28,38 @@ penalising one side of a coin flip.
 
 **Too tight** (folded a hand that continues). The cost is what the hand was worth in the
 pot: the gap on the tier scale between the hand and where the range ends
-(`TIER_VALUE_BB`), times the spot's weight. Folding aces first in costs about 8bb; folding
-the worst hand in the range costs nothing worth reporting.
+(`TIER_VALUE_BB`), times the spot's weight. Folding aces first in costs 7.1bb. Folding any
+hand in the range's own last tier costs nothing, and that is far more than the worst hand:
+67% of the combos the UTG chart always opens, 31% of the button's, and 56% of what the
+button always continues with against a 3-bet. Folding 99 or AJo under the gun is graded
+"ok". A player who folds too much is mostly not told so; see finding 7 in
+[accuracy.md](./accuracy.md).
 
 **Too loose** (played a hand that folds). `0.07bb × steps^1.5 × weight`, where steps is
 how many tiers outside the range the hand is, capped at 60% of what the action put in.
-One tier out is noise. Seven-deuce under the gun is not.
+One tier out is noise. Seven-deuce under the gun is not. For a call the cap is usually
+the cost: 6 of the 9 loose calls in the sample logs were priced at exactly 60% of the
+call, which by a rough equity estimate is two to eight times too much.
 
 **Right hand, wrong action** (called where the chart raises, or the reverse).
 `max(0.2, 0.12 × weight)` bb: small, because the hand was right to play.
 
 **Weight** is how much bigger than a single-raised pot the spot is: 1 first in, 1.6
-against an open, 3 against a 3-bet, 6 against a 4-bet. A mistake in a bigger pot costs
-more.
+against an open, 3 against a 3-bet, 6 against a 4-bet or a 5-bet. A mistake in a bigger
+pot costs more.
 
 **Size.** A raise under 70% or over 160% of the standard one is an inaccuracy, unless it
-is a shove over a raise at under 70bb, which is standard.
+is a shove over a raise at under 70bb, which is standard. Where the standard raise is
+itself a shove (past a third of the stack there is nothing left to play), a raise of 60%
+of the stack or more is one in effect and is not flagged as too small.
 
 These constants are tuned by eye against known magnitudes (aces first in are worth around
-8 to 10bb; opening a hand one notch too wide costs hundredths of a blind). They put
-mistakes in the right order and the right order of magnitude. They are not measurements.
+8 to 10bb; opening a hand one notch too wide costs hundredths of a blind). They are not
+measurements, and no published figure was found to check them against. Of the 37 preflop
+mistakes in the sample logs, 22 were judged right, 12 defensible and 3 wrong, so the
+direction can be trusted more than the price. The order is not always right either:
+calling 54o in the big blind (1.2bb) is priced above opening 94o under the gun (1.03bb),
+and folding KQs under the gun (0.7bb) above folding 99 there (nothing).
 
 ## Preflop: stacks going in
 
@@ -118,7 +130,9 @@ Left out, on purpose:
   action that would have been worse.
 
 On the two sample logs (300 hands, 193 postflop decisions) this names three plays. That is
-the intended order of magnitude: a highlight, not a second grade for every decision.
+the intended order of magnitude: a highlight, not a second grade for every decision. All
+three were judged right as actions. The numbers are weaker: one "tough" call rests on an
+equity the opponent model gets wrong. See [accuracy.md](./accuracy.md).
 
 ## Rake
 

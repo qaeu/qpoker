@@ -133,7 +133,7 @@ describe('classifying a preflop spot', () => {
 		const spots = decisionsOf(stackOff, 'hero77').map((step) =>
 			classifyPreflop(stackOff, step)
 		);
-		expect(spots.map((spot) => spot.scenario)).toEqual(['rfi', 'vs3bet', 'cold4bet']);
+		expect(spots.map((spot) => spot.scenario)).toEqual(['rfi', 'vs3bet', 'vs5bet']);
 		expect(spots[0]).toMatchObject({
 			position: 'HJ',
 			chart: 'rfiHj',
@@ -147,7 +147,13 @@ describe('classifying a preflop spot', () => {
 			label: 'HJ vs BTN, facing a 3-bet',
 		});
 		expect(spots[1].effectiveBb).toBeCloseTo(46.6);
-		expect(spots[2].facingAllIn).toBe(true);
+		// No chart reaches a 5-bet: the tightest stands in at low confidence.
+		expect(spots[2]).toMatchObject({
+			facingAllIn: true,
+			chart: 'vs4betTight',
+			confidence: 'low',
+			label: 'HJ vs BTN, facing a 5-bet',
+		});
 	});
 
 	it('gives each opponent the range of their line', () => {

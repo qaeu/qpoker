@@ -11,8 +11,16 @@ shorthand (`22+,A2s+,KTo+,T9s:0.5`). Folding is the rest.
 for 2.5bb opens. They are not solver exports.** That has consequences worth stating
 plainly:
 
-- The ranges are about right in size and shape (UTG opens about 17% of hands, the button
-  about 47%), and right about the hands that are clearly in or clearly out.
+- The opening ranges are about right in size (UTG opens 17.3% of hands, the hijack 22.1%,
+  the cutoff 29.3%, the button 47.2%). Against the published ranges compared in
+  [accuracy.md](./accuracy.md), the first three sit inside the band and the button at the
+  top of it. The big blind's defence is 8 to 14 points under one reference against the
+  early seats and level against the button. None of those references is a rake-adjusted
+  solve for small stakes, and they disagree with one another by several points, so "about
+  right" is as much as can be said.
+- The 2.5bb open is an assumption that often fails: 29% of the opponents' opens in the
+  sample logs were 2.0bb. The charts do not widen for the better price, and 7 of the 37
+  preflop mistakes found there were calls or 3-bets against a min-raise.
 - At the edge of a range they are an opinion. A solver mixes many borderline hands at
   frequencies these charts round to 0, 0.5 or 1.
 - So the grader is forgiving at the edge (see "Mixed hands" in
@@ -43,16 +51,21 @@ and carve the raises out of it.
 
 `classifyPreflop` names the situation from the action so far:
 
-| Scenario        | When                                            | Chart                                  |
-| --------------- | ----------------------------------------------- | -------------------------------------- |
-| `rfi`           | folded to the player                            | by seat                                |
-| `vsLimp`        | limpers, no raise                               | the seat-before's open, or the blinds' |
-| `vsOpen`        | one raise                                       | by the two seats                       |
-| `squeeze`       | one raise and a caller                          | the `vsOpen` chart, medium confidence  |
-| `vs3bet`        | the player opened and was re-raised             | by seat and where the 3-bettor sits    |
-| `vs4bet`        | the player 3-bet and was re-raised              | by how early the opener was            |
-| `cold4bet`      | an open and a 3-bet before the player has acted | one chart                              |
-| `limpedVsRaise` | the player limped and was raised                | one chart, low confidence              |
+| Scenario        | When                                            | Chart                                    |
+| --------------- | ----------------------------------------------- | ---------------------------------------- |
+| `rfi`           | folded to the player                            | by seat                                  |
+| `vsLimp`        | limpers, no raise                               | the seat-before's open, or the blinds'   |
+| `vsOpen`        | one raise                                       | by the two seats                         |
+| `squeeze`       | one raise and a caller                          | the `vsOpen` chart, medium confidence    |
+| `vs3bet`        | the player opened and was re-raised             | by seat and where the 3-bettor sits      |
+| `vs4bet`        | the player 3-bet and was re-raised              | by how early the opener was              |
+| `vs5bet`        | the player 4-bet and was re-raised              | the tight `vs4bet` chart, low confidence |
+| `cold4bet`      | an open and a 3-bet before the player has acted | one chart                                |
+| `limpedVsRaise` | the player limped and was raised                | one chart, low confidence                |
+
+No chart is written for a 5-bet. At 100bb it is nearly always a shove, which is priced
+(see below); when it is not, the tightest chart there is stands in and the finding is
+marked low.
 
 The same classifier serves the hero's grade and every opponent's range, so the two can
 never disagree about what a spot was.
@@ -89,6 +102,12 @@ range under 12 combos is treated as off the charts and falls back, first to the 
 action's range alone, then to `LIMP_RANGE`, a deliberately wide, capped range. This is
 where a real opponent at small stakes departs furthest from the baseline, and the
 fallback keeps the postflop model from reasoning about a range of three hands.
+
+On the sample logs 24 of 239 opponent lines that reached a flop fell back. Thirteen were
+a small blind calling an open, where a wide range is fair. Nine were a cold call of an
+open and a 3-bet, where a quarter of all hands is far too wide. One was a 3-bettor calling
+a 4-bet, whose charted range of 11.6 combos misses the threshold by 0.4. See finding 9 in
+[accuracy.md](./accuracy.md).
 
 ## Tiers
 

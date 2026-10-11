@@ -119,29 +119,47 @@ export function equityVsRange(
 	return { equity: (win + tie / 2) / total, win: win / total, tie: tie / total };
 }
 
-/** Draws one combo from a range by weight, avoiding `dead`, or -1 if none fit. */
-function sampleCombo(range: ComboRange, dead: Set<Card>, random: () => number): number {
-	let total = 0;
-	for (let i = 0; i < COMBO_COUNT; i++) {
-		if (range[i] > 0 && !dead.has(COMBOS[i].a) && !dead.has(COMBOS[i].b))
-			total += range[i];
-	}
-	if (total === 0) return -1;
-	let target = random() * total;
-	let last = -1;
-	for (let i = 0; i < COMBO_COUNT; i++) {
-		if (range[i] > 0 && !dead.has(COMBOS[i].a) && !dead.has(COMBOS[i].b)) {
-			last = i;
-			target -= range[i];
-			if (target <= 0) return i;
-		}
-	}
-	return last;
+/** A range's live combos with their running weight, for drawing one by weight. */
+interface Sampler {
+	combos: number[];
+	cumulative: number[];
+	total: number;
 }
 
+function samplerOf(range: ComboRange, dead: Set<Card>): Sampler {
+	const combos: number[] = [];
+	const cumulative: number[] = [];
+	let total = 0;
+	for (let i = 0; i < COMBO_COUNT; i++) {
+		if (range[i] > 0 && !dead.has(COMBOS[i].a) && !dead.has(COMBOS[i].b)) {
+			total += range[i];
+			combos.push(i);
+			cumulative.push(total);
+		}
+	}
+	return { combos, cumulative, total };
+}
+
+function sampleCombo(sampler: Sampler, random: () => number): number {
+	const target = random() * sampler.total;
+	let low = 0;
+	let high = sampler.combos.length - 1;
+	while (low < high) {
+		const mid = (low + high) >> 1;
+		if (sampler.cumulative[mid] > target) high = mid;
+		else low = mid + 1;
+	}
+	return sampler.combos[low];
+}
+
+/** Deals that clash are redrawn, this many times over before giving up. */
+const MAX_REDRAWS = 20;
+
 /**
- * Equity against any number of ranges at once, by simulation. A tie counts for
- * the share of the pot it wins.
+ * Equity against any number of ranges at once, by simulation. Every opponent's
+ * hand is drawn from their own range and a deal where two hands share a card
+ * is thrown away, which is the joint distribution; drawing them one after
+ * another is not. A tie counts for the share of the pot it wins.
  */
 export function equityVsRanges(
 	hero: readonly Card[],
@@ -160,17 +178,25 @@ export function equityVsRanges(
 	let share = 0;
 	let total = 0;
 
-	for (let n = 0; n < samples; n++) {
-		const dead = new Set<Card>([...hero, ...board]);
-		const hands: number[] = [];
-		for (const range of villains) {
-			const index = sampleCombo(range, dead, random);
-			if (index < 0) break;
-			hands.push(index);
-			dead.add(COMBOS[index].a);
-			dead.add(COMBOS[index].b);
+	const known = new Set<Card>([...hero, ...board]);
+	const samplers = villains.map((range) => samplerOf(range, known));
+	if (samplers.some((sampler) => sampler.total === 0)) {
+		return { equity: 0.5, win: 0, tie: 0 };
+	}
+	const hands: number[] = new Array(villains.length);
+
+	for (let n = 0; n < samples * MAX_REDRAWS && total < samples; n++) {
+		const dead = new Set<Card>(known);
+		let clash = false;
+		for (let v = 0; v < samplers.length && !clash; v++) {
+			const index = sampleCombo(samplers[v], random);
+			const { a, b } = COMBOS[index];
+			clash = dead.has(a) || dead.has(b);
+			hands[v] = index;
+			dead.add(a);
+			dead.add(b);
 		}
-		if (hands.length < villains.length) continue;
+		if (clash) continue;
 
 		const full = [...board];
 		while (full.length < 5) {

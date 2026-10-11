@@ -6,11 +6,17 @@ import {
 	className,
 	classOf,
 	classSize,
+	COMBO_COUNT,
 	COMBOS,
 	comboIndex,
 	combosOfClass,
 } from '#utils/cards/combos';
-import { emptyComboRange, equityVsRange, equityVsRanges } from '#utils/cards/equity';
+import {
+	emptyComboRange,
+	equityVsRange,
+	equityVsRanges,
+	removeDead,
+} from '#utils/cards/equity';
 import { categoryName, evaluate } from '#utils/cards/evaluate';
 
 const score = (text: string) => evaluate(parseCards(text));
@@ -178,5 +184,38 @@ describe('equity', () => {
 		expect(two).toBeLessThan(one);
 		expect(two).toBeGreaterThan(0.6);
 		expect(equityVsRanges(hero, [], [], options).equity).toBe(1);
+	});
+
+	it('deals several opponents from the joint distribution', () => {
+		// Two opponents share the last two aces and the queens: what one holds
+		// changes what the other can.
+		const hero = parseCards('Kh Kc');
+		const board = parseCards('As Ad 7c 4h 2s');
+		const range = removeDead(rangeOf('AKs', 'AKo', 'QQ'), [...hero, ...board]);
+		const mine = evaluate([...board, ...hero]);
+		let total = 0;
+		let share = 0;
+		for (let i = 0; i < COMBO_COUNT; i++) {
+			for (let j = 0; j < COMBO_COUNT; j++) {
+				const first = COMBOS[i];
+				const second = COMBOS[j];
+				const weight = range[i] * range[j];
+				const clash = [first.a, first.b].some(
+					(card) => card === second.a || card === second.b
+				);
+				if (weight === 0 || clash) continue;
+				total += weight;
+				const best = Math.max(
+					evaluate([...board, first.a, first.b]),
+					evaluate([...board, second.a, second.b])
+				);
+				if (mine > best) share += weight;
+			}
+		}
+		const sampled = equityVsRanges(hero, board, [range, range], {
+			seed: 7,
+			samples: 3000,
+		});
+		expect(sampled.equity).toBeCloseTo(share / total, 2);
 	});
 });

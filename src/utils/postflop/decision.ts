@@ -157,7 +157,8 @@ export function judgePostflop(
 		// A bet bigger than the hero's stack is only in play up to that stack.
 		const uncovered = Math.max(0, step.streetBet - step.committedBefore - call);
 		const stake = pot - uncovered + call;
-		const allIn = call >= step.stackBefore;
+		// All-in for the hero, or for everyone else: no betting is left either way.
+		const allIn = call >= step.stackBefore || step.canAct.every((name) => name === hero);
 		const realised = allIn ? 1 : realisation(inPosition, toCome);
 		// A strong draw with money behind is paid again when it gets there.
 		const implied =
@@ -237,7 +238,9 @@ export function judgePostflop(
 	}
 
 	// Checked to, or first to act.
-	const made = chosen === 'bet' ? step.action.amount : 0;
+	const amount = chosen === 'bet' ? step.action.amount : 0;
+	// A bet bigger than the deepest opponent's stack is only in play up to that stack.
+	const made = step.effectiveStack > 0 ? Math.min(amount, step.effectiveStack) : amount;
 	const size = made > 0 ? made / Math.max(1, pot) : texture.betSize;
 	const bet = made > 0 ? made : Math.min(step.stackBefore, Math.round(pot * size));
 	const realised = realisation(inPosition, toCome);
@@ -285,7 +288,7 @@ export function judgePostflop(
 				return verdict('check', checkEv - betEv, 'bet-thin', confidence);
 			}
 		}
-		const allIn = made >= step.stackBefore;
+		const allIn = amount >= step.stackBefore;
 		const tiny = size < 0.2;
 		const huge = toCome > 0 && size > 2.5 * texture.betSize && !allIn;
 		if (tiny || huge) return verdict('bet', 0.04 * pot, 'postflop-sizing', 'low');

@@ -20,6 +20,7 @@ export type Scenario =
 	| 'vs3bet'
 	| 'cold4bet'
 	| 'vs4bet'
+	| 'vs5bet'
 	| 'limpedVsRaise';
 
 export type Confidence = 'high' | 'medium' | 'low';
@@ -55,6 +56,7 @@ const SCENARIO_NAMES: Record<Scenario, string> = {
 	vs3bet: 'facing a 3-bet',
 	cold4bet: 'facing an open and a 3-bet',
 	vs4bet: 'facing a 4-bet',
+	vs5bet: 'facing a 5-bet',
 	limpedVsRaise: 'raised after limping',
 };
 
@@ -193,6 +195,12 @@ export function classifyPreflop(replay: Replay, step: Step): PreflopSpot {
 		scenario = 'vs4bet';
 		const opener = layout?.positions[raisers[0]] ?? 'UTG';
 		chartId = opener === 'UTG' || opener === 'HJ' ? 'vs4betTight' : 'vs4betWide';
+		strategy = chart(chartId, depth);
+	} else if (raises === 4 && madeLastButOne) {
+		// No chart goes this deep: the tightest one stands in, and says so.
+		scenario = 'vs5bet';
+		chartId = 'vs4betTight';
+		soften('low');
 		strategy = chart(chartId, depth);
 	} else {
 		scenario = 'cold4bet';

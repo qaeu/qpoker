@@ -132,8 +132,8 @@ function aggression(
 		if (p === null) air += weight;
 		else {
 			out[i] = p;
-			if (view.draws[i] > 0 && view.percentile[i] < 1 - valueShare(size))
-				semi += weight * p;
+			const top = raise ? RAISE_TOP : valueShare(size);
+			if (view.draws[i] > 0 && view.percentile[i] < 1 - top) semi += weight * p;
 			else value += weight * p;
 		}
 	}
