@@ -1,0 +1,59 @@
+@use '../base' as *;
+
+@layer screen {
+	.segmented {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-width: 0;
+
+		&__label {
+			@include print(11px, 0.16em);
+			flex: none;
+			color: $ink-muted;
+		}
+
+		&__items {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 4px;
+			min-width: 0;
+		}
+
+		// A label, not a button, so it takes the control mixin itself: the keys of
+		// one group are the same object as every other key on the felt.
+		&__item {
+			@include button;
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			white-space: nowrap;
+			user-select: none;
+
+			// Focus lands on the hidden radio, so the key it belongs to is marked.
+			&[data-focus-visible] {
+				outline: 2px solid get($primaries, 'base');
+				outline-offset: 2px;
+			}
+		}
+
+		&__count {
+			font-weight: 500;
+			letter-spacing: 0.04em;
+			font-variant-numeric: tabular-nums;
+			opacity: 0.8;
+		}
+
+		// On a phone the label goes over its keys and the keys share the line.
+		@include phone {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 5px;
+
+			&__item {
+				flex: 1 1 auto;
+				justify-content: space-between;
+			}
+		}
+	}
+}

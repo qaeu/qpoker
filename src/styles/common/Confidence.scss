@@ -1,0 +1,27 @@
+@use '../base' as *;
+
+@layer screen {
+	.confidence {
+		@include print(12px, 0.04em, $caps: false);
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		color: get($neutrals, 'fg');
+
+		&__pips {
+			display: inline-flex;
+			gap: 3px;
+		}
+
+		&__pip {
+			width: 6px;
+			height: 6px;
+			border-radius: 50%;
+			background-color: $rule-strong;
+
+			&.is-lit {
+				background-color: get($neutrals, 'fg');
+			}
+		}
+	}
+}
