@@ -322,7 +322,7 @@ describe('analysing a log in the app', () => {
 			const unmount = mountApp();
 			loadLog(TWO_HAND_LOG);
 			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
-			const stored = localStorage.getItem('pokeranalysis:report');
+			const stored = localStorage.getItem('qpoker:report');
 			expect(stored).not.toBeNull();
 
 			unmount();

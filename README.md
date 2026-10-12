@@ -1,4 +1,4 @@
-# pokeranalysis — GTO hand-history coach
+# qpoker — GTO hand-history coach
 
 Reads a PokerStars hand-history file for No-Limit Hold'em cash games and tells the player
 where they went wrong: every decision is graded against a GTO baseline, the mistakes are
@@ -38,7 +38,7 @@ plays: the right decisions that were hard to make. Options:
 | `--rake <fraction>`  | Rake as a share of the pot. Default: taken from the log.    |
 | `--no-color`         | Plain text.                                                 |
 
-`npx pokeranalysis <file>` does the same once the package is linked or installed.
+`npx qpoker <file>` does the same once the package is linked or installed.
 
 ## In the browser
 

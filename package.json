@@ -1,10 +1,10 @@
 {
-	"name": "pokeranalysis",
+	"name": "qpoker",
 	"version": "0.1.0",
 	"description": "GTO hand-history coach for No-Limit Hold'em cash games",
 	"type": "module",
 	"bin": {
-		"pokeranalysis": "./bin/pokeranalysis.js"
+		"qpoker": "./bin/qpoker.js"
 	},
 	"scripts": {
 		"start": "vite",

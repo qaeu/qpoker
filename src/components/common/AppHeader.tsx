@@ -46,7 +46,7 @@ const AppHeader: Component<AppHeaderProps> = (props) => (
 			class="app-header__inner"
 		>
 			<h1 class="app-header__title">
-				pokeranalysis
+				qpoker
 				<Show when={!props.session}>
 					<span class="app-header__title-sub">· hand-history coach</span>
 				</Show>

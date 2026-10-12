@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-pokeranalysis reads a PokerStars hand-history file for No-Limit Hold'em cash games and
+qpoker reads a PokerStars hand-history file for No-Limit Hold'em cash games and
 coaches the player on their mistakes against a GTO baseline. One pure TypeScript engine
 with two front ends: a Node CLI and a static SolidJS + Vite app. No backend; in the browser
 the log is graded in a worker and the report lives in `localStorage`.

@@ -10,7 +10,7 @@ import { analyzeLog } from '#utils/coach/report';
 import { SEVERITIES, type Severity } from '#utils/coach/mistakes';
 import { formatReport } from './format';
 
-const USAGE = `Usage: pokeranalysis <hand-history.txt> [options]
+const USAGE = `Usage: qpoker <hand-history.txt> [options]
 
 Grades every decision in a PokerStars hand-history file against a GTO baseline.
 

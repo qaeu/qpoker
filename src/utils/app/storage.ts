@@ -6,7 +6,7 @@
 
 import { REPORT_VERSION, type AnalysisReport } from '../coach/report';
 
-const KEY = 'pokeranalysis:report';
+const KEY = 'qpoker:report';
 
 interface StoredReport {
 	version: number;
