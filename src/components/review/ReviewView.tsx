@@ -25,6 +25,7 @@ import type { AnalysisReport, HandReport } from '#utils/coach/report';
 import type { Position } from '#utils/history/replay';
 import { SCENARIO_NAMES, type Scenario } from '#utils/ranges/preflopSpot';
 import { signed } from '#utils/ui/format';
+import { ARROWED, TYPING } from '#utils/ui/keys';
 import { resolveStep, tableSteps } from '#utils/ui/tableReplay';
 import {
 	countsOf,
@@ -78,12 +79,6 @@ const ORDERS: SegmentOption<ReviewOrder>[] = [
 
 /** `first in` as an option reads: `First in`. */
 const sentence = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
-
-/** Somewhere a J or a K is being typed rather than pressed. */
-const TYPING = 'input:not([type="radio"]), textarea, select, [contenteditable]';
-
-/** Ark's segments take the arrow keys for themselves. */
-const ARROWED = '[role="radiogroup"]';
 
 const ReviewView: Component<ReviewViewProps> = (props) => {
 	const counts = createMemo(() => countsOf(props.report, props.query));

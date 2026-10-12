@@ -496,7 +496,13 @@ describe('analysing a log in the app', () => {
 		expect(await screen.findByRole('grid', { name: 'Starting-hand range' })).toBeTruthy();
 		expect(screen.getAllByRole('gridcell')).toHaveLength(169);
 
-		fireEvent.change(screen.getByLabelText('Spot'), { target: { value: 'rfiUtg' } });
+		fireEvent.click(
+			within(screen.getByRole('radiogroup', { name: 'Chart' })).getByRole('radio', {
+				name: 'UTG',
+			})
+		);
+		await settle();
+		expect(window.location.hash).toBe('#ranges?chart=rfiUtg');
 		expect(screen.getByTitle(/^72o: raises 0%/).classList.contains('is-empty')).toBe(
 			true
 		);
@@ -506,5 +512,21 @@ describe('analysing a log in the app', () => {
 			screen.getByText(/Load a hand history with the button in the header/)
 		).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Load a log' })).toBeTruthy();
+
+		// The arrows move the chart and the scenario, and the address follows.
+		fireEvent.keyDown(window, { key: 'ArrowRight' });
+		fireEvent.keyDown(window, { key: 'ArrowDown' });
+		fireEvent.keyDown(window, { key: 'd' });
+		expect(window.location.hash).toBe('#ranges?chart=ipVsEp&depth=mid');
+		expect(screen.getByRole('heading', { name: 'HJ or CO vs UTG open' })).toBeTruthy();
+	});
+
+	it('opens the chart a link names', async () => {
+		mountApp();
+		await goTo('#ranges?chart=bbVsSb&depth=mid');
+		expect(await screen.findByRole('heading', { name: 'BB vs SB open' })).toBeTruthy();
+		expect(
+			screen.getByRole<HTMLInputElement>('radio', { name: '30 to 70bb' }).checked
+		).toBe(true);
 	});
 });

@@ -10,13 +10,18 @@
  * `position`, `scenario`, `order`, `hand`, then `step` -- and a default is left
  * out, so one list has one address. `position` and `scenario` scope the list
  * to a seat and a preflop spot whatever `show` is.
+ *
+ * Ranges carries the chart on show and its stack depth the same way
+ * (`#ranges?chart=btnVsCo&depth=mid`), `chart` before `depth`.
  */
 
 import { createSignal, onCleanup, onMount } from 'solid-js';
 
 import { MISTAKES, type MistakeType } from '../coach/mistakes';
 import { POSITIONS } from '../history/replay';
+import { CHART_IDS } from '../ranges/charts';
 import { SCENARIOS } from '../ranges/preflopSpot';
+import { DEFAULT_RANGES, RANGE_DEPTHS, type RangesQuery } from '../ui/rangeTables';
 import {
 	DEFAULT_REVIEW,
 	REVIEW_FLOORS,
@@ -34,12 +39,14 @@ export type AppTab = (typeof APP_TABS)[number];
 export interface Route {
 	tab: AppTab;
 	review: ReviewQuery;
+	ranges: RangesQuery;
 }
 
 /** What `navigate` takes: only what is to change. */
 export interface RouteChange {
 	tab?: AppTab;
 	review?: Partial<ReviewQuery>;
+	ranges?: Partial<RangesQuery>;
 }
 
 export interface NavigateOptions {
@@ -75,9 +82,19 @@ export function parseRoute(hash: string): Route {
 	const [name, search = ''] = hash.replace(/^#/, '').split('?');
 	const legacy = Object.hasOwn(LEGACY_TABS, name) ? LEGACY_TABS[name] : null;
 	const tab = legacy ? 'review' : (oneOf(APP_TABS, name) ?? 'summary');
-	if (tab !== 'review') return { tab, review: DEFAULT_REVIEW };
-
 	const params = new URLSearchParams(search);
+	if (tab === 'ranges') {
+		return {
+			tab,
+			review: DEFAULT_REVIEW,
+			ranges: {
+				chart: oneOf(CHART_IDS, params.get('chart')) ?? DEFAULT_RANGES.chart,
+				depth: oneOf(RANGE_DEPTHS, params.get('depth')) ?? DEFAULT_RANGES.depth,
+			},
+		};
+	}
+	if (tab !== 'review') return { tab, review: DEFAULT_REVIEW, ranges: DEFAULT_RANGES };
+
 	const kind = params.get('kind');
 	// A `+` typed into the address bar arrives as a space: `UTG+1` is meant.
 	const position = params.get('position')?.replace(/ /g, '+') ?? null;
@@ -85,6 +102,7 @@ export function parseRoute(hash: string): Route {
 	const step = params.get('step') ?? '';
 	return {
 		tab,
+		ranges: DEFAULT_RANGES,
 		review: {
 			show: legacy ?? oneOf(REVIEW_SHOWS, params.get('show')) ?? DEFAULT_REVIEW.show,
 			floor: oneOf(REVIEW_FLOORS, params.get('floor')) ?? DEFAULT_REVIEW.floor,
@@ -102,8 +120,15 @@ export function parseRoute(hash: string): Route {
 
 /** The canonical fragment for a route: defaults are left out. */
 export function formatRoute(route: Route): string {
-	if (route.tab !== 'review') return `#${route.tab}`;
 	const params = new URLSearchParams();
+	if (route.tab === 'ranges') {
+		const { chart, depth } = route.ranges;
+		if (chart !== DEFAULT_RANGES.chart) params.set('chart', chart);
+		if (depth !== DEFAULT_RANGES.depth) params.set('depth', depth);
+		const search = params.toString();
+		return search ? `#ranges?${search}` : '#ranges';
+	}
+	if (route.tab !== 'review') return `#${route.tab}`;
 	const { review } = route;
 	for (const key of ROUTE_KEYS) {
 		const value = review[key];
@@ -118,7 +143,11 @@ export function formatRoute(route: Route): string {
 
 /** The address of a Review list: what a link to it from another view points at. */
 export function reviewHref(change: Partial<ReviewQuery>): string {
-	return formatRoute({ tab: 'review', review: { ...DEFAULT_REVIEW, ...change } });
+	return formatRoute({
+		tab: 'review',
+		review: { ...DEFAULT_REVIEW, ...change },
+		ranges: DEFAULT_RANGES,
+	});
 }
 
 /**
@@ -156,6 +185,7 @@ export function createHashRoute(): [
 		const next: Route = {
 			tab: change.tab ?? current.tab,
 			review: { ...current.review, ...change.review },
+			ranges: { ...current.ranges, ...change.ranges },
 		};
 		const hash = formatRoute(next);
 		if (options.replace) rewrite(hash);

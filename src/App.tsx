@@ -120,7 +120,10 @@ const App: Component = () => {
 				</Show>
 				<Switch>
 					<Match when={tab() === 'ranges'}>
-						<RangesView />
+						<RangesView
+							query={route().ranges}
+							onQuery={(change, options) => navigate({ ranges: change }, options)}
+						/>
 						<Show when={!report()}>
 							<p class="app__empty">
 								Load a hand history with the button in the header to have it graded

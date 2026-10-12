@@ -1,27 +1,48 @@
 /**
  * The preflop baseline itself, browsable: every chart the grader uses, at each
- * stack depth, with how much of the deck it raises and calls.
+ * stack depth, with how much of the deck it raises and calls. The chart is
+ * chosen by scenario and then within it, on keys or with the arrows, and the
+ * choice is the view's address.
  */
 
-import { createMemo, createSignal, type Component } from 'solid-js';
+import { createMemo, onCleanup, onMount, type Component } from 'solid-js';
 
-import Select, { type SelectOption } from '#c/common/Select';
+import Segmented, { type SegmentOption } from '#c/common/Segmented';
 
-import { chart, CHART_IDS, CHART_LABELS, hasOwnChart } from '#utils/ranges/charts';
-import type { ChartId, Depth } from '#utils/ranges/charts';
+import type { NavigateOptions } from '#utils/app/hashRoute';
+import { chart, CHART_LABELS, hasOwnChart } from '#utils/ranges/charts';
+import type { ChartId } from '#utils/ranges/charts';
 import { rangeFraction } from '#utils/ranges/range';
 import { percent } from '#utils/ui/format';
+import { ARROWED, TYPING } from '#utils/ui/keys';
+import {
+	chartIn,
+	GROUP_LABELS,
+	RANGE_GROUPS,
+	stepChart,
+	stepGroup,
+	tableOf,
+	tablesIn,
+	type RangeDepth,
+	type RangeGroup,
+	type RangesQuery,
+} from '#utils/ui/rangeTables';
 
 import RangeGrid from './RangeGrid';
 
 import '#styles/ranges/RangesView';
 
-const SPOTS: SelectOption<ChartId>[] = CHART_IDS.map((id) => ({
+interface RangesViewProps {
+	query: RangesQuery;
+	onQuery: (change: Partial<RangesQuery>, options?: NavigateOptions) => void;
+}
+
+const GROUPS: SegmentOption<RangeGroup>[] = RANGE_GROUPS.map((id) => ({
 	id,
-	label: CHART_LABELS[id],
+	label: GROUP_LABELS[id],
 }));
 
-const DEPTHS: SelectOption<Depth>[] = [
+const DEPTHS: SegmentOption<RangeDepth>[] = [
 	{ id: 'deep', label: '70bb and deeper' },
 	{ id: 'mid', label: '30 to 70bb' },
 ];
@@ -43,23 +64,75 @@ export const RangeKey: Component<{ rest?: string }> = (props) => (
 	</ul>
 );
 
-const RangesView: Component = () => {
-	const [id, setId] = createSignal<ChartId>('rfiBtn');
-	const [depth, setDepth] = createSignal<Depth>('deep');
+const RangesView: Component<RangesViewProps> = (props) => {
+	const id = () => props.query.chart;
+	const depth = () => props.query.depth;
+	const group = createMemo(() => tableOf(id()).group);
+	const charts = createMemo<SegmentOption<ChartId>[]>(() =>
+		tablesIn(group()).map((table) => ({ id: table.id, label: table.short }))
+	);
 	const strategy = createMemo(() => chart(id(), depth()));
+
+	// A step with the keys rewrites the entry: holding one is not twenty pages back.
+	const step = (to: ChartId) => {
+		if (to !== id()) props.onQuery({ chart: to }, { replace: true });
+	};
+
+	const onKey = (event: KeyboardEvent) => {
+		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		if (event.target instanceof Element && event.target.closest(TYPING)) return;
+		if (event.key.toLowerCase() === 'd') {
+			event.preventDefault();
+			props.onQuery({ depth: depth() === 'deep' ? 'mid' : 'deep' }, { replace: true });
+			return;
+		}
+		const to =
+			event.key === 'ArrowLeft' ? stepChart(id(), -1)
+			: event.key === 'ArrowRight' ? stepChart(id(), 1)
+			: event.key === 'ArrowUp' ? stepGroup(id(), -1)
+			: event.key === 'ArrowDown' ? stepGroup(id(), 1)
+			: undefined;
+		if (to === undefined) return;
+		if (event.target instanceof Element && event.target.closest(ARROWED)) return;
+		event.preventDefault();
+		step(to);
+	};
+	onMount(() => {
+		window.addEventListener('keydown', onKey);
+		onCleanup(() => window.removeEventListener('keydown', onKey));
+	});
 
 	return (
 		<section class="ranges-view">
 			<div class="ranges-view__controls">
-				<Select label="Spot" options={SPOTS} value={id()} onChange={setId} />
-				<Select
-					label="Effective stack"
+				<Segmented
+					label="Scenario"
+					options={GROUPS}
+					value={group()}
+					onChange={(next) => props.onQuery({ chart: chartIn(next, id()) })}
+				/>
+				<Segmented
+					label="Chart"
+					options={charts()}
+					value={id()}
+					onChange={(next) => props.onQuery({ chart: next })}
+				/>
+				<Segmented
+					label="Stack"
 					options={DEPTHS}
 					value={depth()}
-					onChange={setDepth}
+					onChange={(next) => props.onQuery({ depth: next })}
 				/>
+				<p class="ranges-view__keys">
+					<kbd>←</kbd>
+					<kbd>→</kbd> chart
+					<kbd>↑</kbd>
+					<kbd>↓</kbd> scenario
+					<kbd>D</kbd> stack
+				</p>
 			</div>
 
+			<h2 class="ranges-view__title">{CHART_LABELS[id()]}</h2>
 			<p class="ranges-view__figures">
 				Raises {percent(rangeFraction(strategy().raise))} of hands, calls{' '}
 				{percent(rangeFraction(strategy().call))}.

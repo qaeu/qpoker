@@ -7,13 +7,36 @@
 
 		&__controls {
 			display: flex;
-			flex-wrap: wrap;
-			gap: 14px;
-			margin-bottom: 16px;
+			flex-direction: column;
+			gap: 10px;
+			margin-bottom: 18px;
 		}
 
-		&__controls .select {
-			flex: 1 1 220px;
+		// The keys that move the choice, printed once under the rows they move.
+		&__keys {
+			@include print(11px, 0.08em, $caps: false);
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 4px;
+			margin: 2px 0 0;
+			color: $ink-faint;
+
+			kbd {
+				@include key-cap;
+			}
+
+			kbd:not(:first-child):not(kbd + kbd) {
+				margin-left: 10px;
+			}
+
+			@include touch {
+				display: none;
+			}
+		}
+
+		&__title {
+			margin: 0 0 4px;
 		}
 
 		&__figures {

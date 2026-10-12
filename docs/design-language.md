@@ -186,7 +186,7 @@ looks forbidden the same way everywhere (`disabled-control`).
 row of keys, each the `button` mixin, the chosen one in `.active` gold. It replaced the
 `<select>`s on the Review filters because there the options are few, their counts are
 worth seeing before choosing, and a menu hid both. A `<select>` is still right where the
-options are many (the Ranges spot list). It is Ark's segment group underneath, so it is a
+options are many or change with the data (Review's seats and spots). It is Ark's segment group underneath, so it is a
 radio group to the keyboard and to a screen reader: arrow keys move the choice, and focus
 is shown on the key because the radio itself is hidden. Ark's sliding indicator is not
 used, since it positions itself with an inline style and nothing here animates on its own.
@@ -217,8 +217,29 @@ control and no key in the address.
 It is native, not Ark's select, on purpose: the platform's menu is the right one on a
 phone, it needs no positioning inside a toolbar that wraps, and it is already a listbox
 to the keyboard. In a toolbar it takes `inline`, the label beside the control as a
-segmented group's is. The Ranges view's two menus are the same component, label over
-control.
+segmented group's is.
+
+### The Ranges keys
+
+The Ranges view had one menu of all thirty charts, and going from one to its neighbour
+was a menu opened and thirty lines read. Thirty is too many for keys, so the list is cut
+in two: a **Scenario** row (first in, vs open, vs 3-bet, vs 4-bet, cold 4-bet, limped)
+and a **Chart** row of the charts in the scenario chosen, twelve at most. Each row is few
+enough to have in view, and the chart keys can be short (`BTN`, `BB vs CO`) because the
+scenario key above has said the rest; the full name is the heading over the grid. Stack
+depth is a third row, two keys. The grouping is `utils/ui/rangeTables.ts`.
+
+Changing scenario keeps the hero's seat where the next one has a chart for it (BTN first
+in, BTN vs an early open, BTN open vs a 3-bet), since that is the comparison most often
+wanted, and takes the scenario's first chart otherwise. It goes by the seat of the chart
+on show, not one remembered, so the same address always moves the same way.
+
+The window takes the arrow keys while the view is up: left and right move the chart, up
+and down the scenario, and `D` flips the depth, printed as key caps under the rows (and
+hidden on touch, as every cap is). They stop at the ends rather than wrap. As in Review,
+they stand down while a row of keys has the focus, because there Ark's radio group moves
+its own choice with the arrows. The choice is the view's address
+(`#ranges?chart=btnVsCo&depth=mid`); a click adds a history entry and a key rewrites it.
 
 ### The "on baseline" tag
 

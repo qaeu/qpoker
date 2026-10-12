@@ -42,7 +42,8 @@ docs/                      # Model and design reasoning (see below)
 - **The views are Summary, Review, Openings and Ranges**, addressed by the URL hash
   (`utils/app/hashRoute.ts`). Review keeps its whole state there
   (`#review?show=…&hand=…&step=…`, `step` being where the hand's replay stands): add a
-  filter to `ReviewQuery` and the route, not to a signal in the view.
+  filter to `ReviewQuery` and the route, not to a signal in the view. Ranges does the
+  same with its chart and depth (`#ranges?chart=…&depth=…`, `RangesQuery`).
 - Hand-history `.txt` files in the repo root are git-ignored: they carry other players'
   screen names. Tests use `tests/fixtures/` (anonymised) and `tests/utils/history/handText.ts`.
 

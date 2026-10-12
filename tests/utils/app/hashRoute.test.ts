@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { formatRoute, parseRoute, reviewHref, type Route } from '#utils/app/hashRoute';
+import { DEFAULT_RANGES } from '#utils/ui/rangeTables';
 import { DEFAULT_REVIEW } from '#utils/ui/review';
 
 describe('the hash route', () => {
@@ -8,9 +9,14 @@ describe('the hash route', () => {
 		it('reads a bare tab', () => {
 			expect(parseRoute('#openings')).toEqual({
 				tab: 'openings',
+				ranges: DEFAULT_RANGES,
 				review: DEFAULT_REVIEW,
 			});
-			expect(parseRoute('#review')).toEqual({ tab: 'review', review: DEFAULT_REVIEW });
+			expect(parseRoute('#review')).toEqual({
+				tab: 'review',
+				ranges: DEFAULT_RANGES,
+				review: DEFAULT_REVIEW,
+			});
 		});
 
 		it('falls back to the summary on an empty or unknown fragment', () => {
@@ -26,6 +32,7 @@ describe('the hash route', () => {
 				)
 			).toEqual({
 				tab: 'review',
+				ranges: DEFAULT_RANGES,
 				review: {
 					show: 'mistakes',
 					floor: 'mistake',
@@ -62,7 +69,7 @@ describe('the hash route', () => {
 				parseRoute(
 					'#review?show=everything&floor=ok&street=river&kind=toString&position=MP&scenario=toString&order=&x=1'
 				)
-			).toEqual({ tab: 'review', review: DEFAULT_REVIEW });
+			).toEqual({ tab: 'review', ranges: DEFAULT_RANGES, review: DEFAULT_REVIEW });
 		});
 
 		describe('the position', () => {
@@ -81,7 +88,33 @@ describe('the hash route', () => {
 		it('ignores a query on a view that takes none', () => {
 			expect(parseRoute('#summary?show=all&hand=1')).toEqual({
 				tab: 'summary',
+				ranges: DEFAULT_RANGES,
 				review: DEFAULT_REVIEW,
+			});
+		});
+
+		describe('the Ranges chart', () => {
+			const rangesOf = (hash: string) => parseRoute(hash).ranges;
+
+			it('reads the chart and the depth', () => {
+				expect(rangesOf('#ranges?chart=btnVsCo&depth=mid')).toEqual({
+					chart: 'btnVsCo',
+					depth: 'mid',
+				});
+				expect(rangesOf('#ranges?chart=bbVsSb')).toEqual({
+					chart: 'bbVsSb',
+					depth: 'deep',
+				});
+			});
+
+			it('falls back to the default on a value it does not know', () => {
+				expect(rangesOf('#ranges')).toEqual(DEFAULT_RANGES);
+				expect(rangesOf('#ranges?chart=toString&depth=short')).toEqual(DEFAULT_RANGES);
+			});
+
+			it('is not read on another view', () => {
+				expect(rangesOf('#summary?chart=bbVsSb&depth=mid')).toEqual(DEFAULT_RANGES);
+				expect(rangesOf('#review?chart=bbVsSb')).toEqual(DEFAULT_RANGES);
 			});
 		});
 
@@ -100,20 +133,26 @@ describe('the hash route', () => {
 
 	describe('formatRoute', () => {
 		it('leaves the defaults out', () => {
-			expect(formatRoute({ tab: 'review', review: DEFAULT_REVIEW })).toBe('#review');
-			expect(formatRoute({ tab: 'ranges', review: DEFAULT_REVIEW })).toBe('#ranges');
+			expect(
+				formatRoute({ tab: 'review', ranges: DEFAULT_RANGES, review: DEFAULT_REVIEW })
+			).toBe('#review');
+			expect(
+				formatRoute({ tab: 'ranges', ranges: DEFAULT_RANGES, review: DEFAULT_REVIEW })
+			).toBe('#ranges');
 		});
 
 		it('writes the parameters in a fixed order', () => {
 			expect(
 				formatRoute({
 					tab: 'review',
+					ranges: DEFAULT_RANGES,
 					review: { ...DEFAULT_REVIEW, hand: '5001', street: 'pre', show: 'all' },
 				})
 			).toBe('#review?show=all&street=pre&hand=5001');
 			expect(
 				formatRoute({
 					tab: 'review',
+					ranges: DEFAULT_RANGES,
 					review: {
 						...DEFAULT_REVIEW,
 						hand: '5001',
@@ -132,18 +171,50 @@ describe('the hash route', () => {
 			expect(
 				formatRoute({
 					tab: 'review',
+					ranges: DEFAULT_RANGES,
 					review: { ...DEFAULT_REVIEW, show: 'all', hand: '5001', step: 0 },
 				})
 			).toBe('#review?show=all&hand=5001&step=0');
-			expect(formatRoute({ tab: 'review', review: { ...DEFAULT_REVIEW, step: 4 } })).toBe(
-				'#review'
-			);
+			expect(
+				formatRoute({
+					tab: 'review',
+					ranges: DEFAULT_RANGES,
+					review: { ...DEFAULT_REVIEW, step: 4 },
+				})
+			).toBe('#review');
 		});
 
 		it('drops Review state on any other view', () => {
 			expect(
-				formatRoute({ tab: 'summary', review: { ...DEFAULT_REVIEW, hand: '5001' } })
+				formatRoute({
+					tab: 'summary',
+					ranges: DEFAULT_RANGES,
+					review: { ...DEFAULT_REVIEW, hand: '5001' },
+				})
 			).toBe('#summary');
+		});
+
+		it('writes the Ranges chart before its depth, and neither by default', () => {
+			const ranges = (change: Partial<Route['ranges']>): Route => ({
+				tab: 'ranges',
+				review: DEFAULT_REVIEW,
+				ranges: { ...DEFAULT_RANGES, ...change },
+			});
+			expect(formatRoute(ranges({ chart: 'btnVsCo', depth: 'mid' }))).toBe(
+				'#ranges?chart=btnVsCo&depth=mid'
+			);
+			expect(formatRoute(ranges({ depth: 'mid' }))).toBe('#ranges?depth=mid');
+			expect(formatRoute(ranges({ chart: 'rfiBtn' }))).toBe('#ranges');
+		});
+
+		it('drops the Ranges chart on any other view', () => {
+			expect(
+				formatRoute({
+					tab: 'openings',
+					review: DEFAULT_REVIEW,
+					ranges: { chart: 'bbVsSb', depth: 'mid' },
+				})
+			).toBe('#openings');
 		});
 
 		it('gives the legacy tabs their new address', () => {
@@ -155,11 +226,16 @@ describe('the hash route', () => {
 
 	describe('round trip', () => {
 		const routes: Route[] = [
-			{ tab: 'summary', review: DEFAULT_REVIEW },
-			{ tab: 'review', review: DEFAULT_REVIEW },
-			{ tab: 'review', review: { ...DEFAULT_REVIEW, show: 'ungraded' } },
+			{ tab: 'summary', ranges: DEFAULT_RANGES, review: DEFAULT_REVIEW },
+			{ tab: 'review', ranges: DEFAULT_RANGES, review: DEFAULT_REVIEW },
 			{
 				tab: 'review',
+				ranges: DEFAULT_RANGES,
+				review: { ...DEFAULT_REVIEW, show: 'ungraded' },
+			},
+			{
+				tab: 'review',
+				ranges: DEFAULT_RANGES,
 				review: {
 					show: 'mistakes',
 					floor: 'blunder',
@@ -172,8 +248,21 @@ describe('the hash route', () => {
 					step: 14,
 				},
 			},
-			{ tab: 'review', review: { ...DEFAULT_REVIEW, show: 'all', position: 'BB' } },
-			{ tab: 'review', review: { ...DEFAULT_REVIEW, show: 'plays', order: 'impact' } },
+			{
+				tab: 'review',
+				ranges: DEFAULT_RANGES,
+				review: { ...DEFAULT_REVIEW, show: 'all', position: 'BB' },
+			},
+			{
+				tab: 'review',
+				ranges: DEFAULT_RANGES,
+				review: { ...DEFAULT_REVIEW, show: 'plays', order: 'impact' },
+			},
+			{
+				tab: 'ranges',
+				ranges: { chart: 'sbVs3bet', depth: 'mid' },
+				review: DEFAULT_REVIEW,
+			},
 		];
 
 		it.each(routes)('survives $tab $review.show', (route) => {
