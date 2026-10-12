@@ -341,6 +341,22 @@ it.
 - **Figures are big blinds** on the table and in the caption, because that is the unit a
   grade is in. The list of lines keeps the log's own currency, as the CLI prints it.
 
+### The copied hand
+
+The header's Copy puts the hand on the clipboard as a few lines of text
+(`utils/ui/handNotation.ts`), to be pasted where it is discussed. It is written for a
+reader who was not at the table: stakes and starting stacks first, then a line per street
+with the pot it began at and the cards it turned, then what was shown and who won.
+Figures are big blinds, as on the table. Opponents go by their seats and the hero as
+"Hero": a position is what a discussion reasons about, and a screen name is another
+player's, which is not ours to pass round. The blinds' posts are left out, the stakes
+having said them. So is anyone who only folded before the flop, stack and fold both: a
+seat already says who was behind it, and five folds ahead of a raise are better said by
+calling the raise an open, which the first money put in by choice is when it is a raise. A call carries no figure, the bet it
+answers having just been said; one that is all-in for less is marked all-in, and the stacks
+say for how much. Grades are left out too: what is shared is the hand, for someone
+else's opinion of it.
+
 ### One step, after the action
 
 A step is the table _after_ something happened: the deal with the blinds out, each

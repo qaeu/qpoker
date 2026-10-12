@@ -5,7 +5,19 @@
  * carries a tag for a graded decision; the grade itself is the caption's.
  */
 
-import { createMemo, For, Show, type Component, type ParentComponent } from 'solid-js';
+import {
+	createEffect,
+	createMemo,
+	createSignal,
+	For,
+	on,
+	onCleanup,
+	Show,
+	type Component,
+	type ParentComponent,
+} from 'solid-js';
+
+import { Check, Copy } from 'lucide-solid';
 
 import PlayingCards from '#c/common/PlayingCards';
 import { playerHref } from '#utils/app/hashRoute';
@@ -13,6 +25,7 @@ import type { Grading } from '#utils/coach/grade';
 import type { ActionLine, HandReport } from '#utils/coach/report';
 import { STREETS, type Street } from '#utils/history/hand';
 import { bbText, shortTime, signClass, signed } from '#utils/ui/format';
+import { handNotation } from '#utils/ui/handNotation';
 import { resolveStep, stepOfLine, tableSteps } from '#utils/ui/tableReplay';
 
 import HandTable from './HandTable';
@@ -43,6 +56,9 @@ interface JumpProps {
 	current: boolean;
 	hero?: boolean;
 }
+
+/** How long the copy button goes on saying what came of the press. */
+const COPIED_MS = 2000;
 
 /** The board cards a street turned over. */
 function dealt(board: string, street: Street): string {
@@ -75,6 +91,32 @@ const HandDetail: Component<HandDetailProps> = (props) => {
 			};
 		}).filter((group) => group.lines.length > 0 || group.deal !== null)
 	);
+
+	const [copied, setCopied] = createSignal<'copied' | 'failed' | null>(null);
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+	const settleCopy = (state: 'copied' | 'failed' | null) => {
+		clearTimeout(copiedTimer);
+		setCopied(state);
+		if (state) copiedTimer = setTimeout(() => setCopied(null), COPIED_MS);
+	};
+	const copy = () => {
+		// Absent outside a secure context, where the press can only say so.
+		const written =
+			navigator.clipboard?.writeText(handNotation(props.hand))
+			?? Promise.reject(new Error('no clipboard'));
+		written.then(
+			() => settleCopy('copied'),
+			() => settleCopy('failed')
+		);
+	};
+	createEffect(
+		on(
+			() => props.hand.id,
+			() => settleCopy(null),
+			{ defer: true }
+		)
+	);
+	onCleanup(() => clearTimeout(copiedTimer));
 
 	const isHero = (name: string) =>
 		props.hand.seats.some((seat) => seat.hero && seat.name === name);
@@ -176,6 +218,23 @@ const HandDetail: Component<HandDetailProps> = (props) => {
 					{signed(props.hand.netBb)}
 					<span class="hand-detail__unit">bb</span>
 				</span>
+				<button
+					type="button"
+					class="hand-detail__copy"
+					aria-label="Copy the hand as text"
+					onClick={copy}
+				>
+					<Show when={copied() === 'copied'} fallback={<Copy aria-hidden="true" />}>
+						<Check aria-hidden="true" />
+					</Show>
+					<span aria-live="polite">
+						{copied() === 'copied' ?
+							'Copied'
+						: copied() === 'failed' ?
+							'Not copied'
+						:	'Copy'}
+					</span>
+				</button>
 				<div class="hand-detail__nav">
 					<button
 						type="button"

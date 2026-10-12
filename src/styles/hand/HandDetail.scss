@@ -63,6 +63,17 @@
 			color: $ink-muted;
 		}
 
+		&__copy {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+
+			svg {
+				width: 16px;
+				height: 16px;
+			}
+		}
+
 		&__nav {
 			display: flex;
 			gap: 4px;

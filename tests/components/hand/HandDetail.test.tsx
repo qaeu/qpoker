@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@solidjs/testing-library';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@solidjs/testing-library';
 
 import HandDetail from '#c/hand/HandDetail';
 import { analyzeLog } from '#utils/coach/report';
+import { handNotation } from '#utils/ui/handNotation';
 import { stepText, tableSteps } from '#utils/ui/tableReplay';
 
 import { TWO_HAND_LOG } from '../../integration/appHarness';
@@ -44,6 +45,30 @@ describe('HandDetail', () => {
 					name: 'Previous hand in the list',
 				}).disabled
 			).toBe(false);
+		});
+	});
+
+	describe('the copy button', () => {
+		const copyButton = () =>
+			screen.getByRole('button', { name: 'Copy the hand as text' });
+
+		afterEach(() => vi.unstubAllGlobals());
+
+		it('puts the hand’s notation on the clipboard and says so', async () => {
+			const writeText = vi.fn(() => Promise.resolve());
+			vi.stubGlobal('navigator', { clipboard: { writeText } });
+			render(() => <HandDetail hand={opened} number={2} total={2} />);
+			expect(copyButton().textContent).toBe('Copy');
+			fireEvent.click(copyButton());
+			expect(writeText).toHaveBeenCalledWith(handNotation(opened));
+			await waitFor(() => expect(copyButton().textContent).toBe('Copied'));
+		});
+
+		it('says when the clipboard would not take it', async () => {
+			vi.stubGlobal('navigator', {});
+			render(() => <HandDetail hand={opened} number={2} total={2} />);
+			fireEvent.click(copyButton());
+			await waitFor(() => expect(copyButton().textContent).toBe('Not copied'));
 		});
 	});
 
