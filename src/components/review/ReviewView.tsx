@@ -117,7 +117,9 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 	});
 	const step = createMemo(() => {
 		const hand = current();
-		return hand ? resolveStep(steps(), hand, props.query.step) : 0;
+		if (!hand) return 0;
+		const prefer = props.query.show === 'plays' ? 'play' : undefined;
+		return resolveStep(steps(), hand, props.query.step, prefer);
 	});
 	// Names the hand as well: a step is of a hand, and the one being read may be
 	// the list's first rather than one the route has named.
@@ -286,6 +288,7 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 									total={props.report.hands.length}
 									step={step()}
 									stakes={props.report.stakes}
+									onStep={goStep}
 									onPrev={prev() ? () => open(prev()) : undefined}
 									onNext={next() ? () => open(next()) : undefined}
 								/>

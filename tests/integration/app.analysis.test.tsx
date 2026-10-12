@@ -139,6 +139,70 @@ describe('analysing a log in the app', () => {
 		);
 
 		it(
+			'steps through a hand and keeps the step in the address',
+			async () => {
+				const unmount = mountApp();
+				loadLog(`${TWO_HAND_LOG}\n${handText(RIVER_HERO_CALL)}`);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+				await goTo('#review?show=all&hand=7001');
+				const where = () => document.querySelector('.step-caption__where')!.textContent;
+				const stepNow = () => Number(/step (\d+) of/.exec(where()!)![1]);
+
+				// It opens on its mistake, the river call, with the card in the caption.
+				expect(where()).toMatch(/^River · step \d+ of \d+$/);
+				expect(
+					screen.getByRole('heading', { name: 'Called without the price' })
+				).toBeTruthy();
+				const opensAt = stepNow();
+
+				// A step rewrites the entry, as a step through the list does.
+				const entries = window.history.length;
+				fireEvent.click(screen.getByRole('button', { name: 'Back a step' }));
+				expect(stepNow()).toBe(opensAt - 1);
+				expect(window.location.hash).toBe(
+					`#review?show=all&hand=7001&step=${opensAt - 2}`
+				);
+				expect(
+					screen.queryByRole('heading', { name: 'Called without the price' })
+				).toBeNull();
+
+				fireEvent.keyDown(window, { key: 'ArrowLeft' });
+				fireEvent.keyDown(window, { key: 'ArrowLeft' });
+				fireEvent.keyDown(window, { key: 'ArrowRight' });
+				expect(stepNow()).toBe(opensAt - 2);
+				expect(window.location.hash).toBe(
+					`#review?show=all&hand=7001&step=${opensAt - 3}`
+				);
+				expect(window.history.length).toBe(entries);
+
+				// A line of the action is a way to the same place.
+				fireEvent.click(screen.getByText('hero (SB) raises to $0.30'));
+				expect(where()).toMatch(/^Preflop · /);
+				expect(
+					screen.getByRole('group', { name: 'SB hero' }).classList.contains('is-acting')
+				).toBe(true);
+				const raised = window.location.hash;
+				expect(raised).toMatch(/&step=\d+$/);
+
+				// A reload lands on the same step.
+				unmount();
+				mountApp();
+				expect(window.location.hash).toBe(raised);
+				expect(where()).toMatch(/^Preflop · /);
+				expect(
+					screen.getByRole('group', { name: 'SB hero' }).classList.contains('is-acting')
+				).toBe(true);
+
+				// Another hand starts where it opens, not at the step this one was on.
+				fireEvent.keyDown(window, { key: 'k' });
+				expect(await screen.findByRole('heading', { name: 'Hand 2 of 3' })).toBeTruthy();
+				expect(window.location.hash).toBe('#review?show=all&hand=5002');
+				expect(where()).toMatch(/^Preflop · step 1 of /);
+			},
+			RUN_TIMEOUT_MS
+		);
+
+		it(
 			'comes back to the same list and hand after a reload',
 			async () => {
 				const unmount = mountApp();

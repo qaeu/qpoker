@@ -1,25 +1,22 @@
 /**
- * One hand replayed: the table at the step being read, beside the action
- * street by street and each of the hero's decisions with its grade. A decision
- * the baseline has no quarrel with is tagged in its line; a mistake or a good
- * play gets a card, and with it the chart a preflop one was graded off, the
- * hand marked on it.
+ * One hand replayed: the table at the step being read, with the strip that
+ * walks it and a caption that says what happened and how it was graded, beside
+ * the action street by street. A line of the action jumps the table to it and
+ * carries a tag for a graded decision; the grade itself is the caption's.
  */
 
-import { createMemo, For, Show, type Component } from 'solid-js';
+import { createMemo, For, Show, type Component, type ParentComponent } from 'solid-js';
 
 import PlayingCards from '#c/common/PlayingCards';
-import MistakeCard from '#c/report/MistakeCard';
-import RangeGrid from '#c/ranges/RangeGrid';
-import { RangeKey } from '#c/ranges/RangesView';
 import type { Grading } from '#utils/coach/grade';
 import type { ActionLine, HandReport } from '#utils/coach/report';
 import { STREETS, type Street } from '#utils/history/hand';
-import { chart, CHART_LABELS } from '#utils/ranges/charts';
-import { shortTime, signClass, signed } from '#utils/ui/format';
-import { resolveStep, tableSteps } from '#utils/ui/tableReplay';
+import { bbText, shortTime, signClass, signed } from '#utils/ui/format';
+import { resolveStep, stepOfLine, tableSteps } from '#utils/ui/tableReplay';
 
 import HandTable from './HandTable';
+import StepCaption from './StepCaption';
+import StepScrubber from './StepScrubber';
 
 import '#styles/hand/HandDetail';
 
@@ -33,8 +30,17 @@ interface HandDetailProps {
 	onNext?: () => void;
 	/** Where the replay stands; null or absent for where the hand opens by itself. */
 	step?: number | null;
+	onStep?: (step: number) => void;
 	/** The blinds, for the table's print. */
 	stakes?: string;
+}
+
+interface JumpProps {
+	class: string;
+	/** The step to jump to; null where there is no table to jump. */
+	to: number | null;
+	current: boolean;
+	hero?: boolean;
 }
 
 /** The board cards a street turned over. */
@@ -53,56 +59,98 @@ const HandDetail: Component<HandDetailProps> = (props) => {
 	);
 	const steps = createMemo(() => tableSteps(props.hand));
 	const step = createMemo(() => resolveStep(steps(), props.hand, props.step ?? null));
+	// A street is listed when it was dealt, played or not: an all-in's runout
+	// has cards to show and no lines.
 	const streets = createMemo(() =>
-		STREETS.map((street) => ({
-			street,
-			cards: dealt(props.hand.board, street),
-			lines: props.hand.lines.filter((line) => line.street === street),
-		})).filter((group) => group.lines.length > 0)
+		STREETS.map((street) => {
+			const deal = steps().findIndex(
+				(candidate) => candidate.kind === 'deal' && candidate.street === street
+			);
+			return {
+				street,
+				deal: deal < 0 ? null : deal,
+				cards: dealt(props.hand.board, street),
+				lines: props.hand.lines.filter((line) => line.street === street),
+			};
+		}).filter((group) => group.lines.length > 0 || group.deal !== null)
+	);
+
+	/** A place in the action: a button onto the table's step, where there is a table. */
+	const Jump: ParentComponent<JumpProps> = (jump) => (
+		<Show
+			when={jump.to !== null}
+			fallback={
+				<div class={jump.class} classList={{ 'is-hero': jump.hero }}>
+					{jump.children}
+				</div>
+			}
+		>
+			<button
+				type="button"
+				class={jump.class}
+				classList={{ 'is-hero': jump.hero, 'is-ahead': (jump.to ?? 0) > step() }}
+				aria-current={jump.current ? 'step' : undefined}
+				onClick={() => props.onStep?.(jump.to ?? 0)}
+			>
+				{jump.children}
+			</button>
+		</Show>
+	);
+
+	const Tag: Component<{ grading: Grading }> = (tag) => (
+		<Show
+			when={tag.grading.mistake || tag.grading.goodPlay}
+			fallback={
+				<span
+					class="hand-detail__tag"
+					title={
+						tag.grading.chosen === tag.grading.recommended ?
+							undefined
+						:	`The baseline leans to ${tag.grading.recommended}, but not by enough to matter.`
+					}
+				>
+					{tag.grading.chosen === tag.grading.recommended ?
+						'on baseline'
+					:	'near baseline'}
+				</span>
+			}
+		>
+			<Show
+				when={tag.grading.goodPlay}
+				fallback={
+					<span class={`hand-detail__tag is-${tag.grading.severity}`}>
+						{tag.grading.severity} {signed(tag.grading.evLostBb)}bb
+					</span>
+				}
+			>
+				{(play) => (
+					<span class="hand-detail__tag is-good-play">
+						{play().rank} play {signed(play().evGainedBb)}bb
+					</span>
+				)}
+			</Show>
+		</Show>
 	);
 
 	const Line: Component<{ line: ActionLine }> = (lineProps) => {
-		const grading = (): Grading | undefined => gradings().get(lineProps.line.stepIndex);
+		const to = () =>
+			steps().length > 0 ? stepOfLine(steps(), lineProps.line.stepIndex) : null;
 		return (
-			<li class="hand-detail__line" classList={{ 'is-hero': lineProps.line.hero }}>
-				<span class="hand-detail__action">{lineProps.line.text}</span>
-				<Show when={grading()}>
-					{(graded) => (
-						<Show
-							when={graded().mistake || graded().goodPlay}
-							fallback={
-								<span
-									class="hand-detail__baseline"
-									title={
-										graded().chosen === graded().recommended ?
-											undefined
-										:	`The baseline leans to ${graded().recommended}, but not by enough to matter.`
-									}
-								>
-									{graded().chosen === graded().recommended ?
-										'on baseline'
-									:	'near baseline'}
-								</span>
-							}
-						>
-							<div class="hand-detail__grade">
-								<MistakeCard grading={graded()} />
-								<Show when={graded().preflop?.chart}>
-									{(chartId) => (
-										<details class="hand-detail__chart">
-											<summary>Baseline range: {CHART_LABELS[chartId()]}</summary>
-											<RangeGrid
-												strategy={chart(chartId(), graded().preflop!.depth)}
-												marked={graded().preflop!.hand}
-											/>
-											<RangeKey />
-										</details>
-									)}
-								</Show>
-							</div>
-						</Show>
-					)}
-				</Show>
+			<li>
+				<Jump
+					class="hand-detail__line"
+					to={to()}
+					// A blind is part of the deal, which its street's heading stands for.
+					current={
+						to() === step() && steps()[step()].lineIndex === lineProps.line.stepIndex
+					}
+					hero={lineProps.line.hero}
+				>
+					<span class="hand-detail__action">{lineProps.line.text}</span>
+					<Show when={gradings().get(lineProps.line.stepIndex)}>
+						{(graded) => <Tag grading={graded()} />}
+					</Show>
+				</Jump>
 			</li>
 		);
 	};
@@ -155,22 +203,41 @@ const HandDetail: Component<HandDetailProps> = (props) => {
 			</Show>
 
 			<div class="hand-detail__body">
-				<Show when={steps()[step()]}>
-					{(shown) => (
-						<div class="hand-detail__stage">
-							<HandTable hand={props.hand} step={shown()} stakes={props.stakes} />
-						</div>
-					)}
+				<Show when={steps().length > 0}>
+					<div class="hand-detail__stage">
+						<HandTable hand={props.hand} step={steps()[step()]} stakes={props.stakes} />
+						<StepScrubber
+							hand={props.hand}
+							steps={steps()}
+							step={step()}
+							onStep={(to) => props.onStep?.(to)}
+						/>
+						<StepCaption hand={props.hand} steps={steps()} step={step()} />
+					</div>
 				</Show>
-				<div class="hand-detail__log">
+
+				<nav class="hand-detail__log" aria-label="Play by play">
 					<For each={streets()}>
 						{(group) => (
 							<section class="hand-detail__street">
 								<h3 class="hand-detail__street-name">
-									{group.street}
-									<Show when={group.cards}>
-										<PlayingCards cards={group.cards} />
-									</Show>
+									<Jump
+										class="hand-detail__street-head"
+										to={group.deal}
+										current={group.deal === step()}
+									>
+										{group.street}
+										<Show when={group.cards}>
+											<PlayingCards cards={group.cards} />
+										</Show>
+										<Show when={group.deal !== null && steps()[group.deal ?? 0]}>
+											{(deal) => (
+												<span class="hand-detail__street-pot">
+													pot {bbText(deal().pot, props.hand.bigBlind)} bb
+												</span>
+											)}
+										</Show>
+									</Jump>
 								</h3>
 								<ol class="hand-detail__lines">
 									<For each={group.lines}>{(line) => <Line line={line} />}</For>
@@ -181,7 +248,15 @@ const HandDetail: Component<HandDetailProps> = (props) => {
 
 					<Show when={Object.keys(props.hand.shown).length > 0}>
 						<section class="hand-detail__street">
-							<h3 class="hand-detail__street-name">Showdown</h3>
+							<h3 class="hand-detail__street-name">
+								<Jump
+									class="hand-detail__street-head"
+									to={steps().length > 0 ? steps().length - 1 : null}
+									current={steps().length > 0 && step() === steps().length - 1}
+								>
+									Showdown
+								</Jump>
+							</h3>
 							<ul class="hand-detail__lines">
 								<For each={Object.entries(props.hand.shown)}>
 									{([name, cards]) => (
@@ -195,7 +270,7 @@ const HandDetail: Component<HandDetailProps> = (props) => {
 							</ul>
 						</section>
 					</Show>
-				</div>
+				</nav>
 			</div>
 		</article>
 	);

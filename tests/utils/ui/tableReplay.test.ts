@@ -8,6 +8,7 @@ import {
 	defaultStep,
 	resolveStep,
 	seatSlots,
+	stepFacts,
 	stepOfLine,
 	stepStreet,
 	stepText,
@@ -284,6 +285,22 @@ describe('finding a step', () => {
 		expect(defaultStep(steps, { ...hand, gradings: [] })).toBe(0);
 	});
 
+	it('opens on the good play when that is what is being listed', () => {
+		const fold = replayed(handText(TOUGH_FOLD));
+		const play = fold.hand.gradings.find((grading) => grading.goodPlay)!;
+		const mistake = fold.hand.gradings.find((grading) => grading.mistake)!;
+		expect(mistake.stepIndex).toBeLessThan(play.stepIndex);
+		const at = (prefer?: 'play') =>
+			fold.steps[defaultStep(fold.steps, fold.hand, prefer)].lineIndex;
+		expect(at()).toBe(mistake.stepIndex);
+		expect(at('play')).toBe(play.stepIndex);
+		expect(resolveStep(fold.steps, fold.hand, null, 'play')).toBe(
+			defaultStep(fold.steps, fold.hand, 'play')
+		);
+		// With no play to prefer, a hand opens as it would anyway.
+		expect(defaultStep(steps, hand, 'play')).toBe(defaultStep(steps, hand));
+	});
+
 	it('holds a step from the route inside the hand', () => {
 		expect(resolveStep(steps, hand, 3)).toBe(3);
 		expect(resolveStep(steps, hand, 999)).toBe(steps.length - 1);
@@ -318,5 +335,37 @@ describe('stepText', () => {
 		expect(stepStreet(hand, steps.at(-1)!)).toBe('Showdown');
 		const fold = replayed(handText(TOUGH_FOLD));
 		expect(stepStreet(fold.hand, fold.steps.at(-1)!)).toBe('Result');
+	});
+});
+
+describe('stepFacts', () => {
+	const { hand, steps } = replayed(handText(RIVER_HERO_CALL));
+	const facts = (text: string) =>
+		stepFacts(
+			hand,
+			steps.find((step) => stepText(hand, step) === text)!
+		);
+
+	it('gives the pot and who is still in', () => {
+		expect(stepFacts(hand, steps[0])).toBe('Pot 1.5 bb · 6 players in');
+		expect(facts('Flop dealt')).toBe('Pot 6 bb · 2 players in');
+	});
+
+	it('gives the hero the price of a bet they faced', () => {
+		expect(facts('hero calls 40 bb')).toBe('40 bb to call into 60 bb · pot odds 40%');
+		// Completing from the small blind is a price too.
+		expect(facts('hero raises to 3 bb')).toBe(
+			'0.5 bb to call into 1.5 bb · pot odds 25%'
+		);
+	});
+
+	it('gives nobody else one, nor the hero when checked to', () => {
+		expect(facts('p2 calls 5 bb')).toBe('Pot 20 bb · 2 players in');
+		expect(facts('hero checks')).toBe('Pot 20 bb · 2 players in');
+	});
+
+	it('counts one player in the singular', () => {
+		const fold = replayed(handText(TOUGH_FOLD));
+		expect(stepFacts(fold.hand, fold.steps.at(-1)!)).toBe('Pot 48.5 bb · 1 player in');
 	});
 });

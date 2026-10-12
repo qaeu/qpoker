@@ -335,6 +335,34 @@ describe('ReviewView', () => {
 				expect(onQuery).not.toHaveBeenCalled();
 			});
 
+			it('moves the table, the strip and the caption together', () => {
+				mount({ show: 'all', hand: '7001', step: 0 });
+				const caption = () => document.querySelector('.step-caption__where')!.textContent;
+				expect(caption()).toMatch(/^Preflop · step 1 of /);
+				fireEvent.click(screen.getByRole('button', { name: 'Forward a step' }));
+				expect(caption()).toMatch(/^Preflop · step 2 of /);
+				expect(
+					screen.getByRole('group', { name: 'UTG p3' }).classList.contains('is-acting')
+				).toBe(true);
+			});
+
+			it('opens a hand on its good play in the list of them', () => {
+				// 6001 has a mistake before its play.
+				mount({ show: 'plays', hand: '6001' });
+				expect(
+					screen.getByRole('heading', {
+						name: 'Laid down a strong hand without the price',
+					})
+				).toBeTruthy();
+				cleanup();
+				mount({ show: 'all', hand: '6001' });
+				expect(
+					screen.queryByRole('heading', {
+						name: 'Laid down a strong hand without the price',
+					})
+				).toBeNull();
+			});
+
 			it('starts the next hand where that hand opens', () => {
 				const { onQuery } = mount({ show: 'all', hand: '6001', step: 3 });
 				fireEvent.keyDown(window, { key: 'j' });

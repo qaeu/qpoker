@@ -197,9 +197,93 @@ button, because it sits in a table cell rather than in a group of its own.
 
 ### The "on baseline" tag
 
-In a replayed hand, a decision the baseline has no quarrel with is a small outlined tag at
-the end of its line, in muted ink, and not a card. Most decisions in most hands are right,
-and a card for each buried the one or two that were not. The tag is deliberately not mint:
-mint is a good play, which is a hard decision got right, and an easy fold is not that.
-Where the baseline leaned the other way but not by enough to name a mistake, the tag reads
-"near baseline", so the page does not claim agreement it does not have.
+In a replayed hand, each of the hero's decisions carries a small outlined tag at the end
+of its line. One the baseline has no quarrel with is tagged in muted ink: most decisions
+in most hands are right, and a card for each buried the one or two that were not. The tag
+is deliberately not mint: mint is a good play, which is a hard decision got right, and an
+easy fold is not that. Where the baseline leaned the other way but not by enough to name a
+mistake, the tag reads "near baseline", so the page does not claim agreement it does not
+have.
+
+A mistake's tag is its severity and its cost, a good play's its rank and its gain, in the
+finding's own colour: outline and lettering, never a fill, as on a card's edge. That is all
+the line says. The card is in the caption under the table (see below), so the list stays a
+list: twenty lines that can be read down, not a column broken open wherever something
+went wrong.
+
+## The replay table
+
+A reviewed hand is drawn on a table of its own (`#c/hand/HandTable`): the app's ground
+made literal. Its edge is the `rail` material, here doing the job it was named for, round
+an oval of felt with its own pit light. That light is fixed to this cloth, not to the
+viewport as the page's is, because this table is an object on the page and scrolls with
+it.
+
+- **Seats** are plates of opaque `$panel` at the rail, by position, the hero always at the
+  bottom and the rest clockwise in acting order. A short-handed table keeps the six
+  places and leaves some empty, so a seat is in the same place from hand to hand.
+- **A seat's state** is said three ways at once. The plate's edge is gold for the seat
+  that just acted and mint for one that was paid. A printed tag names its last action. A
+  folded seat loses its cards and is dimmed to half: still at the table, no longer in the
+  picture. The dimming takes its text under 4.5:1 on purpose, as a never-held cell in the
+  range grid is faint on purpose.
+- **Chips** take the fixed hues: a bet or a raise gold, a call mint, a blind sand, since a
+  blind is nobody's choice. An all-in is tagged as one and not drawn differently. Side
+  pots are not drawn; there is one pot figure.
+- **Cards** are card stock at a third size, with a corner index over a centre pip. Other
+  players' are face down, in the one place the app shows a card's back, until the result
+  turns over the hands that were shown.
+- **Figures are big blinds** on the table and in the caption, because that is the unit a
+  grade is in. The list of lines keeps the log's own currency, as the CLI prints it.
+
+### One step, after the action
+
+A step is the table _after_ something happened: the deal with the blinds out, each
+voluntary action, each street's cards, and the result. After, not before, because the
+seat that acted is then the one lit and its bet is on the felt, which is what the line
+being read describes. What the actor faced (the pot before, the price) is said in the
+caption.
+
+An uncalled bet goes back when the betting ends, before any runout, so the pot shown
+while the board runs out is the pot being played for.
+
+### The caption owns the grade
+
+Under the table sit the strip and then the caption: where in the hand the step is, the
+action as a sentence, the pot (or the price, when the hero faced a bet), and the grade if
+the action was one of the hero's decisions. The mistake card and the baseline chart moved
+here from under their line in the list. Beside the table is where the eye is when the
+decision is on it, and the card is then read against the stacks and the board it is about.
+
+The strip comes before the caption, though the caption describes the table, because the
+caption's height changes with every step (a line of text, or a card and a chart) and keys
+that moved under the pointer could not be pressed twice.
+
+The strip has a tick per step, grouped by street and as wide as the street was long. The
+hero's decisions are gold, a mistake takes its severity colour and a good play mint, dim
+ahead of the step and lit behind it, so the hand's shape and where it went wrong are seen
+before it is walked.
+
+### It does not animate
+
+Chips do not slide and cards do not flip: nothing here animates on its own (see Motion),
+and a step is a state to read, not an event to watch. Stepping back is as instant as
+stepping forward, and holding an arrow key runs the hand at the keyboard's repeat rate.
+
+The step is in the address (`step=`), like the rest of Review's state, so a reload or a
+shared link lands on the same moment. Stepping rewrites the history entry; it is not
+somewhere to come back to.
+
+### Laid out by the pane, not the window
+
+The detail pane's width depends on the window, the list beside it and the page's maximum,
+so the hand lays itself out by container query on its own width:
+
+- **Wide** (860px and up): the table, strip and caption beside the action.
+- **Narrower**: the same, stacked, the table first.
+- **Under 480px of table**: the oval is stood on end, the mockup's phone board, because
+  six plates do not fit round a landscape table that narrow.
+
+The stage has a fixed aspect ratio and everything on it is placed by percentage, in a
+class per place (`--slot-0` to `--slot-5`), so it scales without a script and without an
+inline style.

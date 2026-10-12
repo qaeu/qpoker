@@ -23,7 +23,7 @@ src/
     ├── ranges/            # notation, charts/ (the preflop baseline, as data), spot classifier
     ├── postflop/          # opponent-range model, texture, the postflop judgement
     ├── coach/             # grade, mistakes, goodPlays, explain, session, openings, report
-    ├── app/ ui/           # Hash route, storage, rng; display helpers, the Review list
+    ├── app/ ui/           # Hash route, storage, rng; display helpers, Review list, table replay
     ├── analysis.worker.ts
     └── analysisWorkerProtocol.ts   # Worker protocol, shared with the test stub
 tests/                     # Mirrors src/ by folder; tests/integration/ drives <App />

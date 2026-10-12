@@ -233,9 +233,18 @@ export function decisionSteps(steps: readonly TableStep[], hand: HandReport): nu
 	return found;
 }
 
-/** Where a hand opens: on its first mistake or good play, else at the deal. */
-export function defaultStep(steps: readonly TableStep[], hand: HandReport): number {
-	const finding = hand.gradings.find((grading) => grading.mistake || grading.goodPlay);
+/**
+ * Where a hand opens: on its first mistake or good play, else at the deal. A
+ * list of good plays opens a hand on its play, though a mistake came before it.
+ */
+export function defaultStep(
+	steps: readonly TableStep[],
+	hand: HandReport,
+	prefer?: 'play'
+): number {
+	const finding =
+		(prefer === 'play' ? hand.gradings.find((grading) => grading.goodPlay) : undefined)
+		?? hand.gradings.find((grading) => grading.mistake || grading.goodPlay);
 	return finding ? stepOfLine(steps, finding.stepIndex) : 0;
 }
 
@@ -243,10 +252,11 @@ export function defaultStep(steps: readonly TableStep[], hand: HandReport): numb
 export function resolveStep(
 	steps: readonly TableStep[],
 	hand: HandReport,
-	step: number | null
+	step: number | null,
+	prefer?: 'play'
 ): number {
 	if (steps.length === 0) return 0;
-	return Math.min(steps.length - 1, step ?? defaultStep(steps, hand));
+	return Math.min(steps.length - 1, step ?? defaultStep(steps, hand, prefer));
 }
 
 /** `Showdown` for a result with hands turned over, else the street. */
@@ -286,4 +296,15 @@ export function stepText(hand: HandReport, step: TableStep): string {
 		default:
 			return '';
 	}
+}
+
+/** What the actor faced, when it is the hero facing a bet; else the pot and who is in. */
+export function stepFacts(hand: HandReport, step: TableStep): string {
+	const bb = (cents: number) => `${bbText(cents, hand.bigBlind)} bb`;
+	if (step.actor !== null && hand.seats[step.actor]?.hero && step.toCall > 0) {
+		const odds = Math.round((100 * step.toCall) / (step.potBefore + step.toCall));
+		return `${bb(step.toCall)} to call into ${bb(step.potBefore)} · pot odds ${odds}%`;
+	}
+	const inHand = step.seats.filter((seat) => !seat.folded).length;
+	return `Pot ${bb(step.pot)} · ${inHand} ${inHand === 1 ? 'player' : 'players'} in`;
 }
