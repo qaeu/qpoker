@@ -3,7 +3,9 @@
  * stack depth, with how much of the deck it raises and calls.
  */
 
-import { createMemo, createSignal, For, type Component } from 'solid-js';
+import { createMemo, createSignal, type Component } from 'solid-js';
+
+import Select, { type SelectOption } from '#c/common/Select';
 
 import { chart, CHART_IDS, CHART_LABELS, hasOwnChart } from '#utils/ranges/charts';
 import type { ChartId, Depth } from '#utils/ranges/charts';
@@ -14,7 +16,12 @@ import RangeGrid from './RangeGrid';
 
 import '#styles/ranges/RangesView';
 
-const DEPTHS: { id: Depth; label: string }[] = [
+const SPOTS: SelectOption<ChartId>[] = CHART_IDS.map((id) => ({
+	id,
+	label: CHART_LABELS[id],
+}));
+
+const DEPTHS: SelectOption<Depth>[] = [
 	{ id: 'deep', label: '70bb and deeper' },
 	{ id: 'mid', label: '30 to 70bb' },
 ];
@@ -44,30 +51,13 @@ const RangesView: Component = () => {
 	return (
 		<section class="ranges-view">
 			<div class="ranges-view__controls">
-				<label class="ranges-view__field">
-					<span class="ranges-view__label">Spot</span>
-					<select
-						class="ranges-view__select"
-						value={id()}
-						onChange={(event) => setId(event.currentTarget.value as ChartId)}
-					>
-						<For each={CHART_IDS}>
-							{(chartId) => <option value={chartId}>{CHART_LABELS[chartId]}</option>}
-						</For>
-					</select>
-				</label>
-				<label class="ranges-view__field">
-					<span class="ranges-view__label">Effective stack</span>
-					<select
-						class="ranges-view__select"
-						value={depth()}
-						onChange={(event) => setDepth(event.currentTarget.value as Depth)}
-					>
-						<For each={DEPTHS}>
-							{(item) => <option value={item.id}>{item.label}</option>}
-						</For>
-					</select>
-				</label>
+				<Select label="Spot" options={SPOTS} value={id()} onChange={setId} />
+				<Select
+					label="Effective stack"
+					options={DEPTHS}
+					value={depth()}
+					onChange={setDepth}
+				/>
 			</div>
 
 			<p class="ranges-view__figures">

@@ -195,6 +195,31 @@ The same gold-when-chosen key is the seat toggle in the Openings table, where th
 name and the control that picks it are one thing; that one is a plain `aria-pressed`
 button, because it sits in a table cell rather than in a group of its own.
 
+### The select
+
+`#c/common/Select` is a native `<select>` under a printed label, cut into the felt with
+the `form-control` mixin. It is for a choice the segmented control cannot carry: too many
+options to set out as keys, or a set that changes with the data.
+
+Review's **Position** and **Preflop spot** are selects for both reasons. There are up to
+nine seats and nine spots, which as keys would be two more rows of toolbar above the
+list; and only the seats the hero held and the spots they were in are offered, each with
+the number of hands it would leave, so the menu is different for every log. Show,
+Severity, Street and Order stay segmented: few, fixed, and worth having all in view.
+
+The two are a **scope**, not a filter on findings: they cut every Show down to one seat
+or one spot, the counts on the Show keys are counted inside them, and they are kept when
+Show changes. Each menu's counts are taken within the other's choice, so picking a seat
+shows which spots it has. A value that lists nothing stays on the menu while it is the
+one chosen, so a link to it can be seen and taken off. "All" is an empty value in the
+control and no key in the address.
+
+It is native, not Ark's select, on purpose: the platform's menu is the right one on a
+phone, it needs no positioning inside a toolbar that wraps, and it is already a listbox
+to the keyboard. In a toolbar it takes `inline`, the label beside the control as a
+segmented group's is. The Ranges view's two menus are the same component, label over
+control.
+
 ### The "on baseline" tag
 
 In a replayed hand, each of the hero's decisions carries a small outlined tag at the end

@@ -193,6 +193,82 @@ describe('ReviewView', () => {
 		});
 	});
 
+	describe('position and spot', () => {
+		const select = (name: 'Position' | 'Preflop spot') =>
+			screen.getByRole<HTMLSelectElement>('combobox', { name });
+		const choices = (name: 'Position' | 'Preflop spot') =>
+			[...select(name).options].map((option) => option.textContent);
+		const choose = (name: 'Position' | 'Preflop spot', value: string) =>
+			fireEvent.change(select(name), { target: { value } });
+
+		it('offers the seats and spots in the log, with their hands', () => {
+			mount({ show: 'all' });
+			expect(choices('Position')).toEqual(['All', 'UTG · 4', 'SB · 1']);
+			expect(choices('Preflop spot')).toEqual([
+				'All',
+				'First in · 4',
+				'Facing a 3-bet · 1',
+				'Facing a 5-bet · 1',
+			]);
+			expect(select('Position').value).toBe('');
+		});
+
+		it('cuts the list to a seat, and says so in the query', () => {
+			const { onQuery, query } = mount({ show: 'all', hand: '5001' });
+			choose('Position', 'SB');
+			expect(onQuery).toHaveBeenLastCalledWith({
+				position: 'SB',
+				hand: null,
+				step: null,
+			});
+			expect(query().position).toBe('SB');
+			expect(rows()).toHaveLength(1);
+			expect(rows()[0]).toMatch(new RegExp(`^Hand ${numberOf('7001')},`));
+			expect(screen.getByRole('status').textContent).toBe('1 hand');
+		});
+
+		it('cuts it to a preflop spot, and back with All', () => {
+			const { query } = mount({ show: 'all' });
+			choose('Preflop spot', 'vs3bet');
+			expect(query().scenario).toBe('vs3bet');
+			expect(rows()).toHaveLength(1);
+			choose('Preflop spot', '');
+			expect(query().scenario).toBeNull();
+			expect(rows()).toHaveLength(report.hands.length);
+		});
+
+		it('counts each Show key within the seat chosen', () => {
+			mount({ show: 'all', position: 'SB' });
+			expect(radio(/^All/).closest('.segmented__item')!.textContent).toBe('All1');
+			expect(radio(/^Good plays/).closest('.segmented__item')!.textContent).toBe(
+				'Good plays0'
+			);
+		});
+
+		it('counts each menu within the other', () => {
+			mount({ show: 'all', position: 'SB' });
+			expect(choices('Preflop spot')).toEqual(['All', 'First in · 1']);
+		});
+
+		it('is kept when what is on show changes', async () => {
+			const { query } = mount({ show: 'all', position: 'UTG', scenario: 'rfi' });
+			await pick(/^Mistakes/);
+			expect(query()).toMatchObject({
+				show: 'mistakes',
+				position: 'UTG',
+				scenario: 'rfi',
+			});
+			expect(select('Position').value).toBe('UTG');
+		});
+
+		it('leaves the J and K keys alone while a menu has the focus', () => {
+			const { onQuery } = mount({ show: 'all' });
+			onQuery.mockClear();
+			fireEvent.keyDown(select('Position'), { key: 'j' });
+			expect(onQuery).not.toHaveBeenCalled();
+		});
+	});
+
 	describe('the hand', () => {
 		it('opens on the first hand listed', () => {
 			const { container } = mount({ show: 'all' });

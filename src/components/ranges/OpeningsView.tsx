@@ -204,7 +204,16 @@ const OpeningsView: Component<OpeningsViewProps> = (props) => {
 							<p class="openings-view__lead">
 								Opened {current().raised} of {current().spots}; the chart opens{' '}
 								{current().expected.toFixed(1)} of the same hands, and{' '}
-								{percent(current().chartRange)} of all hands.
+								{percent(current().chartRange)} of all hands.{' '}
+								<a
+									href={reviewHref({
+										show: 'all',
+										position: current().position,
+										scenario: 'rfi',
+									})}
+								>
+									Review the {current().position} first-in hands
+								</a>
 							</p>
 							<RangeGrid
 								strategy={played()}

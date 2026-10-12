@@ -8,6 +8,8 @@ import {
 	isPlayed,
 	listHands,
 	orderOf,
+	positionsOf,
+	scenariosOf,
 	tallyOf,
 	type ReviewQuery,
 } from '#utils/ui/review';
@@ -182,6 +184,99 @@ describe('the Review list', () => {
 		it('has no figure for a plain list of hands', () => {
 			const all = query({ show: 'all' });
 			expect(tallyOf(listHands(report, all), all)).toEqual({ hands: 5, evBb: null });
+		});
+	});
+
+	describe('the scope', () => {
+		// 7001 is the one hand from the small blind; the rest are under the gun.
+		describe('by position', () => {
+			it('lists the hands the hero played from one seat', () => {
+				expect(ids({ show: 'all', position: 'SB' })).toEqual(['7001']);
+				expect(ids({ show: 'all', position: 'UTG' })).toEqual([
+					'5001',
+					'5002',
+					'6001',
+					'7002',
+				]);
+				expect(ids({ show: 'all', position: 'BTN' })).toEqual([]);
+			});
+		});
+
+		describe('by preflop spot', () => {
+			it('lists the hands with a decision of the hero’s in that spot', () => {
+				expect(ids({ show: 'all', scenario: 'vs3bet' })).toEqual(['6001']);
+				// A hand that was not graded has no decisions to be in a spot.
+				expect(ids({ show: 'all', scenario: 'rfi' })).toEqual([
+					'5001',
+					'5002',
+					'6001',
+					'7001',
+				]);
+				expect(ids({ show: 'all', scenario: 'squeeze' })).toEqual([]);
+			});
+		});
+
+		describe('with the other filters', () => {
+			it('cuts down whatever is on show', () => {
+				expect(ids({ show: 'mistakes', position: 'SB' })).toEqual(['7001']);
+				expect(ids({ show: 'mistakes', position: 'UTG' })).not.toContain('7001');
+				expect(ids({ show: 'plays', scenario: 'vs3bet' })).toEqual(['6001']);
+				expect(ids({ show: 'ungraded', position: 'UTG' })).toEqual(['7002']);
+				expect(ids({ show: 'ungraded', scenario: 'rfi' })).toEqual([]);
+			});
+
+			it('takes both at once', () => {
+				expect(ids({ show: 'all', position: 'UTG', scenario: 'vs3bet' })).toEqual([
+					'6001',
+				]);
+				expect(ids({ show: 'all', position: 'SB', scenario: 'vs3bet' })).toEqual([]);
+			});
+
+			it('is what the counts and the tally are of', () => {
+				expect(countsOf(report, { position: 'SB', scenario: null })).toEqual({
+					all: 1,
+					played: 1,
+					mistakes: 1,
+					plays: 0,
+					ungraded: 0,
+				});
+				const scoped = query({ position: 'SB' });
+				expect(tallyOf(listHands(report, scoped), scoped).hands).toBe(1);
+			});
+		});
+
+		describe('what there is to choose from', () => {
+			it('offers the seats the hero held, earliest first, with their hands', () => {
+				expect(positionsOf(report)).toEqual([
+					{ id: 'UTG', hands: 4 },
+					{ id: 'SB', hands: 1 },
+				]);
+			});
+
+			it('offers the spots the hero was in', () => {
+				const spots = scenariosOf(report);
+				expect(spots.map(({ id }) => id)).toEqual(['rfi', 'vs3bet', 'vs5bet']);
+				expect(spots[0].hands).toBe(4);
+			});
+
+			it('counts each within the other', () => {
+				expect(positionsOf(report, { position: null, scenario: 'vs3bet' })).toEqual([
+					{ id: 'UTG', hands: 1 },
+				]);
+				expect(scenariosOf(report, { position: 'SB', scenario: null })).toEqual([
+					{ id: 'rfi', hands: 1 },
+				]);
+			});
+
+			it('keeps the value in the query on the menu, though it lists nothing', () => {
+				expect(positionsOf(report, { position: 'BTN', scenario: null })).toContainEqual({
+					id: 'BTN',
+					hands: 0,
+				});
+				expect(
+					scenariosOf(report, { position: null, scenario: 'squeeze' })
+				).toContainEqual({ id: 'squeeze', hands: 0 });
+			});
 		});
 	});
 });

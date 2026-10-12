@@ -1,0 +1,51 @@
+@use '../base' as *;
+
+@layer screen {
+	.select {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		min-width: 0;
+
+		&__label {
+			@include print(10px, 0.16em);
+			color: $ink-muted;
+		}
+
+		&__control {
+			@include form-control;
+		}
+
+		// In a toolbar it sits in the line of segmented groups, and is lettered
+		// as they are.
+		&--inline {
+			flex-direction: row;
+			align-items: center;
+			gap: 10px;
+		}
+
+		&--inline &__label {
+			@include print(11px, 0.16em);
+			flex: none;
+		}
+
+		&--inline &__control {
+			width: auto;
+			min-width: 0;
+		}
+
+		// On a phone the label goes back over the control, which takes the line.
+		@include phone {
+			&--inline {
+				flex: 1 1 100%;
+				flex-direction: column;
+				align-items: stretch;
+				gap: 5px;
+			}
+
+			&--inline &__control {
+				width: 100%;
+			}
+		}
+	}
+}

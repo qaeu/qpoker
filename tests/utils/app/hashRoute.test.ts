@@ -22,7 +22,7 @@ describe('the hash route', () => {
 		it('reads every Review parameter', () => {
 			expect(
 				parseRoute(
-					'#review?show=mistakes&floor=mistake&street=post&kind=missed-value&order=time&hand=5001&step=7'
+					'#review?show=mistakes&floor=mistake&street=post&kind=missed-value&position=BTN&scenario=vsOpen&order=time&hand=5001&step=7'
 				)
 			).toEqual({
 				tab: 'review',
@@ -31,6 +31,8 @@ describe('the hash route', () => {
 					floor: 'mistake',
 					street: 'post',
 					kind: 'missed-value',
+					position: 'BTN',
+					scenario: 'vsOpen',
 					order: 'time',
 					hand: '5001',
 					step: 7,
@@ -58,9 +60,22 @@ describe('the hash route', () => {
 		it('drops values it does not know', () => {
 			expect(
 				parseRoute(
-					'#review?show=everything&floor=ok&street=river&kind=toString&order=&x=1'
+					'#review?show=everything&floor=ok&street=river&kind=toString&position=MP&scenario=toString&order=&x=1'
 				)
 			).toEqual({ tab: 'review', review: DEFAULT_REVIEW });
+		});
+
+		describe('the position', () => {
+			const positionOf = (hash: string) => parseRoute(hash).review.position;
+
+			it('reads a seat with a plus in it, encoded or typed as it is said', () => {
+				expect(positionOf('#review?position=UTG%2B1')).toBe('UTG+1');
+				expect(positionOf('#review?position=UTG+2')).toBe('UTG+2');
+			});
+
+			it('is case-sensitive, as every other value is', () => {
+				expect(positionOf('#review?position=btn')).toBeNull();
+			});
 		});
 
 		it('ignores a query on a view that takes none', () => {
@@ -96,6 +111,21 @@ describe('the hash route', () => {
 					review: { ...DEFAULT_REVIEW, hand: '5001', street: 'pre', show: 'all' },
 				})
 			).toBe('#review?show=all&street=pre&hand=5001');
+			expect(
+				formatRoute({
+					tab: 'review',
+					review: {
+						...DEFAULT_REVIEW,
+						hand: '5001',
+						order: 'time',
+						scenario: 'rfi',
+						position: 'UTG+1',
+						kind: 'open-loose',
+					},
+				})
+			).toBe(
+				'#review?kind=open-loose&position=UTG%2B1&scenario=rfi&order=time&hand=5001'
+			);
 		});
 
 		it('writes the step last, and only with its hand', () => {
@@ -135,11 +165,14 @@ describe('the hash route', () => {
 					floor: 'blunder',
 					street: 'post',
 					kind: 'call-without-odds',
+					position: 'UTG+1',
+					scenario: 'limpedVsRaise',
 					order: 'time',
 					hand: '260012345678',
 					step: 14,
 				},
 			},
+			{ tab: 'review', review: { ...DEFAULT_REVIEW, show: 'all', position: 'BB' } },
 			{ tab: 'review', review: { ...DEFAULT_REVIEW, show: 'plays', order: 'impact' } },
 		];
 
@@ -155,6 +188,9 @@ describe('the hash route', () => {
 			expect(reviewHref({ kind: 'missed-value' })).toBe('#review?kind=missed-value');
 			expect(reviewHref({ show: 'all', hand: '5001' })).toBe(
 				'#review?show=all&hand=5001'
+			);
+			expect(reviewHref({ show: 'all', position: 'CO', scenario: 'rfi' })).toBe(
+				'#review?show=all&position=CO&scenario=rfi'
 			);
 		});
 	});

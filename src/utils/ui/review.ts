@@ -6,6 +6,8 @@
 import type { Grading } from '../coach/grade';
 import { SEVERITIES, type MistakeType, type Severity } from '../coach/mistakes';
 import type { AnalysisReport, HandReport } from '../coach/report';
+import { POSITIONS, type Position } from '../history/replay';
+import { SCENARIOS, type Scenario } from '../ranges/preflopSpot';
 
 export const REVIEW_SHOWS = ['all', 'played', 'mistakes', 'plays', 'ungraded'] as const;
 export type ReviewShow = (typeof REVIEW_SHOWS)[number];
@@ -26,6 +28,10 @@ export interface ReviewQuery {
 	floor: ReviewFloor;
 	street: ReviewStreet;
 	kind: MistakeType | null;
+	/** The hero's seat. With `scenario`, the scope: it cuts every `show` down. */
+	position: Position | null;
+	/** A preflop spot the hero made a decision in. */
+	scenario: Scenario | null;
 	/** Null for the order that suits `show`: see `orderOf`. */
 	order: ReviewOrder | null;
 	/** The id of the hand being read. */
@@ -39,6 +45,8 @@ export const DEFAULT_REVIEW: ReviewQuery = {
 	floor: 'inaccuracy',
 	street: 'all',
 	kind: null,
+	position: null,
+	scenario: null,
 	order: null,
 	hand: null,
 	step: null,
@@ -66,6 +74,15 @@ export interface ReviewCounts {
 	mistakes: number;
 	plays: number;
 	ungraded: number;
+}
+
+/** The hands a query is about, whatever it shows of them. */
+export type ReviewScope = Pick<ReviewQuery, 'position' | 'scenario'>;
+
+/** One value a scope filter can take, and the hands it would leave. */
+export interface ScopeOption<T extends string> {
+	id: T;
+	hands: number;
 }
 
 export interface ReviewTally {
@@ -114,7 +131,19 @@ function impact(hand: HandReport, query: ReviewQuery): number {
 	return Math.max(0, ...matching(hand, query).map(({ evBb }) => Math.abs(evBb)));
 }
 
+const inScenario = (hand: HandReport, scenario: Scenario): boolean =>
+	hand.gradings.some((grading) => grading.preflop?.scenario === scenario);
+
+/** Whether a hand is one the query is about: the seat, and the preflop spot. */
+function inScope(hand: HandReport, scope: ReviewScope): boolean {
+	return (
+		(scope.position === null || hand.position === scope.position)
+		&& (scope.scenario === null || inScenario(hand, scope.scenario))
+	);
+}
+
 function isListed(hand: HandReport, query: ReviewQuery): boolean {
+	if (!inScope(hand, query)) return false;
 	switch (query.show) {
 		case 'all':
 			return true;
@@ -138,10 +167,14 @@ export function listHands(report: AnalysisReport, query: ReviewQuery): HandRepor
 		.map(({ hand }) => hand);
 }
 
-/** How many hands each `show` lists, before any narrowing. */
-export function countsOf(report: AnalysisReport): ReviewCounts {
+/** How many of the scope's hands each `show` lists, before any other narrowing. */
+export function countsOf(
+	report: AnalysisReport,
+	scope: ReviewScope = DEFAULT_REVIEW
+): ReviewCounts {
 	const counts: ReviewCounts = { all: 0, played: 0, mistakes: 0, plays: 0, ungraded: 0 };
 	for (const hand of report.hands) {
+		if (!inScope(hand, scope)) continue;
 		const findings = findingsOf(hand);
 		counts.all++;
 		if (isPlayed(hand)) counts.played++;
@@ -164,4 +197,35 @@ export function tallyOf(listed: readonly HandReport[], query: ReviewQuery): Revi
 					.reduce((sum, { evBb }) => sum + evBb, 0)
 			:	null,
 	};
+}
+
+/**
+ * The seats the hero held, earliest first, with the hands each would leave
+ * given the spot already chosen. The seat in the query is always listed.
+ */
+export function positionsOf(
+	report: AnalysisReport,
+	scope: ReviewScope = DEFAULT_REVIEW
+): ScopeOption<Position>[] {
+	const within = report.hands.filter((hand) =>
+		inScope(hand, { position: null, scenario: scope.scenario })
+	);
+	return POSITIONS.map((id) => ({
+		id,
+		hands: within.filter((hand) => hand.position === id).length,
+	})).filter(({ id, hands }) => hands > 0 || id === scope.position);
+}
+
+/** The preflop spots the hero was in, likewise, given the seat already chosen. */
+export function scenariosOf(
+	report: AnalysisReport,
+	scope: ReviewScope = DEFAULT_REVIEW
+): ScopeOption<Scenario>[] {
+	const within = report.hands.filter((hand) =>
+		inScope(hand, { position: scope.position, scenario: null })
+	);
+	return SCENARIOS.map((id) => ({
+		id,
+		hands: within.filter((hand) => inScenario(hand, id)).length,
+	})).filter(({ id, hands }) => hands > 0 || id === scope.scenario);
 }

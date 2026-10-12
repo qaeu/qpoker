@@ -77,6 +77,41 @@ describe('analysing a log in the app', () => {
 		RUN_TIMEOUT_MS
 	);
 
+	it(
+		'follows a seat on the Summary to its hands, and narrows them by spot',
+		async () => {
+			mountApp();
+			loadLog(`${TWO_HAND_LOG}\n${handText(RIVER_HERO_CALL)}`);
+			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+
+			await follow(screen.getByRole('link', { name: 'SB' }));
+			expect(window.location.hash).toBe('#review?show=all&position=SB');
+			expect(screen.getByRole('status').textContent).toBe('1 hand');
+			expect(screen.getByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
+			const position = screen.getByRole<HTMLSelectElement>('combobox', {
+				name: 'Position',
+			});
+			expect(position.value).toBe('SB');
+
+			// The other seat, then one of its spots: both are in the address.
+			fireEvent.change(position, { target: { value: 'UTG' } });
+			await settle();
+			expect(window.location.hash).toBe('#review?show=all&position=UTG');
+			expect(screen.getByRole('status').textContent).toBe('2 hands');
+			fireEvent.change(screen.getByRole('combobox', { name: 'Preflop spot' }), {
+				target: { value: 'rfi' },
+			});
+			await settle();
+			expect(window.location.hash).toBe('#review?show=all&position=UTG&scenario=rfi');
+
+			// A typed address with a seat that has a plus in it lists nothing here.
+			await goTo('#review?show=all&position=UTG+1');
+			expect(window.location.hash).toBe('#review?show=all&position=UTG%2B1');
+			expect(screen.getByText('Nothing to show at this filter.')).toBeTruthy();
+		},
+		RUN_TIMEOUT_MS
+	);
+
 	describe('Review', () => {
 		const radio = (name: string | RegExp) =>
 			within(

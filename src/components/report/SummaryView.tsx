@@ -137,6 +137,7 @@ const SummaryView: Component<SummaryViewProps> = (props) => {
 					</Show>
 
 					<h2 class="summary-view__title summary-view__title--spaced">By position</h2>
+					<p class="summary-view__lead">Each seat opens Review with its hands listed.</p>
 					<table class="summary-view__table">
 						<thead>
 							<tr>
@@ -151,7 +152,11 @@ const SummaryView: Component<SummaryViewProps> = (props) => {
 							<For each={session().positions}>
 								{(row) => (
 									<tr>
-										<th scope="row">{row.position}</th>
+										<th scope="row">
+											<a href={reviewHref({ show: 'all', position: row.position })}>
+												{row.position}
+											</a>
+										</th>
 										<td>{row.hands}</td>
 										<td>{percent(row.vpip / row.hands)}</td>
 										<td>{percent(row.pfr / row.hands)}</td>

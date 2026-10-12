@@ -5,11 +5,18 @@
  * survives a reload. Review carries its whole state after a `?`
  * (`#review?show=mistakes&street=post&hand=5001&step=7`), so a filtered list,
  * the hand being read and the step it is replayed to survive the same things.
+ *
+ * The keys are written in a fixed order -- `show`, `floor`, `street`, `kind`,
+ * `position`, `scenario`, `order`, `hand`, then `step` -- and a default is left
+ * out, so one list has one address. `position` and `scenario` scope the list
+ * to a seat and a preflop spot whatever `show` is.
  */
 
 import { createSignal, onCleanup, onMount } from 'solid-js';
 
 import { MISTAKES, type MistakeType } from '../coach/mistakes';
+import { POSITIONS } from '../history/replay';
+import { SCENARIOS } from '../ranges/preflopSpot';
 import {
 	DEFAULT_REVIEW,
 	REVIEW_FLOORS,
@@ -47,6 +54,18 @@ const LEGACY_TABS: Record<string, ReviewShow> = {
 	hands: 'all',
 };
 
+/** The order Review's keys are written in; `step` follows them. */
+const ROUTE_KEYS = [
+	'show',
+	'floor',
+	'street',
+	'kind',
+	'position',
+	'scenario',
+	'order',
+	'hand',
+] as const;
+
 function oneOf<T extends string>(options: readonly T[], value: string | null): T | null {
 	return (options as readonly string[]).includes(value ?? '') ? (value as T) : null;
 }
@@ -60,6 +79,8 @@ export function parseRoute(hash: string): Route {
 
 	const params = new URLSearchParams(search);
 	const kind = params.get('kind');
+	// A `+` typed into the address bar arrives as a space: `UTG+1` is meant.
+	const position = params.get('position')?.replace(/ /g, '+') ?? null;
 	const hand = params.get('hand') || null;
 	const step = params.get('step') ?? '';
 	return {
@@ -69,6 +90,8 @@ export function parseRoute(hash: string): Route {
 			floor: oneOf(REVIEW_FLOORS, params.get('floor')) ?? DEFAULT_REVIEW.floor,
 			street: oneOf(REVIEW_STREETS, params.get('street')) ?? DEFAULT_REVIEW.street,
 			kind: kind !== null && Object.hasOwn(MISTAKES, kind) ? (kind as MistakeType) : null,
+			position: oneOf(POSITIONS, position),
+			scenario: oneOf(SCENARIOS, params.get('scenario')),
 			order: oneOf(REVIEW_ORDERS, params.get('order')),
 			hand,
 			// A step belongs to a hand: without one there is nothing to be a step of.
@@ -82,7 +105,7 @@ export function formatRoute(route: Route): string {
 	if (route.tab !== 'review') return `#${route.tab}`;
 	const params = new URLSearchParams();
 	const { review } = route;
-	for (const key of ['show', 'floor', 'street', 'kind', 'order', 'hand'] as const) {
+	for (const key of ROUTE_KEYS) {
 		const value = review[key];
 		if (value !== null && value !== DEFAULT_REVIEW[key]) params.set(key, value);
 	}

@@ -53,7 +53,8 @@ asserts. Both inherit the plugin, aliases and setup file.
   `follow` for a link in the page (both wait for the `hashchange` jsdom delivers late),
   `settle` for the tick an Ark control takes, and
   `resetBrowserState`, which a `beforeEach` must call because the URL hash outlives a
-  test. Each case carries `RUN_TIMEOUT_MS`.
+  test (it waits for the `hashchange` of clearing it, so the next test's first
+  navigation does not hear it). Each case carries `RUN_TIMEOUT_MS`.
 
 ## `src/setupTests.ts`
 

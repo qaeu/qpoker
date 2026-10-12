@@ -47,10 +47,6 @@ export const TWO_HAND_LOG = [
 	}),
 ].join('\n');
 
-/** The URL hash outlives a test, and with it the view the next one opens on. */
-export function resetBrowserState(): void {
-	window.location.hash = '';
-}
 
 /** Returns the way to take the app down again, as closing the tab would. */
 export function mountApp(): () => void {
@@ -83,6 +79,18 @@ function hashChange(change: () => void): Promise<void> {
 	);
 	change();
 	return heard;
+}
+
+/**
+ * The URL hash outlives a test, and with it the view the next one opens on.
+ * Waits for the `hashchange` of clearing it, which the next test's first
+ * navigation would otherwise take for its own.
+ */
+export function resetBrowserState(): Promise<void> {
+	if (window.location.hash === '') return Promise.resolve();
+	return hashChange(() => {
+		window.location.hash = '';
+	});
 }
 
 /** A hash typed into the address bar: one other than the current one. */

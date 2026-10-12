@@ -18,15 +18,20 @@ import {
 import { ChevronLeft, X } from 'lucide-solid';
 
 import Segmented, { type SegmentOption } from '#c/common/Segmented';
+import Select, { type SelectOption } from '#c/common/Select';
 import HandDetail from '#c/hand/HandDetail';
 import { MISTAKES } from '#utils/coach/mistakes';
 import type { AnalysisReport, HandReport } from '#utils/coach/report';
+import type { Position } from '#utils/history/replay';
+import { SCENARIO_NAMES, type Scenario } from '#utils/ranges/preflopSpot';
 import { signed } from '#utils/ui/format';
 import { resolveStep, tableSteps } from '#utils/ui/tableReplay';
 import {
 	countsOf,
 	listHands,
 	orderOf,
+	positionsOf,
+	scenariosOf,
 	tallyOf,
 	type ReviewFloor,
 	type ReviewOrder,
@@ -71,6 +76,9 @@ const ORDERS: SegmentOption<ReviewOrder>[] = [
 	{ id: 'time', label: 'As played' },
 ];
 
+/** `first in` as an option reads: `First in`. */
+const sentence = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
 /** Somewhere a J or a K is being typed rather than pressed. */
 const TYPING = 'input:not([type="radio"]), textarea, select, [contenteditable]';
 
@@ -78,7 +86,22 @@ const TYPING = 'input:not([type="radio"]), textarea, select, [contenteditable]';
 const ARROWED = '[role="radiogroup"]';
 
 const ReviewView: Component<ReviewViewProps> = (props) => {
-	const counts = createMemo(() => countsOf(props.report));
+	const counts = createMemo(() => countsOf(props.report, props.query));
+	// `''` is "All": a select's value is a string, and null is not one.
+	const positions = createMemo((): SelectOption<Position | ''>[] => [
+		{ id: '', label: 'All' },
+		...positionsOf(props.report, props.query).map(({ id, hands }) => ({
+			id,
+			label: `${id} · ${hands}`,
+		})),
+	]);
+	const scenarios = createMemo((): SelectOption<Scenario | ''>[] => [
+		{ id: '', label: 'All' },
+		...scenariosOf(props.report, props.query).map(({ id, hands }) => ({
+			id,
+			label: `${sentence(SCENARIO_NAMES[id])} · ${hands}`,
+		})),
+	]);
 	const listed = createMemo(() => listHands(props.report, props.query));
 	const tally = createMemo(() => tallyOf(listed(), props.query));
 	const numbers = createMemo(
@@ -171,6 +194,20 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 					options={shows()}
 					value={props.query.show}
 					onChange={(show) => narrow({ show, kind: null, order: null })}
+				/>
+				<Select
+					inline
+					label="Position"
+					options={positions()}
+					value={props.query.position ?? ''}
+					onChange={(position) => narrow({ position: position || null })}
+				/>
+				<Select
+					inline
+					label="Preflop spot"
+					options={scenarios()}
+					value={props.query.scenario ?? ''}
+					onChange={(scenario) => narrow({ scenario: scenario || null })}
 				/>
 				<Show when={props.query.show === 'mistakes'}>
 					<Segmented

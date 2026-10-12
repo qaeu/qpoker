@@ -101,6 +101,14 @@ describe('OpeningsView', () => {
 		});
 	});
 
+	it('links the seat on show to its first-in hands in Review', () => {
+		mount();
+		const link = screen.getByRole('link', { name: /^Review the \w+ first-in hands$/ });
+		expect(link.getAttribute('href')).toMatch(
+			/^#review\?show=all&position=\w+&scenario=rfi$/
+		);
+	});
+
 	it('says how many spots came from seats no chart covers', () => {
 		mount({ ...report, openings: { ...report.openings, earlySeats: 3 } });
 		expect(

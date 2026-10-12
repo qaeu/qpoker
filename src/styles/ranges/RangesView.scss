@@ -12,20 +12,8 @@
 			margin-bottom: 16px;
 		}
 
-		&__field {
-			display: flex;
+		&__controls .select {
 			flex: 1 1 220px;
-			flex-direction: column;
-			gap: 5px;
-		}
-
-		&__label {
-			@include print(10px, 0.16em);
-			color: $ink-muted;
-		}
-
-		&__select {
-			@include form-control;
 		}
 
 		&__figures {

@@ -128,6 +128,14 @@ describe('SummaryView', () => {
 		});
 	});
 
+	describe('by position', () => {
+		it('links each seat to its hands in Review', () => {
+			render(() => <SummaryView report={report} />);
+			expect(link('UTG').getAttribute('href')).toBe('#review?show=all&position=UTG');
+			expect(link('SB').getAttribute('href')).toBe('#review?show=all&position=SB');
+		});
+	});
+
 	describe('the table sizes', () => {
 		it('are listed under the frequencies, the fullest first', () => {
 			const mixed = analyzeLog([ringHand(9), ringHand(6), ringHand(6)].join('\n'));
