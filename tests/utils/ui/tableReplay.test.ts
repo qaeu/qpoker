@@ -21,6 +21,8 @@ import {
 	BLINDS_HERO_BTN,
 	BLINDS_HERO_SB,
 	handText,
+	NINE_SEATS,
+	ringHand,
 	RIVER_HERO_CALL,
 	TOUGH_FOLD,
 	type HandSpec,
@@ -260,6 +262,33 @@ describe('seatSlots', () => {
 			seats: hand.seats.slice(1).map((seat) => ({ ...seat, hero: false })),
 		};
 		expect(seatSlots(without)[0]).toBe(0);
+	});
+
+	describe('past six players', () => {
+		const slots = (players: number) => seatSlots(replayed(ringHand(players)).hand);
+
+		it('seats nine round a ring of nine places of its own', () => {
+			expect(slots(9)).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18]);
+		});
+
+		it('leaves places empty at seven and eight, the hero still at the bottom', () => {
+			expect(slots(7)).toEqual([10, 12, 13, 14, 15, 16, 17]);
+			expect(slots(8)).toEqual([10, 11, 12, 13, 14, 15, 16, 17]);
+		});
+
+		it('replays the table as it does a smaller one', () => {
+			const { hand, steps } = replayed(ringHand(9, 'As Kd', 'cbet'));
+			expect(steps[0].seats).toHaveLength(9);
+			expect(steps.at(-1)).toMatchObject({ kind: 'result', pot: 55 });
+			expect(hand.seats.map((seat) => seat.position)).toContain('UTG+2');
+		});
+
+		it('draws nothing for a table past nine', () => {
+			const { hand } = replayed(ringHand(9));
+			const tenth = { ...hand.seats[1], name: 'p10' };
+			expect(tableSteps({ ...hand, seats: [...hand.seats, tenth] })).toEqual([]);
+			expect(NINE_SEATS).toHaveLength(9);
+		});
 	});
 });
 

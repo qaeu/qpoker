@@ -10,7 +10,12 @@ import { createMemo, For, Show, type Component } from 'solid-js';
 import PlayingCards from '#c/common/PlayingCards';
 import type { HandReport } from '#utils/coach/report';
 import { bbText } from '#utils/ui/format';
-import { seatSlots, type TableSeat, type TableStep } from '#utils/ui/tableReplay';
+import {
+	seatSlots,
+	SIX_MAX,
+	type TableSeat,
+	type TableStep,
+} from '#utils/ui/tableReplay';
 
 import '#styles/hand/HandTable';
 
@@ -80,7 +85,11 @@ const HandTable: Component<HandTableProps> = (props) => {
 	const shown = () => board().slice(0, props.step.boardCount);
 
 	return (
-		<section class="hand-table" aria-label="The table at this point in the hand">
+		<section
+			class="hand-table"
+			classList={{ 'hand-table--full': props.hand.seats.length > SIX_MAX }}
+			aria-label="The table at this point in the hand"
+		>
 			<div class="hand-table__stage">
 				<div class="hand-table__rail" aria-hidden="true">
 					<div class="hand-table__felt" />

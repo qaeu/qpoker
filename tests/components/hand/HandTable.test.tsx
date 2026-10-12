@@ -5,7 +5,12 @@ import HandTable from '#c/hand/HandTable';
 import { analyzeLog } from '#utils/coach/report';
 import { tableSteps } from '#utils/ui/tableReplay';
 
-import { handText, RIVER_HERO_CALL, TOUGH_FOLD } from '../../utils/history/handText';
+import {
+	handText,
+	ringHand,
+	RIVER_HERO_CALL,
+	TOUGH_FOLD,
+} from '../../utils/history/handText';
 
 // Hero in the small blind against p2: an open, two barrels, and a called river.
 const hand = analyzeLog(handText(RIVER_HERO_CALL)).hands[0];
@@ -66,6 +71,33 @@ describe('HandTable', () => {
 			)!;
 			render(() => <HandTable hand={shove} step={shoved} />);
 			expect(text(seat('BB p6').querySelector('.hand-table__tag'))).toBe('All-in');
+		});
+	});
+
+	describe('a full ring', () => {
+		const full = analyzeLog(ringHand(9, 'As Kd', 'raise')).hands[0];
+		const fullSteps = tableSteps(full);
+
+		it('seats nine in places of their own, on a table marked full', () => {
+			const { container } = render(() => <HandTable hand={full} step={fullSteps[0]} />);
+			expect(
+				container.querySelector('.hand-table')!.classList.contains('hand-table--full')
+			).toBe(true);
+			expect(seat('UTG hero').classList.contains('hand-table__seat--slot-10')).toBe(true);
+			expect(seat('UTG+2 p3').classList.contains('hand-table__seat--slot-12')).toBe(true);
+			expect(seat('BB p9').classList.contains('hand-table__seat--slot-18')).toBe(true);
+			expect(
+				screen
+					.getByRole('img', { name: 'Dealer button' })
+					.classList.contains('hand-table__dealer--slot-16')
+			).toBe(true);
+		});
+
+		it('is not marked full at six', () => {
+			const { container } = render(() => <HandTable hand={hand} step={steps[0]} />);
+			expect(
+				container.querySelector('.hand-table')!.classList.contains('hand-table--full')
+			).toBe(false);
 		});
 	});
 

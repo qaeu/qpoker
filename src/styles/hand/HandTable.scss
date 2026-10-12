@@ -1,8 +1,9 @@
 @use 'sass:list';
 @use '../base' as *;
 
-// Where each of the six places is, as (x, y) percentages of the stage, for the
-// landscape table and the portrait one. Slot 0 is the bottom, then clockwise.
+// Where each place is, as (x, y) percentages of the stage, for the landscape
+// table and the portrait one. Slot 0 is the bottom, then clockwise, for a table
+// of six; 10 to 18 are the nine places of a fuller one, laid out the same way.
 $_landscape: (
 	0: (
 		'seat': 50% 85.6%,
@@ -33,6 +34,51 @@ $_landscape: (
 		'seat': 87.2% 68.9%,
 		'bet': 71.4% 63.7%,
 		'dealer': 75.6% 73.7%,
+	),
+	10: (
+		'seat': 50% 85.6%,
+		'bet': 50% 69.6%,
+		'dealer': 39.7% 74.1%,
+	),
+	11: (
+		'seat': 24% 82%,
+		'bet': 31% 68%,
+		'dealer': 17.5% 72%,
+	),
+	12: (
+		'seat': 8.5% 56%,
+		'bet': 23.5% 57%,
+		'dealer': 19.5% 46.5%,
+	),
+	13: (
+		'seat': 11% 25%,
+		'bet': 26% 34%,
+		'dealer': 22.5% 21%,
+	),
+	14: (
+		'seat': 34% 9.3%,
+		'bet': 38% 22.5%,
+		'dealer': 44.5% 18.5%,
+	),
+	15: (
+		'seat': 66% 9.3%,
+		'bet': 62% 22.5%,
+		'dealer': 55.5% 18.5%,
+	),
+	16: (
+		'seat': 89% 25%,
+		'bet': 74% 34%,
+		'dealer': 77.5% 21%,
+	),
+	17: (
+		'seat': 91.5% 56%,
+		'bet': 76.5% 57%,
+		'dealer': 80.5% 46.5%,
+	),
+	18: (
+		'seat': 76% 82%,
+		'bet': 69% 68%,
+		'dealer': 82.5% 72%,
 	),
 );
 
@@ -66,6 +112,51 @@ $_portrait: (
 		'seat': 83.8% 66.4%,
 		'bet': 73.2% 56.8%,
 		'dealer': 65.4% 70.4%,
+	),
+	10: (
+		'seat': 50% 87.1%,
+		'bet': 50% 75%,
+		'dealer': 33.5% 78.6%,
+	),
+	11: (
+		'seat': 15% 70%,
+		'bet': 30% 64.5%,
+		'dealer': 33% 71.5%,
+	),
+	12: (
+		'seat': 15% 49%,
+		'bet': 20% 57%,
+		'dealer': 33% 59.5%,
+	),
+	13: (
+		'seat': 15% 28%,
+		'bet': 26% 39.5%,
+		'dealer': 32% 31%,
+	),
+	14: (
+		'seat': 31% 7.9%,
+		'bet': 36% 19%,
+		'dealer': 48.5% 14.5%,
+	),
+	15: (
+		'seat': 69% 7.9%,
+		'bet': 64% 19%,
+		'dealer': 51.5% 14.5%,
+	),
+	16: (
+		'seat': 85% 28%,
+		'bet': 74% 39.5%,
+		'dealer': 68% 31%,
+	),
+	17: (
+		'seat': 85% 49%,
+		'bet': 80% 57%,
+		'dealer': 67% 59.5%,
+	),
+	18: (
+		'seat': 85% 70%,
+		'bet': 70% 64.5%,
+		'dealer': 67% 71.5%,
 	),
 );
 
@@ -369,6 +460,25 @@ $_portrait: (
 			}
 		}
 
+		// Nine round the same oval: the plates give up width, the cards a little.
+		&--full &__seat {
+			--card-w: clamp(26px, 4.4cqw, 32px);
+			--back-w: clamp(18px, 3.1cqw, 23px);
+			--plate-w: clamp(80px, 14.6cqw, 108px);
+
+			&.is-hero {
+				--card-w: clamp(32px, 5.8cqw, 42px);
+			}
+		}
+
+		&--full &__plate {
+			padding: 5px 7px 6px;
+		}
+
+		&--full &__position {
+			letter-spacing: 0.08em;
+		}
+
 		&__chip {
 			width: 16px;
 			height: 16px;
@@ -420,6 +530,24 @@ $_portrait: (
 
 			&__plate {
 				padding: 5px 7px 6px;
+			}
+
+			&--full &__board {
+				--card-w: clamp(24px, 8.4cqw, 32px);
+			}
+
+			&--full &__seat {
+				--card-w: clamp(24px, 7.6cqw, 30px);
+				--back-w: clamp(18px, 6cqw, 23px);
+				--plate-w: clamp(76px, 25cqw, 92px);
+
+				&.is-hero {
+					--card-w: clamp(30px, 10cqw, 38px);
+				}
+			}
+
+			&--full &__plate {
+				padding: 4px 6px 5px;
 			}
 		}
 

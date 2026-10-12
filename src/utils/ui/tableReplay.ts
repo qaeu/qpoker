@@ -6,7 +6,7 @@
  */
 
 import type { HandReport } from '../coach/report';
-import { STREETS, type ActionKind, type Street } from '../history/hand';
+import { MAX_PLAYERS, STREETS, type ActionKind, type Street } from '../history/hand';
 import { bbText } from './format';
 
 export interface TableSeat {
@@ -52,6 +52,20 @@ const SLOTS: Record<number, readonly number[]> = {
 	6: [0, 1, 2, 3, 4, 5],
 };
 
+/** The most players the six-place table seats. */
+export const SIX_MAX = 6;
+
+/**
+ * A fuller table has nine places of its own: 10 bottom, 11 to 13 up the left,
+ * 14 and 15 along the top, 16 to 18 down the right. Seven leave the hero alone
+ * at the bottom, as at the six-place table.
+ */
+const FULL_SLOTS: Record<number, readonly number[]> = {
+	7: [10, 12, 13, 14, 15, 16, 17],
+	8: [10, 11, 12, 13, 14, 15, 16, 17],
+	9: [10, 11, 12, 13, 14, 15, 16, 17, 18],
+};
+
 const BOARD_AT: Record<Street, number> = { preflop: 0, flop: 3, turn: 4, river: 5 };
 
 const STREET_NAMES: Record<Street, string> = {
@@ -67,7 +81,7 @@ const cardCount = (cards: string): number => cards.split(' ').filter(Boolean).le
 
 /** Every state the table passes through, the deal first and the result last. */
 export function tableSteps(hand: HandReport): TableStep[] {
-	if (hand.seats.length === 0) return [];
+	if (hand.seats.length === 0 || hand.seats.length > MAX_PLAYERS) return [];
 	const indexOf = new Map(hand.seats.map((seat, index) => [seat.name, index]));
 	const board = cardCount(hand.board);
 	const steps: TableStep[] = [];
@@ -208,7 +222,7 @@ export function tableSteps(hand: HandReport): TableStep[] {
  */
 export function seatSlots(hand: HandReport): number[] {
 	const count = hand.seats.length;
-	const slots = SLOTS[count] ?? SLOTS[6];
+	const slots = SLOTS[count] ?? FULL_SLOTS[count] ?? SLOTS[SIX_MAX];
 	const hero = Math.max(
 		0,
 		hand.seats.findIndex((seat) => seat.hero)

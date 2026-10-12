@@ -222,6 +222,11 @@ it.
 - **Seats** are plates of opaque `$panel` at the rail, by position, the hero always at the
   bottom and the rest clockwise in acting order. A short-handed table keeps the six
   places and leaves some empty, so a seat is in the same place from hand to hand.
+- **Seven to nine players sit at nine places** round the same oval (`hand-table--full`):
+  three up each side, two along the top, one each side of the hero. The plates give up
+  width and the cards a little size, and nothing else changes. Seven leave the two
+  places beside the hero empty, so the hero is alone at the bottom as at six. There is
+  no top-centre place: two plates share the top, where one would sit over the pot.
 - **A seat's state** is said three ways at once. The plate's edge is gold for the seat
   that just acted and mint for one that was paid. A printed tag names its last action. A
   folded seat loses its cards and is dimmed to half: still at the table, no longer in the
@@ -285,5 +290,6 @@ so the hand lays itself out by container query on its own width:
   six plates do not fit round a landscape table that narrow.
 
 The stage has a fixed aspect ratio and everything on it is placed by percentage, in a
-class per place (`--slot-0` to `--slot-5`), so it scales without a script and without an
+class per place (`--slot-0` to `--slot-5`, and `--slot-10` to `--slot-18` for the nine
+places of a fuller table), so it scales without a script and without an
 inline style.
