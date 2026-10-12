@@ -47,6 +47,8 @@ export interface OpeningRow {
 	expected: number;
 	/** The share of all starting hands the chart opens. */
 	chartRange: number;
+	/** What the hero won or lost over these spots' hands, in big blinds. */
+	netBb: number;
 	/** Set when the hero opens wider or tighter than the sample explains. */
 	leak: 'high' | 'low' | null;
 	/** Every hand held, in grid order. */
@@ -86,6 +88,8 @@ export interface OpeningSpot {
 /** A hand's opening spot under the id its deviations are listed by. */
 export interface OpeningEntry {
 	id: string;
+	/** The hero's result in the hand, in big blinds. */
+	netBb: number;
 	opening: OpeningSpot | null;
 }
 
@@ -130,7 +134,7 @@ export function summariseSpots(entries: Iterable<OpeningEntry>): OpeningSummary 
 	let shortStacked = 0;
 	let earlySeats = 0;
 
-	for (const { id, opening } of entries) {
+	for (const { id, netBb, opening } of entries) {
 		if (!opening) continue;
 		if (opening.leftOut === 'short') {
 			shortStacked++;
@@ -153,6 +157,7 @@ export function summariseSpots(entries: Iterable<OpeningEntry>): OpeningSummary 
 				limped: 0,
 				expected: 0,
 				chartRange: opening.chartRange,
+				netBb: 0,
 				hands: new Map(),
 				deviations: [],
 			};
@@ -169,6 +174,7 @@ export function summariseSpots(entries: Iterable<OpeningEntry>): OpeningSummary 
 
 		tally.spots++;
 		tally.expected += opens;
+		tally.netBb += netBb;
 		held.dealt++;
 		if (chosen === 'raise') {
 			tally.raised++;
@@ -207,6 +213,10 @@ export function summariseOpenings(
 	hero: string
 ): OpeningSummary {
 	return summariseSpots(
-		replays.map((replay) => ({ id: replay.hand.id, opening: openingOf(replay, hero) }))
+		replays.map((replay) => ({
+			id: replay.hand.id,
+			netBb: (replay.net[hero] ?? 0) / replay.hand.stakes.bigBlind,
+			opening: openingOf(replay, hero),
+		}))
 	);
 }

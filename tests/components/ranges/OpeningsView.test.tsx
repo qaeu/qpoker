@@ -77,6 +77,35 @@ describe('OpeningsView', () => {
 		});
 	});
 
+	describe('the result', () => {
+		const result = (name: string) => seat(name).closest('tr')!.lastElementChild!;
+
+		it('is the last column, after the opening figures', () => {
+			mount();
+			expect(
+				screen.getAllByRole('columnheader').map((header) => header.textContent)
+			).toEqual(['Seat', 'Spots', 'Opened', 'Chart', 'Reading', 'Limped', 'Result']);
+		});
+
+		it('is what the seat’s first-in hands won or lost, coloured by its sign', () => {
+			const [utg, btn] = report.openings.rows;
+			mount({
+				...report,
+				openings: {
+					...report.openings,
+					rows: [
+						{ ...utg, netBb: -4.5 },
+						{ ...btn, netBb: 3 },
+					],
+				},
+			});
+			expect(result('UTG').textContent).toBe('−4.5bb');
+			expect(result('UTG').classList.contains('is-negative')).toBe(true);
+			expect(result('BTN').textContent).toBe('+3.0bb');
+			expect(result('BTN').classList.contains('is-positive')).toBe(true);
+		});
+	});
+
 	describe('the hands that strayed', () => {
 		it('lists all three ways, with the hands or none', () => {
 			mount();

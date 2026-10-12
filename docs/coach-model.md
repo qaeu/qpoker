@@ -210,6 +210,13 @@ not read as playing too loose.
 - **The big blind has no row.** It is only "first in" over a posted blind that checked,
   which is not an opening spot.
 
+Each row ends with the seat's **result**: the hero's net over the hands of its spots,
+whatever came of them after the first decision, so an open that was 3-bet off its hand
+counts against the seat. It is a narrower figure than Summary's "By position" result,
+which is over every hand dealt in the seat, and the two differ by the hands where someone
+entered the pot first. Spots left out of a row are left out of its result. It is summed
+from each hand's own `netBb`, which a summary already holds, so no stored hand changes.
+
 It reads the same classifier and charts as the grader, so a hand listed here as outside
 the chart is the hand the mistakes list calls "Opened too loose", unless its cost was too
 small to report.

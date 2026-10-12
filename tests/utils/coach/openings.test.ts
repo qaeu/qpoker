@@ -107,6 +107,29 @@ describe('opening ranges', () => {
 			]);
 		});
 
+		it('sums the result of the seat’s first-in hands, and of no others', () => {
+			// An open takes the blinds, a limp is given up on the flop, a fold costs
+			// nothing; the hand facing an open is not a spot at all.
+			const { rows } = openings(
+				firstIn('As Kd', 'raise'),
+				firstIn('Ah Kc', 'raise'),
+				firstIn('7c 2d', 'limp'),
+				firstIn('8c 3d', 'fold'),
+				FACING_AN_OPEN
+			);
+			expect(rows).toHaveLength(1);
+			expect(rows[0].netBb).toBeCloseTo(1.5 + 1.5 - 1);
+		});
+
+		it('leaves a spot left out of the rows out of the result too', () => {
+			const { rows, shortStacked } = openings(
+				firstIn('As Kd', 'raise'),
+				firstIn('Ah Kc', 'raise', 2)
+			);
+			expect(shortStacked).toBe(1);
+			expect(rows[0].netBb).toBeCloseTo(1.5);
+		});
+
 		it('takes its baseline from the cards actually held', () => {
 			const [row] = openings(
 				firstIn('As Kd', 'raise'),
@@ -232,6 +255,7 @@ describe('opening ranges', () => {
 			const replays = parseHistory(log).map(replayHand);
 			const entries = replays.map((replay) => ({
 				id: replay.hand.id,
+				netBb: replay.net.hero / replay.hand.stakes.bigBlind,
 				opening: openingOf(replay, 'hero'),
 			}));
 			expect(summariseSpots(JSON.parse(JSON.stringify(entries)))).toEqual(

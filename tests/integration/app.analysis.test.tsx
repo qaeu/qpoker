@@ -370,8 +370,9 @@ describe('analysing a log in the app', () => {
 			// Aces folded and ace-king opened: one of two, where the chart opens both.
 			const seat = screen.getByRole('row', { name: /^UTG/ });
 			expect(within(seat).getByRole('button', { name: 'UTG' })).toBeTruthy();
-			expect(within(seat).getByText('50%')).toBeTruthy();
-			expect(within(seat).getByText('100%')).toBeTruthy();
+			const cells = within(seat).getAllByRole('cell');
+			expect(cells[1].textContent).toBe('50%');
+			expect(cells[2].textContent).toBe('100%');
 			expect(
 				screen.getByText(/Opened 1 of 2; the chart opens 2\.0 of the same/)
 			).toBeTruthy();

@@ -14,7 +14,7 @@ import { classFromName, className } from '#utils/cards/combos';
 import type { Position } from '#utils/history/replay';
 import { chart } from '#utils/ranges/charts';
 import { emptyRange, type PreflopChoice, type Strategy } from '#utils/ranges/range';
-import { percent, readingOf, type LeakWords } from '#utils/ui/format';
+import { percent, readingOf, signClass, signed, type LeakWords } from '#utils/ui/format';
 
 import RangeGrid from './RangeGrid';
 
@@ -108,6 +108,7 @@ const OpeningsView: Component<OpeningsViewProps> = (props) => {
 											Reading
 										</th>
 										<th scope="col">Limped</th>
+										<th scope="col">Result</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -137,6 +138,7 @@ const OpeningsView: Component<OpeningsViewProps> = (props) => {
 													{readingOf(item.leak, item.spots, WIDTH)}
 												</td>
 												<td>{item.limped}</td>
+												<td class={signClass(item.netBb)}>{signed(item.netBb)}bb</td>
 											</tr>
 										)}
 									</For>
@@ -146,7 +148,7 @@ const OpeningsView: Component<OpeningsViewProps> = (props) => {
 								Chart is what the seat's chart opens with the very cards you held, so a
 								run of good or bad cards does not read as a leak. A seat is flagged only
 								when the sample is large enough to bear it; a small one reads "too few to
-								say".
+								say". Result is what these spots' hands won or lost, however they went on.
 								<Show when={props.report.openings.shortStacked > 0}>
 									{' '}
 									{props.report.openings.shortStacked} spots under 30bb are left out: the
