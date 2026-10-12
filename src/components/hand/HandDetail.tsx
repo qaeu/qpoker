@@ -8,6 +8,7 @@
 import { createMemo, For, Show, type Component, type ParentComponent } from 'solid-js';
 
 import PlayingCards from '#c/common/PlayingCards';
+import { playerHref } from '#utils/app/hashRoute';
 import type { Grading } from '#utils/coach/grade';
 import type { ActionLine, HandReport } from '#utils/coach/report';
 import { STREETS, type Street } from '#utils/history/hand';
@@ -74,6 +75,9 @@ const HandDetail: Component<HandDetailProps> = (props) => {
 			};
 		}).filter((group) => group.lines.length > 0 || group.deal !== null)
 	);
+
+	const isHero = (name: string) =>
+		props.hand.seats.some((seat) => seat.hero && seat.name === name);
 
 	/** A place in the action: a button onto the table's step, where there is a table. */
 	const Jump: ParentComponent<JumpProps> = (jump) => (
@@ -262,7 +266,10 @@ const HandDetail: Component<HandDetailProps> = (props) => {
 									{([name, cards]) => (
 										<li class="hand-detail__line">
 											<span class="hand-detail__action">
-												{name} shows <PlayingCards cards={cards} />
+												<Show when={!isHero(name)} fallback={name}>
+													<a href={playerHref(name)}>{name}</a>
+												</Show>{' '}
+												shows <PlayingCards cards={cards} />
 											</span>
 										</li>
 									)}

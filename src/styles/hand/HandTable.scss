@@ -408,6 +408,17 @@ $_portrait: (
 			text-overflow: ellipsis;
 		}
 
+		// A profile's link keeps the plate's ink: gold on the table is the hero's.
+		a#{&}__name {
+			text-decoration: none;
+
+			&:hover,
+			&:focus-visible {
+				color: $foreground;
+				text-decoration: underline;
+			}
+		}
+
 		&__seat.is-hero &__name {
 			color: get($primaries, 'fg-light');
 		}

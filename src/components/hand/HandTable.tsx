@@ -8,6 +8,7 @@
 import { createMemo, For, Show, type Component } from 'solid-js';
 
 import PlayingCards from '#c/common/PlayingCards';
+import { playerHref } from '#utils/app/hashRoute';
 import type { HandReport } from '#utils/coach/report';
 import { bbText } from '#utils/ui/format';
 import {
@@ -174,7 +175,18 @@ const HandTable: Component<HandTableProps> = (props) => {
 									<div class="hand-table__plate">
 										<div class="hand-table__who">
 											<span class="hand-table__position">{seat.position}</span>
-											<span class="hand-table__name">{seat.name}</span>
+											<Show
+												when={!seat.hero}
+												fallback={<span class="hand-table__name">{seat.name}</span>}
+											>
+												<a
+													class="hand-table__name"
+													href={playerHref(seat.name)}
+													title={`What is known of ${seat.name}`}
+												>
+													{seat.name}
+												</a>
+											</Show>
 										</div>
 										<div class="hand-table__chips">
 											<span class="hand-table__stack">

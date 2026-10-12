@@ -34,6 +34,13 @@ describe('HandTable', () => {
 			).toHaveLength(6);
 		});
 
+		it('links every name but the hero’s to that player’s profile', () => {
+			render(() => <HandTable hand={hand} step={steps[0]} />);
+			const link = within(seat('BB p2')).getByRole('link', { name: 'p2' });
+			expect(link.getAttribute('href')).toBe('#players?name=p2');
+			expect(within(seat('SB hero')).queryByRole('link')).toBeNull();
+		});
+
 		it('shows each stack in big blinds after the step', () => {
 			render(() => <HandTable hand={hand} step={steps[0]} />);
 			expect(text(seat('SB hero').querySelector('.hand-table__stack'))).toBe('99.5bb');

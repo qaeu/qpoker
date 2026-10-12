@@ -147,6 +147,10 @@ describe('HandDetail', () => {
 			expect(river.textContent).toContain('pot 40 bb');
 			fireEvent.click(screen.getByRole('button', { name: 'Showdown' }));
 			expect(onStep).toHaveBeenLastCalledWith(tableSteps(runout).length - 1);
+			// Whoever showed is a link to their profile, but for the hero.
+			const shown = log().getByRole('link', { name: 'p2' });
+			expect(shown.getAttribute('href')).toBe('#players?name=p2');
+			expect(log().queryByRole('link', { name: 'hero' })).toBeNull();
 		});
 
 		it('is plain rows where there is no table to jump', () => {
