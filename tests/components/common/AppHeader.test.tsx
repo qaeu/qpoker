@@ -17,12 +17,14 @@ const mount = (session: Session | null, onLoad = () => {}) =>
 
 describe('AppHeader', () => {
 	describe('the views', () => {
-		it('offers the four of them, Ranges last', () => {
+		it('offers all of them, Ranges last', () => {
 			mount(null);
 			expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
 				'Summary',
 				'Review',
 				'Openings',
+				'Trends',
+				'Players',
 				'Ranges',
 			]);
 		});
@@ -30,7 +32,7 @@ describe('AppHeader', () => {
 		it('rules Ranges off from the views that read the log', () => {
 			const { container } = mount(null);
 			const rule = container.querySelector('.app-header__rule')!;
-			expect(rule.previousElementSibling!.textContent).toBe('Openings');
+			expect(rule.previousElementSibling!.textContent).toBe('Players');
 			expect(rule.nextElementSibling!.textContent).toBe('Ranges');
 		});
 

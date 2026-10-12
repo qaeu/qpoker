@@ -9,19 +9,43 @@
  *
  * A run can be handed an earlier report, and grades only the hands that one
  * does not already answer for: see docs/coach-model.md, "Reusing a report".
+ *
+ * A hand's report is two parts: a light `HandSummary`, which is all that the
+ * report's own figures are summed from (`summariseHands`), and the heavy
+ * `HandDetail` a reader needs once the hand is opened. See docs/library.md.
  */
 
 import { cardsText } from '../cards/cards';
 import type { Action, ActionKind, Hand, Street } from '../history/hand';
 import { parseHistory } from '../history/parse';
 import { decisionsOf, replayHand, type Position, type Replay } from '../history/replay';
+import type { Confidence, Scenario } from '../ranges/preflopSpot';
+import type { GoodPlayRank, GoodPlayType } from './goodPlays';
 import { gradeDecision, type GradeOptions, type Grading } from './grade';
-import { MISTAKES, type MistakeType } from './mistakes';
-import { summariseOpenings, type OpeningSummary } from './openings';
-import { summariseSession, type SessionSummary } from './session';
+import { MISTAKES, type MistakeType, type Severity } from './mistakes';
+import {
+	openingOf,
+	summariseSpots,
+	type OpeningSpot,
+	type OpeningSummary,
+} from './openings';
+import {
+	summariseTallies,
+	tallyHand,
+	type HandTally,
+	type SessionSummary,
+} from './session';
 import { emptyEquity, handEquity, type HandEquity } from './stepEquity';
 
-export const REPORT_VERSION = 7;
+/** The coach: bump it when a grading could come out differently, or its shape does. */
+export const REPORT_VERSION = 8;
+
+/**
+ * The summary's own figures: bump it when a tally, an opening spot or another
+ * summary field changes and no grading does. A stored hand is then summed
+ * again from its text, which costs no simulation.
+ */
+export const FACTS_VERSION = 1;
 
 export interface AnalysisOptions {
 	/** Defaults to the player the log was dealt to. */
@@ -56,10 +80,30 @@ export interface SeatReport {
 	hero: boolean;
 }
 
-export interface HandReport {
+/** A mistake or a good play, cut down to what a list filters and orders on. */
+export interface FindingSummary {
+	stepIndex: number;
+	street: Street;
+	kind: 'mistake' | 'play';
+	mistake: MistakeType | null;
+	severity: Severity;
+	/** The kind of good play and how good, when it is one. */
+	play: GoodPlayType | null;
+	rank: GoodPlayRank | null;
+	confidence: Confidence;
+	/** Negative for a mistake, positive for a good play. */
+	evBb: number;
+}
+
+/** The light half of a hand: what lists, filters and every summed figure read. */
+export interface HandSummary {
 	id: string;
 	timestamp: string;
 	table: string;
+	/** `$0.02/$0.05`. */
+	stakes: string;
+	/** Cents. */
+	bigBlind: number;
 	players: number;
 	position: Position | null;
 	heroCards: string;
@@ -68,12 +112,30 @@ export interface HandReport {
 	/** Zero or negative: the sum of the hand's graded losses. */
 	evLostBb: number;
 	gradeable: boolean;
+	/** False when the actions did not add up to the stated pot. */
+	reconciled: boolean;
+	warnings: string[];
+	/** `Hand.digest`: what tells a later run this is the hand it has in front of it. */
+	digest: string;
+	/** The rake the gradings were priced at, or null when none of them read it. */
+	rake: number | null;
+	/** The hero put money in by choice, or bet. */
+	played: boolean;
+	/** The preflop spots the hero made a decision in. */
+	scenarios: Scenario[];
+	/** The hand's mistakes and good plays, in the order they were made. */
+	findings: FindingSummary[];
+	/** What the hand adds to the hero's frequencies. Null when not dealt in. */
+	tally: HandTally | null;
+	/** The hero's first-in decision, if they made one. */
+	opening: OpeningSpot | null;
+}
+
+/** The heavy half: the actions, the gradings in full and the replay's figures. */
+export interface HandDetail {
 	lines: ActionLine[];
 	gradings: Grading[];
 	shown: Record<string, string>;
-	warnings: string[];
-	/** Cents. */
-	bigBlind: number;
 	/** Players dealt in, in preflop acting order, which is clockwise. Empty with no layout. */
 	seats: SeatReport[];
 	/** Uncalled bets handed back, in cents by player. */
@@ -82,11 +144,9 @@ export interface HandReport {
 	paid: Record<string, number>;
 	/** The hero's equity at each step of the replay. Empty when not graded. */
 	equity: HandEquity;
-	/** `Hand.digest`: what tells a later run this is the hand it has in front of it. */
-	digest: string;
-	/** The rake the gradings were priced at, or null when none of them read it. */
-	rake: number | null;
 }
+
+export interface HandReport extends HandSummary, HandDetail {}
 
 export interface LeakReport {
 	type: MistakeType;
@@ -95,9 +155,18 @@ export interface LeakReport {
 	evLostBb: number;
 }
 
-export interface AnalysisReport {
-	version: number;
+/** What a run of hands was graded under. */
+export interface ReportMeta {
 	hero: string;
+	rake: number;
+	seed: number;
+	/** Runouts per equity calculation, or null for the engine's own defaults. */
+	samples: number | null;
+}
+
+/** Everything a report says of its hands together: summed from their summaries. */
+export interface ReportSummary extends ReportMeta {
+	version: number;
 	stakes: string;
 	tables: string[];
 	firstHand: string;
@@ -108,18 +177,25 @@ export interface AnalysisReport {
 	/** Hands whose actions did not add up to the stated pot. Should be zero. */
 	unreconciled: number;
 	warnings: string[];
-	rake: number;
-	seed: number;
-	/** Runouts per equity calculation, or null for the engine's own defaults. */
-	samples: number | null;
 	session: SessionSummary;
 	/** The hands the hero opened first in, by seat, against the opening charts. */
 	openings: OpeningSummary;
 	/** Mistakes by kind, costliest first. */
 	leaks: LeakReport[];
+	totalEvLostBb: number;
+	mistakeCount: number;
+	goodPlayCount: number;
+}
+
+/** A report with its hands in their light half only: what the app renders. */
+export interface HandsReport extends ReportSummary {
+	/** Every hand, oldest first. */
+	hands: HandSummary[];
+}
+
+export interface AnalysisReport extends HandsReport {
 	/** Every decision graded as a mistake, costliest first. */
 	mistakes: Grading[];
-	totalEvLostBb: number;
 	/** Every decision graded as a good play, the most valuable first. */
 	goodPlays: Grading[];
 	/** Every hand, oldest first. */
@@ -169,7 +245,7 @@ function actionText(action: Action, currency: string): string {
 }
 
 /** The most common "Dealt to" name: the player the log belongs to. */
-function detectHero(hands: readonly Hand[]): string {
+export function detectHero(hands: readonly Hand[]): string {
 	const counts = new Map<string, number>();
 	for (const hand of hands) {
 		if (hand.hero) counts.set(hand.hero, (counts.get(hand.hero) ?? 0) + 1);
@@ -192,10 +268,52 @@ function observedRake(hands: readonly Hand[]): number {
 		pots += hand.totalPot;
 		rake += hand.rake;
 	}
+	return rakeRate(pots, rake);
+}
+
+/** A rake rate from the pots that saw a flop and what was taken from them, in cents. */
+export function rakeRate(pots: number, rake: number): number {
 	return pots > 0 ? Math.round((rake / pots) * RAKE_STEPS) / RAKE_STEPS : 0.05;
 }
 
-function reportHand(replay: Replay, hero: string, options: GradeOptions): HandReport {
+function findingOf(grading: Grading): FindingSummary | null {
+	const kind =
+		grading.mistake ? 'mistake'
+		: grading.goodPlay ? 'play'
+		: null;
+	if (!kind) return null;
+	return {
+		stepIndex: grading.stepIndex,
+		street: grading.street,
+		kind,
+		mistake: grading.mistake,
+		severity: grading.severity,
+		play: grading.goodPlay?.type ?? null,
+		rank: grading.goodPlay?.rank ?? null,
+		confidence: grading.confidence,
+		// A grading is never both: a mistake has no good play.
+		evBb: grading.goodPlay ? grading.goodPlay.evGainedBb : grading.evLostBb,
+	};
+}
+
+export function stakesText(hand: Hand): string {
+	const { smallBlind, bigBlind, currency } = hand.stakes;
+	return `${moneyText(smallBlind, currency)}/${moneyText(bigBlind, currency)}`;
+}
+
+/** The costly part of a hand's report, which a re-summing keeps. */
+export type Graded = Pick<HandReport, 'gradings' | 'equity' | 'rake'>;
+
+/**
+ * One hand's report. Handed what an earlier grading of the same hand came to,
+ * it grades nothing and only sums the hand up again.
+ */
+export function reportHand(
+	replay: Replay,
+	hero: string,
+	options: GradeOptions,
+	graded?: Graded
+): HandReport {
 	const { hand, layout } = replay;
 	const { currency } = hand.stakes;
 	const bb = hand.stakes.bigBlind || 1;
@@ -206,7 +324,8 @@ function reportHand(replay: Replay, hero: string, options: GradeOptions): HandRe
 	// Read through a getter, so the hand knows whether its gradings hang on the rate.
 	let rakeRead = false;
 	const gradings =
-		gradeable ?
+		graded ? graded.gradings
+		: gradeable ?
 			decisionsOf(replay, hero).map((step) =>
 				// Each decision gets its own stream, so one hand's grade does not
 				// depend on how many came before it.
@@ -245,6 +364,7 @@ function reportHand(replay: Replay, hero: string, options: GradeOptions): HandRe
 		id: hand.id,
 		timestamp: hand.timestamp,
 		table: hand.table,
+		stakes: stakesText(hand),
 		players: layout?.players.length ?? 0,
 		position: layout?.positions[hero] ?? null,
 		heroCards: hand.hero === hero ? cardsText(hand.heroCards) : '',
@@ -252,6 +372,14 @@ function reportHand(replay: Replay, hero: string, options: GradeOptions): HandRe
 		netBb: (replay.net[hero] ?? 0) / bb,
 		evLostBb: gradings.reduce((sum, grading) => sum + grading.evLostBb, 0),
 		gradeable,
+		reconciled: replay.reconciled,
+		played: gradings.some(({ chosen }) => chosen !== 'fold' && chosen !== 'check'),
+		scenarios: [
+			...new Set(gradings.flatMap(({ preflop }) => (preflop ? [preflop.scenario] : []))),
+		],
+		findings: gradings.flatMap((grading) => findingOf(grading) ?? []),
+		tally: tallyHand(replay, hero),
+		opening: openingOf(replay, hero),
 		lines,
 		gradings,
 		shown: Object.fromEntries(
@@ -268,9 +396,15 @@ function reportHand(replay: Replay, hero: string, options: GradeOptions): HandRe
 		returned,
 		// As `replayHand` settles `net`: a cash-out replaces the pot's credit.
 		paid: { ...hand.won, ...hand.cashedOut },
-		equity: gradeable ? handEquity(replay, hero, gradings, equityOptions) : emptyEquity(),
+		equity:
+			graded ? graded.equity
+			: gradeable ? handEquity(replay, hero, gradings, equityOptions)
+			: emptyEquity(),
 		digest: hand.digest,
-		rake: rakeRead ? options.rake : null,
+		rake:
+			graded ? graded.rake
+			: rakeRead ? options.rake
+			: null,
 	};
 }
 
@@ -348,61 +482,83 @@ export function advanceAnalysis(run: AnalysisRun, count = Infinity): boolean {
 	return run.done >= run.total;
 }
 
-/** Assembles the report of a completed run. */
-export function finishAnalysis(run: AnalysisRun): AnalysisReport {
-	const hands = run.replays.map((replay) => replay.hand);
-	const mistakes = run.reports
-		.flatMap((report) => report.gradings)
-		.filter((grading) => grading.mistake !== null)
-		.sort((a, b) => a.evLostBb - b.evLostBb);
+/** Parts a hand's report into the half that is listed and the half that is opened. */
+export function splitReport(report: HandReport): {
+	summary: HandSummary;
+	detail: HandDetail;
+} {
+	const { lines, gradings, shown, seats, returned, paid, equity, ...summary } = report;
+	return { summary, detail: { lines, gradings, shown, seats, returned, paid, equity } };
+}
 
-	const goodPlays = run.reports
-		.flatMap((report) => report.gradings)
-		.filter((grading) => grading.goodPlay !== null)
-		.sort((a, b) => b.goodPlay!.evGainedBb - a.goodPlay!.evGainedBb);
-
+/**
+ * What a run of hands says together, oldest first. It reads nothing but their
+ * summaries, so it is the same sum over one log or over any stored hands.
+ */
+export function summariseHands(
+	hands: readonly HandSummary[],
+	meta: ReportMeta
+): ReportSummary {
 	const byType = new Map<MistakeType, LeakReport>();
-	for (const { mistake, evLostBb } of mistakes) {
-		if (!mistake) continue;
-		const leak = byType.get(mistake) ?? {
-			type: mistake,
-			title: MISTAKES[mistake].title,
-			count: 0,
-			evLostBb: 0,
-		};
-		leak.count++;
-		leak.evLostBb += evLostBb;
-		byType.set(mistake, leak);
+	let totalEvLostBb = 0;
+	let goodPlayCount = 0;
+	for (const { findings } of hands) {
+		for (const { mistake, evBb } of findings) {
+			if (!mistake) {
+				goodPlayCount++;
+				continue;
+			}
+			const leak = byType.get(mistake) ?? {
+				type: mistake,
+				title: MISTAKES[mistake].title,
+				count: 0,
+				evLostBb: 0,
+			};
+			leak.count++;
+			leak.evLostBb += evBb;
+			totalEvLostBb += evBb;
+			byType.set(mistake, leak);
+		}
 	}
-
-	const first = hands[0];
-	const stakes =
-		first ?
-			`${moneyText(first.stakes.smallBlind, first.stakes.currency)}/${moneyText(first.stakes.bigBlind, first.stakes.currency)}`
-		:	'';
 
 	return {
 		version: REPORT_VERSION,
-		hero: run.hero,
-		stakes,
+		...meta,
+		stakes: hands[0]?.stakes ?? '',
 		tables: [...new Set(hands.map((hand) => hand.table))].sort(),
-		firstHand: first?.timestamp ?? '',
+		firstHand: hands[0]?.timestamp ?? '',
 		lastHand: hands.at(-1)?.timestamp ?? '',
 		handCount: hands.length,
-		gradedHands: run.reports.filter((report) => report.gradeable).length,
-		unreconciled: run.replays.filter((replay) => !replay.reconciled).length,
+		gradedHands: hands.filter((hand) => hand.gradeable).length,
+		unreconciled: hands.filter((hand) => !hand.reconciled).length,
 		warnings: hands.flatMap((hand) =>
 			hand.warnings.map((warning) => `Hand #${hand.id}: ${warning}`)
 		),
-		rake: run.options.rake,
-		seed: run.options.seed ?? 1,
-		samples: run.options.samples ?? null,
-		session: summariseSession(run.replays, run.hero),
-		openings: summariseOpenings(run.replays, run.hero),
+		session: summariseTallies(hands.map((hand) => hand.tally)),
+		openings: summariseSpots(hands),
 		leaks: [...byType.values()].sort((a, b) => a.evLostBb - b.evLostBb),
-		mistakes,
-		totalEvLostBb: mistakes.reduce((sum, grading) => sum + grading.evLostBb, 0),
-		goodPlays,
+		totalEvLostBb,
+		mistakeCount: [...byType.values()].reduce((sum, leak) => sum + leak.count, 0),
+		goodPlayCount,
+	};
+}
+
+/** Assembles the report of a completed run. */
+export function finishAnalysis(run: AnalysisRun): AnalysisReport {
+	const gradings = run.reports.flatMap((report) => report.gradings);
+	return {
+		...summariseHands(run.reports, {
+			hero: run.hero,
+			rake: run.options.rake,
+			seed: run.options.seed ?? 1,
+			samples: run.options.samples ?? null,
+		}),
+		mistakes: gradings
+			.filter((grading) => grading.mistake !== null)
+			.sort((a, b) => a.evLostBb - b.evLostBb),
+		goodPlays: gradings
+			.filter((grading) => grading.goodPlay !== null)
+			.sort((a, b) => b.goodPlay!.evGainedBb - a.goodPlay!.evGainedBb),
 		hands: run.reports,
 	};
 }

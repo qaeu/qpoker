@@ -60,7 +60,7 @@ export function loadLog(text: string, name = 'hands.txt'): void {
 }
 
 export async function switchTo(
-	tab: 'Summary' | 'Review' | 'Openings' | 'Ranges'
+	tab: 'Summary' | 'Review' | 'Openings' | 'Trends' | 'Players' | 'Ranges'
 ): Promise<void> {
 	fireEvent.click(screen.getByRole('tab', { name: tab }));
 	await settle();

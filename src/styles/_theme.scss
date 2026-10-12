@@ -585,3 +585,43 @@ $breakpoint-short: 600px;
 		height: 12px;
 	}
 }
+
+// A table of figures printed on a panel: hairline rules, small-capital heads,
+// mint and ruby on signed figures, and a flagged row's own figure in ruby.
+@mixin data-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14px;
+	font-variant-numeric: tabular-nums;
+
+	th,
+	td {
+		padding: 7px 8px 7px 0;
+		border-bottom: 1px solid $rule;
+		text-align: left;
+		font-weight: 400;
+	}
+
+	thead th {
+		@include print(10px, 0.16em);
+		border-bottom-color: $rule-strong;
+		color: $ink-muted;
+	}
+
+	tbody th {
+		color: get($neutrals, 'fg');
+	}
+
+	.is-positive {
+		color: get($successes, 'fg-light');
+	}
+
+	.is-negative {
+		color: get($errors, 'fg-light');
+	}
+
+	tr.is-leak td:nth-child(2) {
+		color: get($errors, 'fg-light');
+		font-weight: 600;
+	}
+}

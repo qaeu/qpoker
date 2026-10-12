@@ -1,4 +1,6 @@
 // Setup file for tests
+import 'fake-indexeddb/auto';
+import { IDBFactory } from 'fake-indexeddb';
 import { afterEach } from 'vitest';
 import { cleanup } from '@solidjs/testing-library';
 
@@ -6,6 +8,7 @@ import {
 	handleAnalysisMessage,
 	type AnalysisWorkerMessage,
 } from '#utils/analysisWorkerProtocol';
+import { openIdbStore } from '#utils/store/idbStore';
 
 // jsdom has no ResizeObserver; Ark UI's floating-ui positioning needs one to
 // observe anchor/content elements.
@@ -19,10 +22,10 @@ globalThis.ResizeObserver ??= ResizeObserverStub;
 // jsdom implements no scrolling, so Element.scrollTo is missing.
 Element.prototype.scrollTo ??= () => {};
 
-// jsdom has no Worker implementation. The analysis is offloaded to a real Worker
+// jsdom has no Worker implementation. Loading a log is offloaded to a real Worker
 // in the browser, so this stub runs the same protocol in-process instead of on
 // a thread: its own chunked loop, emitting the progress/complete sequence the
-// real worker would.
+// real worker would, over the same (fake) IndexedDB the page reads.
 class WorkerStub {
 	onmessage: ((event: MessageEvent) => void) | null = null;
 	onerror: ((event: ErrorEvent) => void) | null = null;
@@ -34,8 +37,10 @@ class WorkerStub {
 		for (const listener of this.listeners.get('message') ?? []) listener(event);
 	}
 
+	private readonly store = openIdbStore();
+
 	postMessage(data: AnalysisWorkerMessage) {
-		handleAnalysisMessage(data, (response) => this.emit(response));
+		handleAnalysisMessage(data, (response) => this.emit(response), this.store);
 	}
 
 	addEventListener(type: string, listener: (event: MessageEvent) => void) {
@@ -56,4 +61,6 @@ globalThis.Worker ??= WorkerStub;
 afterEach(() => {
 	cleanup();
 	localStorage.clear();
+	// A fresh factory is an empty library: jsdom has no IndexedDB of its own.
+	globalThis.indexedDB = new IDBFactory();
 });

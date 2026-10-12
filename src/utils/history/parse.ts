@@ -280,8 +280,17 @@ function parseHand(lines: readonly string[]): Hand {
 	return hand;
 }
 
+/** A hand beside the lines it was read from, which parse to the same hand again. */
+export interface ParsedHand {
+	hand: Hand;
+	text: string;
+}
+
 /** Sorts oldest first. Hand ids rise with time and break a same-second tie. */
-function chronological(a: Hand, b: Hand): number {
+export function chronological(
+	a: Pick<Hand, 'id' | 'timestamp'>,
+	b: Pick<Hand, 'id' | 'timestamp'>
+): number {
 	if (a.timestamp !== b.timestamp) return a.timestamp < b.timestamp ? -1 : 1;
 	if (a.id.length !== b.id.length) return a.id.length - b.id.length;
 	return (
@@ -291,16 +300,16 @@ function chronological(a: Hand, b: Hand): number {
 	);
 }
 
-/** Parses a whole history file: quoted-printable or plain, any hand order. */
-export function parseHistory(raw: string): Hand[] {
+/** Parses a whole history file, keeping each hand's own text beside it. */
+export function parseHands(raw: string): ParsedHand[] {
 	const lines = decodeHistory(raw)
 		.split('\n')
 		.map((line) => line.trimEnd());
 
-	const hands: Hand[] = [];
+	const hands: ParsedHand[] = [];
 	let block: string[] | null = null;
 	const flush = () => {
-		if (block) hands.push(parseHand(block));
+		if (block) hands.push({ hand: parseHand(block), text: block.join('\n') });
 	};
 	for (const line of lines) {
 		if (HAND_START.test(line)) {
@@ -312,5 +321,10 @@ export function parseHistory(raw: string): Hand[] {
 	}
 	flush();
 
-	return hands.sort(chronological);
+	return hands.sort((a, b) => chronological(a.hand, b.hand));
+}
+
+/** Parses a whole history file: quoted-printable or plain, any hand order. */
+export function parseHistory(raw: string): Hand[] {
+	return parseHands(raw).map(({ hand }) => hand);
 }

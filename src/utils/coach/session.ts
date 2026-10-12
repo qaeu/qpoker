@@ -4,6 +4,9 @@
  * baseline is what the charts would have done in the very spots the hero was
  * in; postflop it is a typical figure for a balanced player, and is marked so.
  * A leak is a gap from the baseline too wide to be the sample's doing.
+ *
+ * The counting is done a hand at a time (`tallyHand`) and summed (`addTally`),
+ * so a session is a sum of stored hands and the same sums profile any player.
  */
 
 import { CLASS_COUNT, classSize } from '../cards/combos';
@@ -75,6 +78,8 @@ const LABELS: Record<StatId, string> = {
 	wonAtShowdown: 'Won at showdown',
 };
 
+const STAT_IDS = Object.keys(LABELS) as StatId[];
+
 /** The table sizes a typical figure is kept for, by players dealt in. */
 const TABLE_BUCKETS = ['headsUp', 'short', 'sixMax', 'fullRing'] as const;
 
@@ -102,9 +107,11 @@ const bucketOf = (players: number): TableBucket =>
 export const MIN_SAMPLE = 10;
 const MIN_GAP = 0.08;
 
-interface Tally {
+/** One stat's sums: over a hand, a session, or everything seen of a player. */
+export interface Tally {
 	count: number;
 	opportunities: number;
+	/** The baseline's own count: its frequency summed over the opportunities. */
 	expected: number;
 }
 
@@ -157,126 +164,180 @@ export function leakOf(
 	return gap > 0 ? 'high' : 'low';
 }
 
-/** Sums the session's frequencies over every hand the hero was dealt into. */
-export function summariseSession(
-	replays: readonly Replay[],
-	hero: string
-): SessionSummary {
-	const tallies = Object.fromEntries(
-		Object.keys(LABELS).map((id) => [id, { count: 0, opportunities: 0, expected: 0 }])
-	) as Record<StatId, Tally>;
+/** What one hand adds to a player's frequencies. Plain data: it is stored. */
+export interface HandTally {
+	position: Position;
+	/** Players dealt in. */
+	players: number;
+	netBb: number;
+	/** Only the stats the hand gave an opportunity for. */
+	stats: Partial<Record<StatId, Tally>>;
+}
+
+/** Hand tallies summed. Plain data too, so a player's can be kept and added to. */
+export interface SessionTally {
+	hands: number;
+	netBb: number;
+	stats: Partial<Record<StatId, Tally>>;
+	positions: Partial<Record<Position, PositionRow>>;
+	/** Hands by players dealt in. */
+	sizes: Record<number, number>;
+	/** The table sizes behind each typical stat's own opportunities. */
+	mixes: Partial<Record<StatId, Mix>>;
+}
+
+export const emptyTally = (): SessionTally => ({
+	hands: 0,
+	netBb: 0,
+	stats: {},
+	positions: {},
+	sizes: {},
+	mixes: {},
+});
+
+/** One player's frequencies in one hand, or null when they were not dealt in. */
+export function tallyHand(replay: Replay, player: string): HandTally | null {
+	const { hand, layout } = replay;
+	if (!layout || !(player in layout.positions)) return null;
+
+	const stats: HandTally['stats'] = {};
 	const add = (id: StatId, hit: boolean, expected = 0) => {
-		tallies[id].opportunities++;
-		tallies[id].expected += expected;
-		if (hit) tallies[id].count++;
+		const tally = (stats[id] ??= { count: 0, opportunities: 0, expected: 0 });
+		tally.opportunities++;
+		tally.expected += expected;
+		if (hit) tally.count++;
 	};
-	const rows = new Map<Position, PositionRow>(
-		POSITIONS.map((position) => [
-			position,
-			{ position, hands: 0, vpip: 0, pfr: 0, netBb: 0 },
-		])
-	);
-
-	// The table sizes behind each typical stat's own opportunities, and behind
-	// every hand dealt, which stands in for a stat that never came up.
-	const mixes = new Map<StatId, Mix>();
-	const dealt = emptyMix();
-	const sizes = new Map<number, number>();
-	let bucket: TableBucket = 'sixMax';
-	const addTypical = (id: StatId, hit: boolean) => {
-		const mix = mixes.get(id) ?? emptyMix();
-		mix[bucket]++;
-		mixes.set(id, mix);
-		add(id, hit);
+	const tally: HandTally = {
+		position: layout.positions[player],
+		players: layout.players.length,
+		netBb: (replay.net[player] ?? 0) / hand.stakes.bigBlind,
+		stats,
 	};
 
-	let hands = 0;
-	let netBb = 0;
+	const decisions = decisionsOf(replay, player);
+	const preflop = decisions.filter((step) => step.street === 'preflop');
+	const vpip = preflop.some(isVoluntary);
+	const pfr = preflop.some((step) => step.action.kind === 'raise');
 
-	for (const replay of replays) {
-		const { hand, layout } = replay;
-		if (!layout || !(hero in layout.positions)) continue;
-		hands++;
-		bucket = bucketOf(layout.players.length);
-		dealt[bucket]++;
-		sizes.set(layout.players.length, (sizes.get(layout.players.length) ?? 0) + 1);
-		const bb = hand.stakes.bigBlind;
-		const net = (replay.net[hero] ?? 0) / bb;
-		netBb += net;
-
-		const decisions = decisionsOf(replay, hero);
-		const preflop = decisions.filter((step) => step.street === 'preflop');
-		const vpip = preflop.some(isVoluntary);
-		const pfr = preflop.some((step) => step.action.kind === 'raise');
-		const row = rows.get(layout.positions[hero])!;
-		row.hands++;
-		row.netBb += net;
-		if (vpip) row.vpip++;
-		if (pfr) row.pfr++;
-
-		// The first decision carries the VPIP and PFR baselines: the whole range
-		// is still in play there, and a walk has no decision at all.
-		const first = preflop[0];
-		if (first) {
-			const { strategy } = classifyPreflop(replay, first);
-			const full = preflopRange(replay, hero, first.index);
-			const raises = expectedFrequency(full, (cls) => strategy.raise[cls]);
-			const calls =
-				first.toCall > 0 ? expectedFrequency(full, (cls) => strategy.call[cls]) : 0;
-			add('vpip', vpip, raises + calls);
-			add('pfr', pfr, raises);
-		} else {
-			add('vpip', false);
-			add('pfr', false);
-		}
-
-		for (const step of preflop) {
-			const spot = classifyPreflop(replay, step);
-			const prior = preflopRange(replay, hero, step.index);
-			const { strategy } = spot;
-			const raises = expectedFrequency(prior, (cls) => strategy.raise[cls]);
-			const calls = expectedFrequency(prior, (cls) => strategy.call[cls]);
-			const raised = step.action.kind === 'raise';
-			const folded = step.action.kind === 'fold';
-			if (spot.scenario === 'rfi') add('rfi', raised, raises);
-			if (spot.scenario === 'vsOpen' || spot.scenario === 'squeeze') {
-				add('threeBet', raised, raises);
-				if (spot.position === 'BB') add('bbDefend', !folded, raises + calls);
-			}
-			if (spot.scenario === 'vs3bet') add('foldToThreeBet', folded, 1 - raises - calls);
-		}
-
-		const sawFlop =
-			hand.board.length >= 3 && !preflop.some((s) => s.action.kind === 'fold');
-		if (!sawFlop) continue;
-
-		const aggressor = replay.steps.findLast(
-			(step) => step.street === 'preflop' && step.action.kind === 'raise'
-		)?.action.player;
-		const flop = decisions.find((step) => step.street === 'flop');
-		if (flop && aggressor === hero && flop.raisesBefore === 0) {
-			addTypical('cbet', flop.action.kind === 'bet');
-		}
-		if (flop && aggressor && aggressor !== hero && flop.raisesBefore === 1) {
-			const bettor = replay.steps.find(
-				(step) => step.street === 'flop' && step.action.kind === 'bet'
-			)?.action.player;
-			if (bettor === aggressor) addTypical('foldToCbet', flop.action.kind === 'fold');
-		}
-
-		const folded = decisions.some((step) => step.action.kind === 'fold');
-		const showdown = !folded && Object.keys(hand.shown).length > 0;
-		addTypical('wtsd', showdown);
-		if (showdown) addTypical('wonAtShowdown', (hand.won[hero] ?? 0) > 0);
+	// The first decision carries the VPIP and PFR baselines: the whole range
+	// is still in play there, and a walk has no decision at all.
+	const first = preflop[0];
+	if (first) {
+		const { strategy } = classifyPreflop(replay, first);
+		const full = preflopRange(replay, player, first.index);
+		const raises = expectedFrequency(full, (cls) => strategy.raise[cls]);
+		const calls =
+			first.toCall > 0 ? expectedFrequency(full, (cls) => strategy.call[cls]) : 0;
+		add('vpip', vpip, raises + calls);
+		add('pfr', pfr, raises);
+	} else {
+		add('vpip', false);
+		add('pfr', false);
 	}
 
-	const stats = (Object.keys(LABELS) as StatId[]).map((id): Stat => {
-		const { count, opportunities, expected } = tallies[id];
+	for (const step of preflop) {
+		const spot = classifyPreflop(replay, step);
+		const prior = preflopRange(replay, player, step.index);
+		const { strategy } = spot;
+		const raises = expectedFrequency(prior, (cls) => strategy.raise[cls]);
+		const calls = expectedFrequency(prior, (cls) => strategy.call[cls]);
+		const raised = step.action.kind === 'raise';
+		const folded = step.action.kind === 'fold';
+		if (spot.scenario === 'rfi') add('rfi', raised, raises);
+		if (spot.scenario === 'vsOpen' || spot.scenario === 'squeeze') {
+			add('threeBet', raised, raises);
+			if (spot.position === 'BB') add('bbDefend', !folded, raises + calls);
+		}
+		if (spot.scenario === 'vs3bet') add('foldToThreeBet', folded, 1 - raises - calls);
+	}
+
+	const sawFlop =
+		hand.board.length >= 3 && !preflop.some((s) => s.action.kind === 'fold');
+	if (!sawFlop) return tally;
+
+	const aggressor = replay.steps.findLast(
+		(step) => step.street === 'preflop' && step.action.kind === 'raise'
+	)?.action.player;
+	const flop = decisions.find((step) => step.street === 'flop');
+	if (flop && aggressor === player && flop.raisesBefore === 0) {
+		add('cbet', flop.action.kind === 'bet');
+	}
+	if (flop && aggressor && aggressor !== player && flop.raisesBefore === 1) {
+		const bettor = replay.steps.find(
+			(step) => step.street === 'flop' && step.action.kind === 'bet'
+		)?.action.player;
+		if (bettor === aggressor) add('foldToCbet', flop.action.kind === 'fold');
+	}
+
+	const folded = decisions.some((step) => step.action.kind === 'fold');
+	const showdown = !folded && Object.keys(hand.shown).length > 0;
+	add('wtsd', showdown);
+	if (showdown) add('wonAtShowdown', (hand.won[player] ?? 0) > 0);
+
+	return tally;
+}
+
+/**
+ * Adds a hand to a running total, in place, and returns the total. A `sign` of
+ * -1 takes the hand back out, for when its text has been replaced.
+ */
+export function addTally(
+	total: SessionTally,
+	hand: HandTally,
+	sign: 1 | -1 = 1
+): SessionTally {
+	total.hands += sign;
+	total.netBb += sign * hand.netBb;
+	total.sizes[hand.players] = (total.sizes[hand.players] ?? 0) + sign;
+
+	const row = (total.positions[hand.position] ??= {
+		position: hand.position,
+		hands: 0,
+		vpip: 0,
+		pfr: 0,
+		netBb: 0,
+	});
+	row.hands += sign;
+	row.netBb += sign * hand.netBb;
+	row.vpip += sign * (hand.stats.vpip?.count ?? 0);
+	row.pfr += sign * (hand.stats.pfr?.count ?? 0);
+
+	for (const id of STAT_IDS) {
+		const added = hand.stats[id];
+		if (!added) continue;
+		const tally = (total.stats[id] ??= { count: 0, opportunities: 0, expected: 0 });
+		tally.count += sign * added.count;
+		tally.opportunities += sign * added.opportunities;
+		tally.expected += sign * added.expected;
+		if (id in TYPICAL) {
+			const mix = (total.mixes[id] ??= emptyMix());
+			mix[bucketOf(hand.players)] += sign * added.opportunities;
+		}
+	}
+	return total;
+}
+
+/** A total's frequencies, each beside its baseline. */
+export function sessionOf(total: SessionTally): SessionSummary {
+	const sizes = Object.entries(total.sizes)
+		.map(([players, hands]): TableSize => ({ players: Number(players), hands }))
+		.filter(({ hands }) => hands > 0)
+		.sort((a, b) => b.players - a.players);
+	// Every hand dealt stands in for a typical stat that never came up.
+	const dealt = emptyMix();
+	for (const { players, hands } of sizes) dealt[bucketOf(players)] += hands;
+
+	const stats = STAT_IDS.map((id): Stat => {
+		const { count, opportunities, expected } = total.stats[id] ?? {
+			count: 0,
+			opportunities: 0,
+			expected: 0,
+		};
 		const typical = TYPICAL[id];
 		const value = opportunities > 0 ? count / opportunities : null;
 		const baseline =
 			typical !== undefined ?
-				(typicalOf(typical, mixes.get(id) ?? dealt) ?? typical.sixMax)
+				(typicalOf(typical, total.mixes[id] ?? dealt) ?? typical.sixMax)
 			: opportunities > 0 ? expected / opportunities
 			: null;
 		return {
@@ -292,13 +353,30 @@ export function summariseSession(
 	});
 
 	return {
-		hands,
-		netBb,
-		bbPer100: hands > 0 ? (netBb / hands) * 100 : 0,
+		hands: total.hands,
+		netBb: total.netBb,
+		bbPer100: total.hands > 0 ? (total.netBb / total.hands) * 100 : 0,
 		stats,
-		positions: [...rows.values()].filter((row) => row.hands > 0),
-		tableSizes: [...sizes.entries()]
-			.sort((a, b) => b[0] - a[0])
-			.map(([players, count]) => ({ players, hands: count })),
+		positions: POSITIONS.flatMap((position) => total.positions[position] ?? []).filter(
+			(row) => row.hands > 0
+		),
+		tableSizes: sizes,
 	};
+}
+
+/** The frequencies of a run of hand tallies, a hand not dealt into passed over. */
+export function summariseTallies(tallies: Iterable<HandTally | null>): SessionSummary {
+	const total = emptyTally();
+	for (const tally of tallies) {
+		if (tally) addTally(total, tally);
+	}
+	return sessionOf(total);
+}
+
+/** Sums the session's frequencies over every hand the hero was dealt into. */
+export function summariseSession(
+	replays: readonly Replay[],
+	hero: string
+): SessionSummary {
+	return summariseTallies(replays.map((replay) => tallyHand(replay, hero)));
 }

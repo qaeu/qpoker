@@ -5,9 +5,17 @@ import {
 	analyzeLog,
 	finishAnalysis,
 	REPORT_VERSION,
+	splitReport,
 	startAnalysis,
+	summariseHands,
 } from '#utils/coach/report';
-import { summariseSession } from '#utils/coach/session';
+import {
+	addTally,
+	emptyTally,
+	sessionOf,
+	summariseSession,
+	tallyHand,
+} from '#utils/coach/session';
 import { parseHistory } from '#utils/history/parse';
 import { replayHand } from '#utils/history/replay';
 
@@ -19,6 +27,7 @@ import {
 	ringHand,
 	TOUGH_FOLD,
 } from '../history/handText';
+import { summed } from './summed';
 
 const folds = (...names: string[]) => names.map((name) => `${name}: folds`);
 
@@ -209,10 +218,6 @@ describe('reusing an earlier report', () => {
 	const log = [folded, opened, called].join('\n');
 	const earlier = analyzeLog(log, { seed: 5 });
 
-	it('is at the version that added it', () => {
-		expect(REPORT_VERSION).toBe(7);
-	});
-
 	it('records what a hand was graded from', () => {
 		expect(earlier.samples).toBeNull();
 		expect(earlier.hands.map((hand) => hand.digest)).toEqual(
@@ -396,5 +401,113 @@ describe('typical figures by table size', () => {
 			{ players: 6, hands: 2 },
 			{ players: 5, hands: 2 },
 		]);
+	});
+});
+
+describe('a hand in two halves', () => {
+	const log = [handText(TOUGH_FOLD), handText(RIVER_HERO_CALL)].join('\n');
+	const report = analyzeLog(log, { seed: 5 });
+
+	describe('the summary', () => {
+		it('lists the findings its gradings hold, each as one signed figure', () => {
+			for (const hand of report.hands) {
+				const found = hand.gradings.filter((g) => g.mistake || g.goodPlay);
+				expect(hand.findings.map((finding) => finding.stepIndex)).toEqual(
+					found.map((grading) => grading.stepIndex)
+				);
+				for (const finding of hand.findings) {
+					expect(Math.sign(finding.evBb)).toBe(finding.kind === 'play' ? 1 : -1);
+				}
+			}
+			const kinds = report.hands.flatMap((hand) => hand.findings.map((f) => f.kind));
+			expect(kinds).toEqual(expect.arrayContaining(['mistake', 'play']));
+		});
+
+		it('says whether the hero played, and in which preflop spots', () => {
+			const walked = analyzeLog(ringHand(6, '7c 2d', 'fold')).hands[0];
+			expect(walked).toMatchObject({ played: false, scenarios: ['rfi'] });
+			expect(report.hands.every((hand) => hand.played)).toBe(true);
+		});
+
+		it('is all the report’s own figures are summed from', () => {
+			const summaries = report.hands.map((hand) => splitReport(hand).summary);
+			expect(
+				summariseHands(JSON.parse(JSON.stringify(summaries)), {
+					hero: report.hero,
+					rake: report.rake,
+					seed: report.seed,
+					samples: report.samples,
+				})
+			).toEqual(summed(report));
+		});
+	});
+
+	describe('the detail', () => {
+		it('is the rest of the hand, and the two make the whole', () => {
+			const [hand] = report.hands;
+			const { summary, detail } = splitReport(hand);
+			expect(Object.keys(detail).sort()).toEqual(
+				['equity', 'gradings', 'lines', 'paid', 'returned', 'seats', 'shown'].sort()
+			);
+			expect({ ...summary, ...detail }).toEqual(hand);
+		});
+	});
+});
+
+describe('a hand’s tally', () => {
+	const replays = parseHistory(emailed).map(replayHand);
+
+	it('is null for a player not dealt in', () => {
+		expect(tallyHand(replays[0], 'nobody')).toBeNull();
+	});
+
+	it('holds only the stats the hand gave an opportunity for', () => {
+		const walked = parseHistory(ringHand(6, '7c 2d', 'fold')).map(replayHand)[0];
+		const tally = tallyHand(walked, 'hero')!;
+		expect(tally).toMatchObject({ position: 'UTG', players: 6, netBb: 0 });
+		expect(Object.keys(tally.stats).sort()).toEqual(['pfr', 'rfi', 'vpip']);
+	});
+
+	it('profiles any player, with no cards of theirs to go on', () => {
+		const villain = summariseSession(replays, 'Brakeman1990');
+		expect(villain.hands).toBe(4);
+		const vpip = villain.stats.find((stat) => stat.id === 'vpip')!;
+		expect(vpip.opportunities).toBe(4);
+		expect(vpip.baselineSource).toBe('charts');
+	});
+
+	describe('summed', () => {
+		const tallies = replays.map((replay) => tallyHand(replay, 'hero77')!);
+
+		it('gives the session, in whatever order the hands come', () => {
+			const total = emptyTally();
+			for (const tally of [...tallies].reverse()) addTally(total, tally);
+			const session = sessionOf(total);
+			const expected = summariseSession(replays, 'hero77');
+			expect(session.netBb).toBeCloseTo(expected.netBb);
+			expect(
+				session.stats.map(({ count, opportunities }) => [count, opportunities])
+			).toEqual(expected.stats.map(({ count, opportunities }) => [count, opportunities]));
+			expect(session.positions.map((row) => row.position)).toEqual(
+				expected.positions.map((row) => row.position)
+			);
+			expect(session.tableSizes).toEqual(expected.tableSizes);
+		});
+
+		it('can have a hand taken back out', () => {
+			const total = emptyTally();
+			for (const tally of tallies) addTally(total, tally);
+			addTally(total, tallies[0], -1);
+			const rest = sessionOf(total);
+			const expected = summariseSession(replays.slice(1), 'hero77');
+			expect(rest.hands).toBe(3);
+			expect(rest.positions.map((row) => row.position)).toEqual(
+				expected.positions.map((row) => row.position)
+			);
+			expect(rest.tableSizes).toEqual(expected.tableSizes);
+			expect(
+				rest.stats.map(({ count, opportunities }) => [count, opportunities])
+			).toEqual(expected.stats.map(({ count, opportunities }) => [count, opportunities]));
+		});
 	});
 });

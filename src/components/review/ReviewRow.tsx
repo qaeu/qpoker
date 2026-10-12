@@ -8,28 +8,28 @@ import { For, Show, type Component } from 'solid-js';
 import PlayingCards from '#c/common/PlayingCards';
 import { GOOD_PLAYS } from '#utils/coach/goodPlays';
 import { MISTAKES } from '#utils/coach/mistakes';
-import type { HandReport } from '#utils/coach/report';
+import type { HandSummary } from '#utils/coach/report';
 import { signClass, signed } from '#utils/ui/format';
 import { findingsOf, type Finding } from '#utils/ui/review';
 
 import '#styles/review/ReviewRow';
 
 interface ReviewRowProps {
-	hand: HandReport;
+	hand: HandSummary;
 	/** Where the hand comes in the log, counted from one. */
 	number: number;
 	current: boolean;
 	onSelect: (handId: string) => void;
 }
 
-const titleOf = ({ grading }: Finding): string =>
-	grading.mistake ? MISTAKES[grading.mistake].title
-	: grading.goodPlay ? GOOD_PLAYS[grading.goodPlay.type].title
+const titleOf = ({ mistake, play }: Finding): string =>
+	mistake ? MISTAKES[mistake].title
+	: play ? GOOD_PLAYS[play].title
 	: '';
 
 /** `blunder`, or `great play`: the sheet sets it in capitals. */
-const rankOf = ({ grading }: Finding): string =>
-	grading.goodPlay ? `${grading.goodPlay.rank} play` : grading.severity;
+const rankOf = ({ rank, severity }: Finding): string =>
+	rank ? `${rank} play` : severity;
 
 const ReviewRow: Component<ReviewRowProps> = (props) => {
 	const findings = () => findingsOf(props.hand);
@@ -58,7 +58,7 @@ const ReviewRow: Component<ReviewRowProps> = (props) => {
 			<For each={findings()}>
 				{(finding) => (
 					<span
-						class={`review-row__finding is-${finding.grading.severity}`}
+						class={`review-row__finding is-${finding.severity}`}
 						classList={{ 'is-good-play': finding.kind === 'play' }}
 					>
 						<span class="review-row__rank">{rankOf(finding)}</span>

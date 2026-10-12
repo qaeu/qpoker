@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { summariseOpenings } from '#utils/coach/openings';
+import { openingOf, summariseOpenings, summariseSpots } from '#utils/coach/openings';
 import { analyzeLog } from '#utils/coach/report';
 import { parseHistory } from '#utils/history/parse';
 import { replayHand } from '#utils/history/replay';
@@ -206,6 +206,37 @@ describe('opening ranges', () => {
 		it('does not flag folding bad cards or opening good ones', () => {
 			expect(openings(...repeat(20, '7c 2d', 'fold')).rows[0].leak).toBeNull();
 			expect(openings(...repeat(20, 'As Ad', 'raise')).rows[0].leak).toBeNull();
+		});
+	});
+
+	describe('a hand’s own spot', () => {
+		const spotOf = (text: string) =>
+			openingOf(parseHistory(text).map(replayHand)[0], 'hero');
+
+		it('is plain data: the seat, the hand and what the chart does with it', () => {
+			expect(spotOf(firstIn('7c 2d', 'raise'))).toMatchObject({
+				position: 'UTG',
+				leftOut: null,
+				chosen: 'raise',
+				opens: 0,
+				deviation: true,
+			});
+		});
+
+		it('is null where the hero was not first in', () => {
+			expect(spotOf(FACING_AN_OPEN)).toBeNull();
+		});
+
+		it('sums to the same rows once stored and read back', () => {
+			const log = [...repeat(3, 'As Kd', 'raise'), firstIn('7c 2d', 'limp')].join('\n');
+			const replays = parseHistory(log).map(replayHand);
+			const entries = replays.map((replay) => ({
+				id: replay.hand.id,
+				opening: openingOf(replay, 'hero'),
+			}));
+			expect(summariseSpots(JSON.parse(JSON.stringify(entries)))).toEqual(
+				summariseOpenings(replays, 'hero')
+			);
 		});
 	});
 

@@ -36,6 +36,9 @@ Conventions for TypeScript and SolidJS code. Formatting is left to Prettier.
 
 ## Browser storage
 
-- Use `localStorage`, with every JSON parse and serialise in try/catch.
+- Hands go in the library, through a `HandStore` (see [library.md](./library.md)), never
+  in `localStorage`: a long history is tens of megabytes.
+- Use `localStorage` only for something small, with every JSON parse and serialise in
+  try/catch.
 - Put a schema `version` in stored JSON so it can be migrated.
 - Exports are `.json` files with ISO timestamps.

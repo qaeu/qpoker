@@ -3,27 +3,26 @@
  * in the browser) and the `Worker` stub tests install in `setupTests.ts`: the
  * types and the driver here, a thin `onmessage` shell there.
  *
- * An analysis runs for seconds on a long log, so it reports progress as it
- * goes and can be abandoned between chunks.
+ * The worker loads a log into the hand library and brings stored hands up to
+ * date. It posts no report: the page reads the library once a run completes.
+ * A run takes seconds on a long log, so it reports progress as it goes and can
+ * be abandoned between chunks, keeping every chunk already committed.
  */
 
-import {
-	advanceAnalysis,
-	finishAnalysis,
-	startAnalysis,
-	type AnalysisOptions,
-	type AnalysisReport,
-	type AnalysisRun,
-} from './coach/report';
+import type { AnalysisOptions } from './coach/report';
+import { advanceIngest, startIngest, type IngestRun } from './store/ingest';
+import type { HandStore, ImportRecord } from './store/types';
 
-export interface AnalysisRequest {
-	type?: 'run';
+export interface IngestRequest {
+	type: 'ingest';
 	/** Echoed on every response, so a stale answer can be told from a current one. */
 	requestId: number;
+	/** The log, or nothing: a run that only brings the library up to date. */
 	text: string;
+	fileName?: string;
+	/** The time of the import, as an ISO timestamp. */
+	now?: string;
 	options?: AnalysisOptions;
-	/** The report on the page: its hands are kept where they would grade the same. */
-	previous?: AnalysisReport;
 }
 
 export interface AnalysisCancelRequest {
@@ -31,11 +30,17 @@ export interface AnalysisCancelRequest {
 	requestId: number;
 }
 
-export type AnalysisWorkerMessage = AnalysisRequest | AnalysisCancelRequest;
+export type AnalysisWorkerMessage = IngestRequest | AnalysisCancelRequest;
 
 export type AnalysisWorkerResponse =
 	| { type: 'progress'; requestId: number; done: number; total: number }
-	| { type: 'complete'; requestId: number; report: AnalysisReport; elapsedMs: number }
+	| {
+			type: 'complete';
+			requestId: number;
+			/** What the log added, or null for a run without one. */
+			imported: ImportRecord | null;
+			elapsedMs: number;
+	  }
 	| { type: 'cancelled'; requestId: number }
 	| { type: 'error'; requestId: number; message: string };
 
@@ -49,13 +54,14 @@ const messageOf = (error: unknown): string =>
 	error instanceof Error ? error.message : String(error);
 
 /**
- * Drives one message. Grades in chunks on zero-delay timeouts, so the worker
+ * Drives one message. Works in chunks on zero-delay timeouts, so the worker
  * drains its own queue between them and a cancel arriving mid-run is seen
  * rather than waited out.
  */
 export function handleAnalysisMessage(
 	message: AnalysisWorkerMessage,
-	post: (response: AnalysisWorkerResponse) => void
+	post: (response: AnalysisWorkerResponse) => void,
+	store: HandStore
 ): void {
 	if (message.type === 'cancel') {
 		if (active?.requestId === message.requestId) active.cancelled = true;
@@ -65,53 +71,46 @@ export function handleAnalysisMessage(
 	const token = { requestId: message.requestId, cancelled: false };
 	active = token;
 	const started = Date.now();
+	const { requestId } = token;
+	const fail = (error: unknown) => {
+		if (active === token) active = null;
+		post({ type: 'error', requestId, message: messageOf(error) });
+	};
 
-	let run: AnalysisRun;
-	try {
-		run = startAnalysis(message.text, message.options, message.previous);
-		if (run.total === 0) throw new Error('No PokerStars hands found in that file.');
-	} catch (error) {
-		active = null;
-		post({ type: 'error', requestId: token.requestId, message: messageOf(error) });
-		return;
-	}
-
-	post({ type: 'progress', requestId: token.requestId, done: 0, total: run.total });
-
-	const step = () => {
+	const step = async (run: IngestRun) => {
 		// A superseded run stops where it stands: nothing it could post is wanted.
 		if (active !== token) return;
 		if (token.cancelled) {
 			active = null;
-			post({ type: 'cancelled', requestId: token.requestId });
+			post({ type: 'cancelled', requestId });
 			return;
 		}
-
-		try {
-			if (advanceAnalysis(run, CHUNK_HANDS)) {
-				active = null;
-				post({
-					type: 'complete',
-					requestId: token.requestId,
-					report: finishAnalysis(run),
-					elapsedMs: Date.now() - started,
-				});
-				return;
-			}
-		} catch (error) {
-			active = null;
-			post({ type: 'error', requestId: token.requestId, message: messageOf(error) });
+		if (await advanceIngest(run, CHUNK_HANDS)) {
+			if (active === token) active = null;
+			post({
+				type: 'complete',
+				requestId,
+				imported: run.imported,
+				elapsedMs: Date.now() - started,
+			});
 			return;
 		}
-
-		post({
-			type: 'progress',
-			requestId: token.requestId,
-			done: run.done,
-			total: run.total,
-		});
-		setTimeout(step, 0);
+		post({ type: 'progress', requestId, done: run.done, total: run.total });
+		setTimeout(() => void step(run).catch(fail), 0);
 	};
 
-	setTimeout(step, 0);
+	startIngest(store, message.text, {
+		...message.options,
+		fileName: message.fileName,
+		now: message.now,
+	})
+		.then((run) => {
+			if (active !== token) return;
+			if (message.text !== '' && !run.imported) {
+				throw new Error('No PokerStars hands found in that file.');
+			}
+			post({ type: 'progress', requestId, done: 0, total: run.total });
+			setTimeout(() => void step(run).catch(fail), 0);
+		})
+		.catch(fail);
 }

@@ -219,16 +219,47 @@ small to report.
 `mistakes` is every decision with a mistake, costliest first; `goodPlays` every decision
 with a good play, most valuable first. No decision is in both, though a hand can be.
 
-`analyzeLog` returns an `AnalysisReport`: plain JSON, the one shape the CLI prints, the
-worker posts and the UI renders. It is a pure function of the log text and the seed, and
-is versioned (`REPORT_VERSION`) so a cached report from an older build is dropped rather
-than rendered wrong. Bump the version when its shape changes.
+`analyzeLog` returns an `AnalysisReport`: plain JSON, a pure function of the log text and
+the seed, and versioned (`REPORT_VERSION`) so a hand graded by an older build is graded
+again rather than rendered wrong. Bump the version when a grading could come out
+differently or its shape changes.
+
+A hand's report is two halves, a light `HandSummary` and a heavy `HandDetail`, and
+everything the report says of its hands together (`ReportSummary`: the session, the
+openings, the leaks, the totals) is summed from the summaries alone by `summariseHands`.
+That is what lets the same report be made over any hands the library holds without their
+text or their gradings in memory: see [library.md](./library.md). The app renders a
+`HandsReport` (the sums and the summaries); `analyzeLog` and the CLI's `report` add the
+gradings in full.
+
+### Trends
+
+`trendOf` answers whether the hero is getting better. It reads **what mistakes cost per
+hand**, not the win rate: the result of a hundred hands is mostly the cards, and the
+graded loss moves far less from one sitting to the next.
+
+- Each sitting gets its hands, its result, and its graded loss per 100 graded hands.
+- The graded hands are halved by count, earlier against later, and the mean loss per hand
+  compared. The change is called better or worse only when it is more than two standard
+  errors of the difference, the errors taken from the hands' own spread. Losses are heavy
+  in the tail (most hands lose nothing, a few lose a stack), which is why nothing is said
+  under `MIN_TREND_HANDS` (100) graded hands a half.
+- A kind of mistake is listed as rarer or more frequent when the share of hands with it
+  has moved by more than two standard errors, on the two halves' pooled rate. It is the
+  same standard a session frequency is held to in `leakOf`.
+
+It is a comparison of two halves, not a fitted line: with a few hundred hands there is no
+more in the data than that. It is also only as good as the gradings: a model error that
+overcosts one kind of spot (see [accuracy.md](./accuracy.md)) will show a player who
+stops reaching that spot as improving. Stakes are not told apart; a player who moved up
+is compared with themselves a level down.
 
 ### Reusing a report
 
 A log is loaded again as the session goes on, a few hands longer each time. `startAnalysis`
 takes the earlier report as `previous` and the run grades only the hands it does not
-answer for; the app hands it the report on the page. It changes how long a run takes and
+answer for. (The app no longer does this itself: it loads logs into the hand library,
+which keeps the same rule per stored hand. See [library.md](./library.md).) It changes how long a run takes and
 never what it reports: the result equals a run without it, which the tests assert.
 
 A hand's report depends on the hand's own text and on four things from outside it: the
@@ -244,7 +275,7 @@ hero, the seed, the sample count and the rake. So an earlier `HandReport` is kep
 
 Hands are matched by digest and not by place in the file, so new hands may land anywhere
 among the old, and the file's name does not matter. The session and opening summaries are
-recomputed from the whole log every time; they are cheap.
+summed again from every hand's summary each time; they are cheap.
 
 On the 100-hand sample log, loading the same file again takes about 10ms where a full run
 takes 900ms. Hands priced with the rake are a third of the hands and three quarters of the

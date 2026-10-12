@@ -1,0 +1,49 @@
+@use '../base' as *;
+
+@layer screen {
+	.trends-view {
+		&__panels {
+			display: grid;
+			gap: 30px;
+			align-items: start;
+		}
+
+		&__panel {
+			@include card;
+			margin-bottom: 0;
+		}
+
+		&__title {
+			@include panel-title;
+			margin-bottom: 12px;
+		}
+
+		// The verdict, in a sentence, before the figures it is read from.
+		&__verdict {
+			margin: 0 0 12px;
+			font-size: 15px;
+			line-height: 1.5;
+
+			.is-better {
+				color: get($successes, 'fg-light');
+				font-weight: 600;
+			}
+
+			.is-worse {
+				color: get($errors, 'fg-light');
+				font-weight: 600;
+			}
+		}
+
+		&__table {
+			@include data-table;
+		}
+
+		&__note {
+			@include print(12px, 0.01em, $caps: false);
+			margin: 12px 0 0;
+			color: $ink-faint;
+			line-height: 1.5;
+		}
+	}
+}

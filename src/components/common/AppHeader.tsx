@@ -32,6 +32,8 @@ const TAB_LABELS: Record<AppTab, string> = {
 	summary: 'Summary',
 	review: 'Review',
 	openings: 'Openings',
+	trends: 'Trends',
+	players: 'Players',
 	ranges: 'Ranges',
 };
 

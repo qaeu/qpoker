@@ -8,6 +8,7 @@
 import {
 	createEffect,
 	createMemo,
+	createSignal,
 	For,
 	onCleanup,
 	onMount,
@@ -21,7 +22,12 @@ import Segmented, { type SegmentOption } from '#c/common/Segmented';
 import Select, { type SelectOption } from '#c/common/Select';
 import HandDetail from '#c/hand/HandDetail';
 import { MISTAKES } from '#utils/coach/mistakes';
-import type { AnalysisReport, HandReport } from '#utils/coach/report';
+import type {
+	HandDetail as Detail,
+	HandReport,
+	HandsReport,
+	HandSummary,
+} from '#utils/coach/report';
 import type { Position } from '#utils/history/replay';
 import { SCENARIO_NAMES, type Scenario } from '#utils/ranges/preflopSpot';
 import { signed } from '#utils/ui/format';
@@ -46,7 +52,9 @@ import ReviewRow from './ReviewRow';
 import '#styles/review/ReviewView';
 
 interface ReviewViewProps {
-	report: AnalysisReport;
+	report: HandsReport;
+	/** The heavy half of a hand, or null while it is being fetched. */
+	detailOf: (handId: string) => Detail | null;
 	query: ReviewQuery;
 	/** `replace` for a step through the list, which is not a place to go back to. */
 	onQuery: (change: Partial<ReviewQuery>, options?: { replace?: boolean }) => void;
@@ -76,6 +84,9 @@ const ORDERS: SegmentOption<ReviewOrder>[] = [
 	{ id: 'impact', label: 'Biggest first' },
 	{ id: 'time', label: 'As played' },
 ];
+
+/** Rows set out at a time: a long history's list is not all drawn at once. */
+const PAGE = 200;
 
 /** `first in` as an option reads: `First in`. */
 const sentence = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
@@ -122,19 +133,28 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 		const hand = current();
 		return hand ? listed().indexOf(hand) : -1;
 	});
+	// The list as far as it is drawn: always as far as the hand being read.
+	const [limit, setLimit] = createSignal(PAGE);
+	const drawn = createMemo(() => listed().slice(0, Math.max(limit(), position() + 1)));
 	// A hand that is not on the list has the list's first as its next.
 	const prev = createMemo(() => (position() > 0 ? listed()[position() - 1] : undefined));
 	const next = createMemo(() => listed()[position() + 1]);
-	const open = (hand: HandReport | undefined) => {
+	// The hand in full, once its other half has arrived.
+	const opened = createMemo((): HandReport | null => {
+		const hand = current();
+		const detail = hand ? props.detailOf(hand.id) : null;
+		return hand && detail ? { ...hand, ...detail } : null;
+	});
+	const open = (hand: HandSummary | undefined) => {
 		if (hand) props.onQuery({ hand: hand.id, step: null }, { replace: true });
 	};
 
 	const steps = createMemo(() => {
-		const hand = current();
+		const hand = opened();
 		return hand ? tableSteps(hand) : [];
 	});
 	const step = createMemo(() => {
-		const hand = current();
+		const hand = opened();
 		if (!hand) return 0;
 		const prefer = props.query.show === 'plays' ? 'play' : undefined;
 		return resolveStep(steps(), hand, props.query.step, prefer);
@@ -264,7 +284,7 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 						}
 					>
 						<ol class="review-view__list" aria-label="Hands" ref={list}>
-							<For each={listed()}>
+							<For each={drawn()}>
 								{(hand) => (
 									<li>
 										<ReviewRow
@@ -276,12 +296,24 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 									</li>
 								)}
 							</For>
+							<Show when={drawn().length < listed().length}>
+								<li>
+									<button
+										type="button"
+										class="review-view__more"
+										onClick={() => setLimit(drawn().length + PAGE)}
+									>
+										Show {Math.min(PAGE, listed().length - drawn().length)} more of{' '}
+										{listed().length}
+									</button>
+								</li>
+							</Show>
 						</ol>
 					</Show>
 				</div>
 
 				<div class="review-view__detail">
-					<Show when={current()} keyed>
+					<Show when={opened()} keyed>
 						{(hand) => (
 							<>
 								<nav class="review-view__back" aria-label="The list this hand is from">

@@ -39,6 +39,11 @@ the spot classifier.
 
 Real hand histories are git-ignored and never used by a test.
 
+A hand's time is read off its id (60 ids to the minute), so ids 1900 apart are half an
+hour apart: a second sitting. A test of the library runs on `createMemoryStore()`; a new
+`HandStore` is added to the contract in `tests/utils/store/stores.test.ts`, which holds
+every adapter to what the memory store does.
+
 ## Projects
 
 `vitest.config.ts` defines two projects, split by what a test drives rather than what it
@@ -58,11 +63,18 @@ asserts. Both inherit the plugin, aliases and setup file.
 
 ## `src/setupTests.ts`
 
-After each test it runs `cleanup()` and clears `localStorage`. It stubs jsdom's missing
+After each test it runs `cleanup()`, clears `localStorage` and replaces the global
+`indexedDB` with an empty one (`fake-indexeddb`: jsdom has none), so every test starts on
+an empty hand library. It stubs jsdom's missing
 `ResizeObserver` and `Element.scrollTo` (both needed by Ark UI), and `Worker`: the stub
 runs `analysisWorkerProtocol.ts`'s `handleAnalysisMessage` in-process, with its own
 chunked loop across timeouts, so it emits the real worker's `progress` / `complete` /
-`cancelled` / `error` sequence.
+`cancelled` / `error` sequence. It writes to the same fake IndexedDB the page reads.
+
+The page reads the library after a run, and a hand's detail when it is opened, so in an
+integration test what follows a load or a navigation is awaited (`findBy…`), not read on
+the same tick. `follow` and `goTo` wait for a `hashchange`; straight after `switchTo`
+they can hear the tab's own, so there click and `waitFor` the address instead.
 
 The protocol can also be tested without a Worker at all, as
 `tests/utils/analysisWorkerProtocol.test.ts` does.

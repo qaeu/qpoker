@@ -1,0 +1,38 @@
+@use '../base' as *;
+
+@layer screen {
+	.library-panel {
+		@include card;
+		margin: 30px 0 0;
+
+		&__title {
+			@include panel-title;
+			margin-bottom: 12px;
+		}
+
+		&__table {
+			@include data-table;
+		}
+
+		&__actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 12px;
+			margin-top: 16px;
+		}
+
+		&__note {
+			@include print(12px, 0.01em, $caps: false);
+			margin: 12px 0 0;
+			color: $ink-faint;
+			line-height: 1.5;
+		}
+	}
+
+	// Which of the library's hands the views are over, set above them.
+	.app__scope {
+		display: flex;
+		justify-content: flex-end;
+		margin-bottom: 14px;
+	}
+}

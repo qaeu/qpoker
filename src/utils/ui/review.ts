@@ -3,9 +3,8 @@
  * query is plain data so that the hash route can carry all of it.
  */
 
-import type { Grading } from '../coach/grade';
 import { SEVERITIES, type MistakeType, type Severity } from '../coach/mistakes';
-import type { AnalysisReport, HandReport } from '../coach/report';
+import type { FindingSummary, HandSummary } from '../coach/report';
 import { POSITIONS, type Position } from '../history/replay';
 import { SCENARIOS, type Scenario } from '../ranges/preflopSpot';
 
@@ -61,11 +60,11 @@ export function orderOf(query: ReviewQuery): ReviewOrder {
 }
 
 /** A mistake or a good play, with what it cost or earned as one signed figure. */
-export interface Finding {
-	grading: Grading;
-	kind: 'mistake' | 'play';
-	/** Negative for a mistake, positive for a good play. */
-	evBb: number;
+export type Finding = FindingSummary;
+
+/** Hands in their light half: all that listing them reads. */
+export interface Listing<T extends HandSummary = HandSummary> {
+	hands: readonly T[];
 }
 
 export interface ReviewCounts {
@@ -92,57 +91,43 @@ export interface ReviewTally {
 }
 
 /** The hero put money in by choice, or bet. */
-export const isPlayed = (hand: HandReport): boolean =>
-	hand.gradings.some(
-		(grading) => grading.chosen !== 'fold' && grading.chosen !== 'check'
-	);
+export const isPlayed = (hand: HandSummary): boolean => hand.played;
 
 /** A hand's mistakes and good plays, in the order they were made. */
-export function findingsOf(hand: HandReport): Finding[] {
-	const findings: Finding[] = [];
-	for (const grading of hand.gradings) {
-		if (grading.mistake) {
-			findings.push({ grading, kind: 'mistake', evBb: grading.evLostBb });
-		} else if (grading.goodPlay) {
-			findings.push({ grading, kind: 'play', evBb: grading.goodPlay.evGainedBb });
-		}
-	}
-	return findings;
-}
+export const findingsOf = (hand: HandSummary): Finding[] => hand.findings;
 
 /** The findings that put a hand on the list: those the query is asking for. */
-function matching(hand: HandReport, query: ReviewQuery): Finding[] {
+function matching(hand: HandSummary, query: ReviewQuery): Finding[] {
 	const findings = findingsOf(hand);
 	if (query.show === 'plays') return findings.filter(({ kind }) => kind === 'play');
 	if (query.show !== 'mistakes') return findings;
 	const floor = SEVERITIES.indexOf(query.floor);
 	return findings.filter(
-		({ grading, kind }) =>
+		({ kind, severity, street, mistake }) =>
 			kind === 'mistake'
-			&& SEVERITIES.indexOf(grading.severity) >= floor
-			&& (query.street === 'all'
-				|| (query.street === 'pre') === (grading.street === 'preflop'))
-			&& (query.kind === null || grading.mistake === query.kind)
+			&& SEVERITIES.indexOf(severity) >= floor
+			&& (query.street === 'all' || (query.street === 'pre') === (street === 'preflop'))
+			&& (query.kind === null || mistake === query.kind)
 	);
 }
 
 /** The size of a hand's largest finding, among those asked for. */
-function impact(hand: HandReport, query: ReviewQuery): number {
+function impact(hand: HandSummary, query: ReviewQuery): number {
 	return Math.max(0, ...matching(hand, query).map(({ evBb }) => Math.abs(evBb)));
 }
 
-const inScenario = (hand: HandReport, scenario: Scenario): boolean =>
-	hand.gradings.some((grading) => grading.preflop?.scenario === scenario);
+const inScenario = (hand: HandSummary, scenario: Scenario): boolean =>
+	hand.scenarios.includes(scenario);
 
 /** Whether a hand is one the query is about: the seat, and the preflop spot. */
-function inScope(hand: HandReport, scope: ReviewScope): boolean {
+function inScope(hand: HandSummary, scope: ReviewScope): boolean {
 	return (
 		(scope.position === null || hand.position === scope.position)
 		&& (scope.scenario === null || inScenario(hand, scope.scenario))
 	);
 }
 
-function isListed(hand: HandReport, query: ReviewQuery): boolean {
+function isListed(hand: HandSummary, query: ReviewQuery): boolean {
 	if (!inScope(hand, query)) return false;
 	switch (query.show) {
 		case 'all':
@@ -157,7 +142,10 @@ function isListed(hand: HandReport, query: ReviewQuery): boolean {
 }
 
 /** The hands the query asks for, in the order it asks for them. */
-export function listHands(report: AnalysisReport, query: ReviewQuery): HandReport[] {
+export function listHands<T extends HandSummary>(
+	report: Listing<T>,
+	query: ReviewQuery
+): T[] {
 	const listed = report.hands.filter((hand) => isListed(hand, query));
 	if (orderOf(query) === 'time') return listed;
 	// Stable, so hands of equal weight (most have none) stay as they were played.
@@ -169,7 +157,7 @@ export function listHands(report: AnalysisReport, query: ReviewQuery): HandRepor
 
 /** How many of the scope's hands each `show` lists, before any other narrowing. */
 export function countsOf(
-	report: AnalysisReport,
+	report: Listing,
 	scope: ReviewScope = DEFAULT_REVIEW
 ): ReviewCounts {
 	const counts: ReviewCounts = { all: 0, played: 0, mistakes: 0, plays: 0, ungraded: 0 };
@@ -186,7 +174,7 @@ export function countsOf(
 }
 
 /** The line under the filters: how many hands, and what their findings sum to. */
-export function tallyOf(listed: readonly HandReport[], query: ReviewQuery): ReviewTally {
+export function tallyOf(listed: readonly HandSummary[], query: ReviewQuery): ReviewTally {
 	const summed = query.show === 'mistakes' || query.show === 'plays';
 	return {
 		hands: listed.length,
@@ -204,7 +192,7 @@ export function tallyOf(listed: readonly HandReport[], query: ReviewQuery): Revi
  * given the spot already chosen. The seat in the query is always listed.
  */
 export function positionsOf(
-	report: AnalysisReport,
+	report: Listing,
 	scope: ReviewScope = DEFAULT_REVIEW
 ): ScopeOption<Position>[] {
 	const within = report.hands.filter((hand) =>
@@ -218,7 +206,7 @@ export function positionsOf(
 
 /** The preflop spots the hero was in, likewise, given the seat already chosen. */
 export function scenariosOf(
-	report: AnalysisReport,
+	report: Listing,
 	scope: ReviewScope = DEFAULT_REVIEW
 ): ScopeOption<Scenario>[] {
 	const within = report.hands.filter((hand) =>

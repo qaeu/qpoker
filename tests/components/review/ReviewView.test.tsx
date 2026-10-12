@@ -32,7 +32,12 @@ function mount(initial: Partial<ReviewQuery> = {}, log = report) {
 		}
 	);
 	const view = render(() => (
-		<ReviewView report={log} query={query()} onQuery={onQuery} />
+		<ReviewView
+			report={log}
+			detailOf={(id) => log.hands.find((hand) => hand.id === id) ?? null}
+			query={query()}
+			onQuery={onQuery}
+		/>
 	));
 	return { query, onQuery, ...view };
 }

@@ -219,6 +219,12 @@ phone, it needs no positioning inside a toolbar that wraps, and it is already a 
 to the keyboard. In a toolbar it takes `inline`, the label beside the control as a
 segmented group's is.
 
+The **Hands** select above Summary, Review and Openings is the library's scope: every
+hand, the latest sitting, the last week or month, or one of the recent sittings by its
+start. It is a select for the same two reasons: the sittings change with the data, and
+there can be many. It is shown only once there is more than one sitting to choose
+between, and not on Trends or Players, which are over everything.
+
 ### The Ranges keys
 
 The Ranges view had one menu of all thirty charts, and going from one to its neighbour
@@ -256,6 +262,17 @@ finding's own colour: outline and lettering, never a fill, as on a card's edge. 
 the line says. The card is in the caption under the table (see below), so the list stays a
 list: twenty lines that can be read down, not a column broken open wherever something
 went wrong.
+
+## Tables of figures
+
+A table printed on a panel takes the `data-table` mixin: hairline rules, small-capital
+heads, mint and ruby on a signed figure, and a flagged row's own figure in ruby. Summary,
+Trends, Players and the library panel all use it, so a frequency reads the same whether
+it is the hero's or an opponent's.
+
+Trends leads with its verdict as a sentence, before any figure: "clearly better",
+"clearly worse" in mint or ruby, or in plain ink that there is no change the sample can
+bear, or too few hands to say. The words carry it; the colour only agrees.
 
 ## Review fits the window
 

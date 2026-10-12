@@ -40,6 +40,19 @@ plays: the right decisions that were hard to make. Options:
 
 `npx qpoker <file>` does the same once the package is linked or installed.
 
+Given a file, it reports on that file and keeps nothing. To build up a history, keep the
+hands in a library (in `~/.qpoker`, or `--library <dir>`):
+
+```bash
+npm run analyze -- import logs/*.txt     # a hand it already has is passed over
+npm run analyze -- report                # the same report, over every hand
+npm run analyze -- report --scope latest # all | latest | week | month | a sitting
+npm run analyze -- trend                 # results and mistakes, sitting by sitting
+npm run analyze -- players               # everyone met, by hands seen
+npm run analyze -- players "Some Name"   # one player's frequencies and reads
+npm run analyze -- library --export copy.json
+```
+
 ## In the browser
 
 ```bash
@@ -47,13 +60,19 @@ npm run dev      # http://localhost:3000
 npm run build    # static site in dist/
 ```
 
-Drop a log on the page. **Summary** has the result, where the losses went and the
+Drop a log on the page, then another: the hands are kept in the browser (IndexedDB), a
+hand loaded twice is counted once, and the views are over all of them or over the
+sitting or the days picked above them. **Summary** has the result, where the losses went and the
 frequencies, each linked to the hands behind it. **Review** lists the hands (all of them,
 those played, those with a mistake or a good play) beside the one being read, replayed
 with its grades and the chart each preflop decision was judged against; the list, its
 filters and the open hand are in the address, so a view can be linked or reloaded.
-**Openings** has the hands you opened from each seat drawn over the chart for it, and
-**Ranges** the preflop charts themselves.
+**Openings** has the hands you opened from each seat drawn over the chart for it.
+**Trends** says whether the mistakes are getting rarer, when there are enough hands to
+say, and lists every sitting; it is also where the library is saved to a file or emptied.
+**Players** has everyone you have been dealt in with: their frequencies against the same
+baseline as yours, and what a clear lean invites. **Ranges** has the preflop charts
+themselves.
 
 ## What it reads
 

@@ -12,14 +12,18 @@ import {
 	switchTo,
 	TWO_HAND_LOG,
 } from './appHarness';
+import { openIdbStore } from '#utils/store/idbStore';
+
 import { handText, RIVER_HERO_CALL, TOUGH_FOLD } from '../utils/history/handText';
 
 describe('analysing a log in the app', () => {
 	beforeEach(resetBrowserState);
 
-	it('starts on the drop zone', () => {
+	it('starts on the drop zone', async () => {
 		mountApp();
-		expect(screen.getByRole('heading', { name: 'Drop a hand history' })).toBeTruthy();
+		expect(
+			await screen.findByRole('heading', { name: 'Drop a hand history' })
+		).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Choose a file' })).toBeTruthy();
 	});
 
@@ -55,7 +59,7 @@ describe('analysing a log in the app', () => {
 			// One kind of mistake: its hands, with the filter there to take off.
 			await follow(screen.getByRole('link', { name: 'Called without the price' }));
 			expect(window.location.hash).toBe('#review?kind=call-without-odds');
-			expect(screen.getByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
+			expect(await screen.findByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
 			expect(screen.getByRole('status').textContent).toMatch(/^1 hand · −/);
 
 			fireEvent.click(
@@ -87,7 +91,7 @@ describe('analysing a log in the app', () => {
 			await follow(screen.getByRole('link', { name: 'SB' }));
 			expect(window.location.hash).toBe('#review?show=all&position=SB');
 			expect(screen.getByRole('status').textContent).toBe('1 hand');
-			expect(screen.getByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
+			expect(await screen.findByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
 			const position = screen.getByRole<HTMLSelectElement>('combobox', {
 				name: 'Position',
 			});
@@ -153,7 +157,7 @@ describe('analysing a log in the app', () => {
 				expect((await screen.findByRole('status')).textContent).toMatch(
 					/^1 hand · −\d+\.\dbb estimated$/
 				);
-				expect(screen.getByRole('heading', { name: 'Hand 1 of 2' })).toBeTruthy();
+				expect(await screen.findByRole('heading', { name: 'Hand 1 of 2' })).toBeTruthy();
 				expect(
 					screen.getByRole('heading', { name: 'Folded a standard open' })
 				).toBeTruthy();
@@ -203,6 +207,7 @@ describe('analysing a log in the app', () => {
 				loadLog(`${TWO_HAND_LOG}\n${handText(RIVER_HERO_CALL)}`);
 				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 				await goTo('#review?show=all&hand=7001');
+				await screen.findByRole('heading', { name: 'Hand 3 of 3' });
 				const where = () => document.querySelector('.step-caption__where')!.textContent;
 				const stepNow = () => Number(/step (\d+) of/.exec(where()!)![1]);
 
@@ -246,6 +251,7 @@ describe('analysing a log in the app', () => {
 				unmount();
 				mountApp();
 				expect(window.location.hash).toBe(raised);
+				await screen.findByRole('heading', { name: 'Hand 3 of 3' });
 				expect(where()).toMatch(/^Preflop · /);
 				expect(
 					screen.getByRole('group', { name: 'SB hero' }).classList.contains('is-acting')
@@ -267,11 +273,11 @@ describe('analysing a log in the app', () => {
 				loadLog(TWO_HAND_LOG);
 				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 				await goTo('#review?show=all&hand=5002');
-				expect(screen.getByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
+				expect(await screen.findByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
 
 				unmount();
 				mountApp();
-				expect(screen.getByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
+				expect(await screen.findByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
 				expect(radio(/^All/).checked).toBe(true);
 			},
 			RUN_TIMEOUT_MS
@@ -291,7 +297,7 @@ describe('analysing a log in the app', () => {
 				expect(
 					await screen.findByRole('heading', { name: title }, { timeout: RUN_TIMEOUT_MS })
 				).toBeTruthy();
-				expect(screen.getByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
+				expect(await screen.findByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
 				expect(screen.getByRole('status').textContent).toMatch(/^1 hand · \+/);
 				// Once in the row, once on the card.
 				expect(screen.getAllByText('great play')).toHaveLength(2);
@@ -321,22 +327,24 @@ describe('analysing a log in the app', () => {
 		);
 
 		it(
-			'drops the open hand when another log is loaded',
+			'keeps the open hand when another log adds to the library',
 			async () => {
 				mountApp();
 				loadLog(TWO_HAND_LOG);
 				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 				await goTo('#review?show=all&hand=5002');
+				expect(await screen.findByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
 
+				// A later hand: the one being read is still the second, now of three.
 				loadLog(handText(TOUGH_FOLD));
 				expect(
 					await screen.findByRole(
 						'heading',
-						{ name: 'Hand 1 of 1' },
+						{ name: 'Hand 2 of 3' },
 						{ timeout: RUN_TIMEOUT_MS }
 					)
 				).toBeTruthy();
-				expect(window.location.hash).toBe('#review?show=all');
+				expect(window.location.hash).toBe('#review?show=all&hand=5002');
 			},
 			RUN_TIMEOUT_MS
 		);
@@ -375,24 +383,27 @@ describe('analysing a log in the app', () => {
 	);
 
 	it(
-		'keeps the report across a remount',
+		'keeps the library across a remount',
 		async () => {
 			const unmount = mountApp();
 			loadLog(TWO_HAND_LOG);
 			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
-			const stored = localStorage.getItem('qpoker:report');
-			expect(stored).not.toBeNull();
+			// The cache an older build left is dropped: the hands are in the library.
+			localStorage.setItem('qpoker:report', '{}');
 
 			unmount();
 			mountApp();
-			expect(screen.getByText('Frequencies')).toBeTruthy();
+			expect(await screen.findByText('Frequencies')).toBeTruthy();
+			expect(screen.getByText('hero · $0.05/$0.10 · 2 hands')).toBeTruthy();
+			expect(screen.queryByRole('heading', { name: 'Drop a hand history' })).toBeNull();
+			expect(localStorage.getItem('qpoker:report')).toBeNull();
 		},
 		RUN_TIMEOUT_MS
 	);
 
 	describe('loading another log', () => {
 		it(
-			'keeps the report on the page until the next one lands',
+			'keeps the report on the page until the next log’s hands join it',
 			async () => {
 				mountApp();
 				loadLog(TWO_HAND_LOG);
@@ -409,7 +420,7 @@ describe('analysing a log in the app', () => {
 
 				expect(
 					await screen.findByText(
-						'hero · $0.05/$0.10 · 1 hand',
+						'hero · $0.05/$0.10 · 3 hands',
 						{},
 						{ timeout: RUN_TIMEOUT_MS }
 					)
@@ -426,9 +437,9 @@ describe('analysing a log in the app', () => {
 				mountApp();
 				loadLog(TWO_HAND_LOG);
 				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
-				const graded = (): { id: string; gradings: unknown[] }[] =>
-					JSON.parse(localStorage.getItem('qpoker:report')!).report.hands;
-				const before = graded();
+				const graded = () => openIdbStore().rows();
+				const before = await graded();
+				expect(before).toHaveLength(2);
 
 				loadLog(`${TWO_HAND_LOG}\n${handText(RIVER_HERO_CALL)}`);
 				expect(
@@ -438,8 +449,13 @@ describe('analysing a log in the app', () => {
 						{ timeout: RUN_TIMEOUT_MS }
 					)
 				).toBeTruthy();
-				expect(graded().map((hand) => hand.id)).toEqual(['5001', '5002', '7001']);
-				expect(graded().slice(0, 2)).toEqual(before);
+				const after = await graded();
+				expect(after.map(({ summary }) => summary.id)).toEqual(['5001', '5002', '7001']);
+				expect(after.slice(0, 2)).toEqual(before);
+				expect(await openIdbStore().imports()).toMatchObject([
+					{ hands: 2, added: 2 },
+					{ hands: 3, added: 1 },
+				]);
 			},
 			RUN_TIMEOUT_MS
 		);

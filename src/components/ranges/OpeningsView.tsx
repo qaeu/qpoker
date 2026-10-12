@@ -9,7 +9,7 @@ import { createMemo, createSignal, For, Show, type Component } from 'solid-js';
 
 import type { OpeningDeviation, OpeningHand, OpeningRow } from '#utils/coach/openings';
 import { reviewHref } from '#utils/app/hashRoute';
-import type { AnalysisReport } from '#utils/coach/report';
+import type { HandsReport } from '#utils/coach/report';
 import { classFromName, className } from '#utils/cards/combos';
 import type { Position } from '#utils/history/replay';
 import { chart } from '#utils/ranges/charts';
@@ -21,7 +21,7 @@ import RangeGrid from './RangeGrid';
 import '#styles/ranges/OpeningsView';
 
 interface OpeningsViewProps {
-	report: AnalysisReport;
+	report: HandsReport;
 	onOpenHand: (handId: string) => void;
 }
 

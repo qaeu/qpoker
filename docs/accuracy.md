@@ -86,6 +86,40 @@ The caption under the replay table shows an equity at every step. It was not aud
 - No confidence is shown beside it. Treat a multiway figure with cards to come as the
   least reliable, as the grader does.
 
+### Opponent profiles and trends, added in version 8
+
+Neither changes a grading: no weight in `postflop/villainRange.ts` and no confidence was
+touched, and a profile is not read by the grader. What they add is new claims, and this
+is how far each goes.
+
+**A profile** (`store/profile.ts`) is the session's frequencies run for another player.
+Its preflop baselines are the charts in that player's own spots, which need no hole cards
+and are as sound for a villain as for the hero. What is weaker for a villain:
+
+- **The sample is what was seen.** A player is flagged by `leakOf`: ten opportunities and
+  a gap of more than eight points and two standard errors. Most opponents never reach
+  that, and the view says "too few to say" rather than nothing. A 3-bet or a fold to one
+  needs hundreds of hands.
+- **The postflop baselines are the typical figures**, rules of thumb marked with an
+  asterisk as they are for the hero. A read on a c-bet or a showdown frequency rests on a
+  round number.
+- **Showdown stats count a hand as shown down when anyone showed**, as the hero's do.
+- **The note beside a read is a rule of thumb**, kept as data (`EXPLOITS`): "folds too
+  often to a 3-bet, so 3-bet more as a bluff". It says what such a lean usually invites.
+  It is not priced, and nothing checks it against the hands.
+- **A name is not a person for ever.** Players change, and a screen name can be reused.
+  The first and last hand seen are printed with the profile.
+
+So a profile is a tendency to take to the table, not a finding, and it is worded and laid
+out as one. Feeding it into the opponent-range model would make a hand's grade depend on
+what else is stored, and would need its own confidence model here first.
+
+**A trend** claims only what "Trends" in [coach-model.md](./coach-model.md) sets out: a
+difference between two halves, past two standard errors, or nothing. It inherits every
+error in the gradings it sums. Missed value in particular is over-reported (finding 2
+below), so a player who checks less often to the aggressor will look as if they have
+improved by more than they have.
+
 ## What was measured and how
 
 The "GTO baseline" is three things of different reliability, and each was tested against

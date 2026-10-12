@@ -3,6 +3,9 @@
  * when the action folded to them, by seat, and what they did with it, beside
  * the chart for that seat. The cards are known, so the baseline is what the
  * chart would have opened with those very hands. See docs/coach-model.md.
+ *
+ * Each hand's spot is plain data (`openingOf`) and the summary a fold over
+ * them (`summariseSpots`), so it can be made from stored hands.
  */
 
 import { classOf, className } from '../cards/combos';
@@ -63,59 +66,97 @@ export interface OpeningSummary {
 	earlySeats: number;
 }
 
+/** One first-in decision, as a hand stores it for its row. Plain data. */
+export interface OpeningSpot {
+	position: Position;
+	chart: ChartId;
+	/** Why the spot is counted and not put in a row, if it is not. */
+	leftOut: 'short' | 'early' | null;
+	/** The starting hand's class, which is its place in the grid. */
+	cls: number;
+	chosen: PreflopChoice;
+	/** How often the chart opens the hand. */
+	opens: number;
+	/** The share of all starting hands the chart opens. */
+	chartRange: number;
+	/** Played a way the chart takes less than a fifth of the time. */
+	deviation: boolean;
+}
+
+/** A hand's opening spot under the id its deviations are listed by. */
+export interface OpeningEntry {
+	id: string;
+	opening: OpeningSpot | null;
+}
+
 interface Tally extends Omit<OpeningRow, 'hands' | 'leak'> {
 	hands: Map<number, OpeningHand>;
 }
 
-/** Sets the hero's first-in play, seat by seat, against the opening charts. */
-export function summariseOpenings(
-	replays: readonly Replay[],
-	hero: string
-): OpeningSummary {
+/** The hero's first-in decision in a hand, or null when they made none. */
+export function openingOf(replay: Replay, hero: string): OpeningSpot | null {
+	const { hand } = replay;
+	if (!hand.gradeable || hand.hero !== hero || hand.heroCards.length !== 2) return null;
+	const first = decisionsOf(replay, hero).find((step) => step.street === 'preflop');
+	if (!first) return null;
+	const spot = classifyPreflop(replay, first);
+	if (spot.scenario !== 'rfi' || spot.chart === null) return null;
+	// The big blind is only ever "first in" over a posted blind that checked.
+	if (spot.position === 'BB') return null;
+
+	const cls = classOf(hand.heroCards[0], hand.heroCards[1]);
+	const chosen: PreflopChoice =
+		first.action.kind === 'raise' ? 'raise'
+		: first.action.kind === 'call' ? 'call'
+		: 'fold';
+	return {
+		position: spot.position,
+		chart: spot.chart,
+		leftOut:
+			spot.depth === 'short' ? 'short'
+			: spot.standIn === 'hero' ? 'early'
+			: null,
+		cls,
+		chosen,
+		opens: spot.strategy.raise[cls],
+		chartRange: rangeFraction(spot.strategy.raise),
+		deviation: frequencyOf(spot.strategy, cls, chosen) < MIX_FLOOR,
+	};
+}
+
+/** Sets a run of hands' opening spots, seat by seat, against the opening charts. */
+export function summariseSpots(entries: Iterable<OpeningEntry>): OpeningSummary {
 	const tallies = new Map<Position, Tally>();
 	let shortStacked = 0;
 	let earlySeats = 0;
 
-	for (const replay of replays) {
-		const { hand } = replay;
-		if (!hand.gradeable || hand.hero !== hero || hand.heroCards.length !== 2) continue;
-		const first = decisionsOf(replay, hero).find((step) => step.street === 'preflop');
-		if (!first) continue;
-		const spot = classifyPreflop(replay, first);
-		if (spot.scenario !== 'rfi' || spot.chart === null) continue;
-		// The big blind is only ever "first in" over a posted blind that checked.
-		if (spot.position === 'BB') continue;
-		if (spot.depth === 'short') {
+	for (const { id, opening } of entries) {
+		if (!opening) continue;
+		if (opening.leftOut === 'short') {
 			shortStacked++;
 			continue;
 		}
-		if (spot.standIn === 'hero') {
+		if (opening.leftOut === 'early') {
 			earlySeats++;
 			continue;
 		}
-
-		const cls = classOf(hand.heroCards[0], hand.heroCards[1]);
+		const { cls, chosen, opens } = opening;
 		const name = className(cls);
-		const chosen: PreflopChoice =
-			first.action.kind === 'raise' ? 'raise'
-			: first.action.kind === 'call' ? 'call'
-			: 'fold';
-		const opens = spot.strategy.raise[cls];
 
-		let tally = tallies.get(spot.position);
+		let tally = tallies.get(opening.position);
 		if (!tally) {
 			tally = {
-				position: spot.position,
-				chart: spot.chart,
+				position: opening.position,
+				chart: opening.chart,
 				spots: 0,
 				raised: 0,
 				limped: 0,
 				expected: 0,
-				chartRange: rangeFraction(spot.strategy.raise),
+				chartRange: opening.chartRange,
 				hands: new Map(),
 				deviations: [],
 			};
-			tallies.set(spot.position, tally);
+			tallies.set(opening.position, tally);
 		}
 		const held = tally.hands.get(cls) ?? {
 			hand: name,
@@ -136,9 +177,7 @@ export function summariseOpenings(
 			tally.limped++;
 			held.limped++;
 		}
-		if (frequencyOf(spot.strategy, cls, chosen) < MIX_FLOOR) {
-			tally.deviations.push({ handId: hand.id, hand: name, chosen });
-		}
+		if (opening.deviation) tally.deviations.push({ handId: id, hand: name, chosen });
 	}
 
 	const rows = POSITIONS.flatMap((position): OpeningRow[] => {
@@ -160,4 +199,14 @@ export function summariseOpenings(
 	});
 
 	return { rows, shortStacked, earlySeats };
+}
+
+/** Sets the hero's first-in play, seat by seat, against the opening charts. */
+export function summariseOpenings(
+	replays: readonly Replay[],
+	hero: string
+): OpeningSummary {
+	return summariseSpots(
+		replays.map((replay) => ({ id: replay.hand.id, opening: openingOf(replay, hero) }))
+	);
 }

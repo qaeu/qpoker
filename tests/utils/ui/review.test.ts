@@ -53,17 +53,19 @@ describe('the Review list', () => {
 		it('gives a mistake its cost and a good play its gain', () => {
 			const [fold] = findingsOf(hand('5001'));
 			expect(fold.kind).toBe('mistake');
-			expect(fold.evBb).toBe(fold.grading.evLostBb);
+			expect(fold.evBb).toBe(hand('5001').gradings[0].evLostBb);
 			expect(fold.evBb).toBeLessThan(0);
 
 			const plays = findingsOf(hand('6001')).filter(({ kind }) => kind === 'play');
 			expect(plays).toHaveLength(1);
-			expect(plays[0].evBb).toBe(plays[0].grading.goodPlay!.evGainedBb);
+			expect(plays[0].evBb).toBe(
+				hand('6001').gradings.find((grading) => grading.goodPlay)!.goodPlay!.evGainedBb
+			);
 			expect(plays[0].evBb).toBeGreaterThan(0);
 		});
 
 		it('keeps a hand’s findings in the order they were made', () => {
-			const steps = findingsOf(hand('7001')).map(({ grading }) => grading.stepIndex);
+			const steps = findingsOf(hand('7001')).map(({ stepIndex }) => stepIndex);
 			expect(steps).toEqual([...steps].sort((a, b) => a - b));
 		});
 	});

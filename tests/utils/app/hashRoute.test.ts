@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatRoute, parseRoute, reviewHref, type Route } from '#utils/app/hashRoute';
+import {
+	formatRoute,
+	parseRoute,
+	reviewHref,
+	type Route,
+	playerHref,
+} from '#utils/app/hashRoute';
 import { DEFAULT_RANGES } from '#utils/ui/rangeTables';
 import { DEFAULT_REVIEW } from '#utils/ui/review';
 
@@ -128,6 +134,44 @@ describe('the hash route', () => {
 				expect(route.tab).toBe('review');
 				expect(route.review.show).toBe(show);
 			});
+		});
+	});
+
+	describe('the scope and the player', () => {
+		it('reads a scope on any view, and leaves every hand unsaid', () => {
+			expect(parseRoute('#summary?scope=latest').scope).toBe('latest');
+			expect(parseRoute('#review?scope=week&show=all')).toMatchObject({
+				scope: 'week',
+				review: { show: 'all' },
+			});
+			expect(parseRoute('#ranges?scope=2026-01-02T10:23:21').scope).toBe(
+				'2026-01-02T10:23:21'
+			);
+			expect('scope' in parseRoute('#summary?scope=all')).toBe(false);
+			expect('scope' in parseRoute('#summary?scope=someday')).toBe(false);
+		});
+
+		it('writes the scope first, whatever the view', () => {
+			const scoped = (hash: string) => formatRoute(parseRoute(hash));
+			expect(scoped('#summary?scope=latest')).toBe('#summary?scope=latest');
+			expect(scoped('#review?show=all&scope=month')).toBe('#review?scope=month&show=all');
+			expect(scoped('#trends?scope=all')).toBe('#trends');
+			expect(scoped('#summary?scope=2026-01-02T10:23:21')).toBe(
+				'#summary?scope=2026-01-02T10%3A23%3A21'
+			);
+		});
+
+		it('carries the scope into a link to Review', () => {
+			expect(reviewHref({ show: 'all' }, 'latest')).toBe('#review?scope=latest&show=all');
+			expect(reviewHref({ show: 'all' })).toBe('#review?show=all');
+		});
+
+		it('names the player being read, in Players only', () => {
+			expect(parseRoute('#players?name=Brakeman1990').player).toBe('Brakeman1990');
+			expect('player' in parseRoute('#players')).toBe(false);
+			expect('player' in parseRoute('#summary?name=x')).toBe(false);
+			expect(playerHref('a b&c')).toBe('#players?name=a+b%26c');
+			expect(parseRoute(playerHref('a b&c')).player).toBe('a b&c');
 		});
 	});
 

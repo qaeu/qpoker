@@ -7,8 +7,10 @@
 import { For, Show, type Component } from 'solid-js';
 
 import StatBand, { type StatFigure } from '#c/common/StatBand';
-import { reviewHref } from '#utils/app/hashRoute';
-import type { AnalysisReport } from '#utils/coach/report';
+import { reviewHref as reviewLink } from '#utils/app/hashRoute';
+import type { ReportSummary } from '#utils/coach/report';
+import type { Scope } from '#utils/coach/sessions';
+import type { ReviewQuery } from '#utils/ui/review';
 import {
 	percent,
 	readingOf,
@@ -21,11 +23,14 @@ import {
 import '#styles/report/SummaryView';
 
 interface SummaryViewProps {
-	report: AnalysisReport;
+	report: ReportSummary;
+	/** The hands the report is over, which its links into Review keep to. */
+	scope?: Scope;
 }
 
 const SummaryView: Component<SummaryViewProps> = (props) => {
 	const session = () => props.report.session;
+	const reviewHref = (change: Partial<ReviewQuery>) => reviewLink(change, props.scope);
 	const figures = (): StatFigure[] => [
 		{ label: 'Hands', value: String(props.report.handCount) },
 		{
@@ -49,13 +54,13 @@ const SummaryView: Component<SummaryViewProps> = (props) => {
 		},
 		{
 			label: 'Mistakes',
-			value: String(props.report.mistakes.length),
+			value: String(props.report.mistakeCount),
 			href: reviewHref({ show: 'mistakes' }),
 			linkLabel: 'Review them',
 		},
 		{
 			label: 'Good plays',
-			value: String(props.report.goodPlays.length),
+			value: String(props.report.goodPlayCount),
 			href: reviewHref({ show: 'plays' }),
 			linkLabel: 'Review them',
 		},
