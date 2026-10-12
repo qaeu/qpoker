@@ -20,7 +20,7 @@
 			margin: 0 auto;
 			padding: 0 20px;
 
-			// Narrow: the wordmark over the log, the button beside both, and the
+			// Narrow: the wordmark over the hands, the button beside both, and the
 			// views in a bar of their own underneath.
 			@include compact {
 				display: grid;
@@ -116,54 +116,49 @@
 			}
 		}
 
-		// The log on the table, said once here rather than at the top of each view.
-		&__session {
+		// Which hands the page is over, said once here rather than at the top of
+		// each view.
+		&__hands {
 			display: flex;
-			flex-direction: column;
-			gap: 2px;
+			flex: 0 1 auto;
+			align-items: center;
+			justify-content: flex-end;
 			min-width: 0;
-			margin: 0 0 0 auto;
-			padding: 8px 0;
-			text-align: right;
+			margin-left: auto;
 
 			@include compact {
 				grid-area: session;
+				justify-content: flex-start;
 				margin: 0;
-				padding: 0;
-				text-align: left;
+				padding: 4px 0 2px;
+			}
+
+			// The header has no line to give the label, so it stays beside the menu.
+			@include phone {
+				.select--inline {
+					flex: 0 1 auto;
+					flex-direction: row;
+					align-items: center;
+					gap: 10px;
+				}
+
+				.select--inline .select__control {
+					flex: 0 1 auto;
+					width: auto;
+				}
 			}
 		}
 
-		&__session + &__load {
+		&__hands + &__load {
 			margin-left: 0;
 		}
 
-		&__session-log,
-		&__session-file {
-			overflow: hidden;
-			text-overflow: ellipsis;
+		// With no sitting to choose between, the number alone.
+		&__count {
+			@include print(11px, 0.16em);
+			margin: 0;
+			color: $ink-muted;
 			white-space: nowrap;
-		}
-
-		&__session-log {
-			font-size: 13px;
-			font-weight: 600;
-			color: get($neutrals, 'fg');
-
-			@include compact {
-				font-size: 12px;
-				font-weight: 400;
-				color: get($neutrals, 'fg-light');
-			}
-		}
-
-		&__session-file {
-			font-size: 12px;
-			color: get($neutrals, 'fg-light');
-
-			@include compact {
-				display: none;
-			}
 		}
 
 		&__load {
@@ -171,7 +166,7 @@
 			flex: none;
 			align-items: center;
 			gap: 8px;
-			// With no log there is no session block to push it to the far end.
+			// With no log there is nothing before it to push it to the far end.
 			margin-left: auto;
 			white-space: nowrap;
 

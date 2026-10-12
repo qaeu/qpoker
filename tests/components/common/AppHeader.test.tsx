@@ -1,18 +1,30 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@solidjs/testing-library';
+import { fireEvent, render, screen, within } from '@solidjs/testing-library';
 
-import AppHeader, { type Session } from '#c/common/AppHeader';
+import AppHeader, { type ScopeChoice } from '#c/common/AppHeader';
 
-const SESSION: Session = {
-	hero: 'hero77',
-	stakes: '$0.05/$0.10',
-	hands: 212,
-	fileName: 'stars-2026-10-06.txt',
+const SCOPE: ScopeChoice = {
+	options: [
+		{ id: 'all', label: 'All time · 212 hands' },
+		{ id: 'latest', label: 'Latest sitting · 40 hands' },
+	],
+	value: 'all',
+	onChange: () => {},
 };
 
-const mount = (session: Session | null, onLoad = () => {}) =>
+const mount = (
+	hands: number | null,
+	scope: ScopeChoice | null = null,
+	onLoad = () => {}
+) =>
 	render(() => (
-		<AppHeader tab="summary" onTabChange={() => {}} session={session} onLoad={onLoad} />
+		<AppHeader
+			tab="summary"
+			onTabChange={() => {}}
+			hands={hands}
+			scope={scope}
+			onLoad={onLoad}
+		/>
 	));
 
 describe('AppHeader', () => {
@@ -42,7 +54,8 @@ describe('AppHeader', () => {
 				<AppHeader
 					tab="summary"
 					onTabChange={onTabChange}
-					session={null}
+					hands={null}
+					scope={null}
 					onLoad={() => {}}
 				/>
 			));
@@ -53,29 +66,45 @@ describe('AppHeader', () => {
 		});
 	});
 
-	describe('the session', () => {
-		it('names the log on the table and the file it came from', () => {
-			mount(SESSION);
-			expect(screen.getByText('hero77 · $0.05/$0.10 · 212 hands')).toBeTruthy();
-			expect(screen.getByText('stars-2026-10-06.txt')).toBeTruthy();
+	describe('the hands', () => {
+		it('offers the scopes in a menu, on the one chosen', () => {
+			mount(212, { ...SCOPE, value: 'latest' });
+			const menu = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Hands' });
+			expect(menu.value).toBe('latest');
+			expect(within(menu).getAllByRole('option')).toHaveLength(2);
 		});
 
-		it('counts one hand as one hand, and leaves out a file it has no name for', () => {
-			const { container } = mount({ ...SESSION, hands: 1, fileName: '' });
-			expect(screen.getByText('hero77 · $0.05/$0.10 · 1 hand')).toBeTruthy();
-			expect(container.querySelector('.app-header__session-file')).toBeNull();
+		it('reports the scope that is picked', () => {
+			const onChange = vi.fn();
+			mount(212, { ...SCOPE, onChange });
+			fireEvent.change(screen.getByRole('combobox', { name: 'Hands' }), {
+				target: { value: 'latest' },
+			});
+			expect(onChange).toHaveBeenCalledWith('latest');
 		});
 
-		it('is not there before a log is', () => {
-			const { container } = mount(null);
-			expect(container.querySelector('.app-header__session')).toBeNull();
+		it('prints their number alone where there is no scope to choose', () => {
+			mount(212);
+			expect(screen.getByText('212 hands')).toBeTruthy();
+			expect(screen.queryByRole('combobox')).toBeNull();
+		});
+
+		it('counts one hand as one hand', () => {
+			mount(1);
+			expect(screen.getByText('1 hand')).toBeTruthy();
+		});
+
+		it('says nothing of them before a log is loaded', () => {
+			const { container } = mount(null, SCOPE);
+			expect(container.querySelector('.app-header__hands')).toBeNull();
+			expect(screen.getByText('· hand-history coach')).toBeTruthy();
 		});
 	});
 
 	describe('the load button', () => {
 		it('opens the file dialog', () => {
 			const onLoad = vi.fn();
-			mount(SESSION, onLoad);
+			mount(212, null, onLoad);
 			fireEvent.click(screen.getByRole('button', { name: 'Load another log' }));
 			expect(onLoad).toHaveBeenCalledOnce();
 		});

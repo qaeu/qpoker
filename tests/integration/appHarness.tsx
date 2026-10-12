@@ -3,7 +3,7 @@
  * the way a user would, and putting the browser state back afterwards.
  */
 
-import { fireEvent, render, screen } from '@solidjs/testing-library';
+import { fireEvent, render, screen, within } from '@solidjs/testing-library';
 
 import App from '#App';
 
@@ -64,6 +64,28 @@ export function loadLogs(...logs: { text: string; name: string }[]): void {
 /** Picks `text` as the hand-history file, as the file dialog would. */
 export function loadLog(text: string, name = 'hands.txt'): void {
 	loadLogs({ text, name });
+}
+
+/**
+ * The header's count of the library's hands: printed alone, or on the first
+ * line of its Hands menu once there are sittings to choose between.
+ */
+const isHeld = (hands: number) => {
+	const count = `${hands} ${hands === 1 ? 'hand' : 'hands'}`;
+	return (text: string) => text === count || text === `All time · ${count}`;
+};
+
+/** Waits for the library to hold `hands`, which is how a finished load shows. */
+export function findHeld(hands: number): Promise<HTMLElement> {
+	return within(screen.getByRole('banner')).findByText(
+		isHeld(hands),
+		{},
+		{ timeout: RUN_TIMEOUT_MS }
+	);
+}
+
+export function queryHeld(hands: number): HTMLElement | null {
+	return within(screen.getByRole('banner')).queryByText(isHeld(hands));
 }
 
 export async function switchTo(

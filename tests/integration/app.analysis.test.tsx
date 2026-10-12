@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@solidjs/testing-library';
 
 import {
+	findHeld,
 	follow,
 	goTo,
 	loadLog,
 	mountApp,
+	queryHeld,
 	resetBrowserState,
 	RUN_TIMEOUT_MS,
 	settle,
@@ -39,10 +41,11 @@ describe('analysing a log in the app', () => {
 			expect(within(vpip).getByText('1/2')).toBeTruthy();
 			expect(within(vpip).getByText('50%')).toBeTruthy();
 			expect(screen.getByRole('row', { name: /Folded a standard open 1/ })).toBeTruthy();
-			// The log is named in the header, which is also where the next one loads.
+			// The header counts the hands, and is also where the next log loads. One
+			// sitting is no choice, so there is no menu.
 			const header = within(screen.getByRole('banner'));
-			expect(header.getByText('hero · $0.05/$0.10 · 2 hands')).toBeTruthy();
-			expect(header.getByText('hands.txt')).toBeTruthy();
+			expect(header.getByText('2 hands')).toBeTruthy();
+			expect(header.queryByRole('combobox')).toBeNull();
 			expect(header.getByRole('button', { name: 'Load another log' })).toBeTruthy();
 			expect(screen.queryByRole('heading', { name: 'Drop a hand history' })).toBeNull();
 		},
@@ -394,7 +397,7 @@ describe('analysing a log in the app', () => {
 			unmount();
 			mountApp();
 			expect(await screen.findByText('Frequencies')).toBeTruthy();
-			expect(screen.getByText('hero · $0.05/$0.10 · 2 hands')).toBeTruthy();
+			expect(queryHeld(2)).toBeTruthy();
 			expect(screen.queryByRole('heading', { name: 'Drop a hand history' })).toBeNull();
 			expect(localStorage.getItem('qpoker:report')).toBeNull();
 		},
@@ -416,16 +419,9 @@ describe('analysing a log in the app', () => {
 				expect(status.closest('.log-status')!.nextElementSibling!.className).toBe(
 					'summary-view'
 				);
-				expect(screen.getByText('hero · $0.05/$0.10 · 2 hands')).toBeTruthy();
+				expect(queryHeld(2)).toBeTruthy();
 
-				expect(
-					await screen.findByText(
-						'hero · $0.05/$0.10 · 3 hands',
-						{},
-						{ timeout: RUN_TIMEOUT_MS }
-					)
-				).toBeTruthy();
-				expect(screen.getByText('second.txt')).toBeTruthy();
+				expect(await findHeld(3)).toBeTruthy();
 				expect(screen.queryByRole('status')).toBeNull();
 			},
 			RUN_TIMEOUT_MS
@@ -442,13 +438,7 @@ describe('analysing a log in the app', () => {
 				expect(before).toHaveLength(2);
 
 				loadLog(`${TWO_HAND_LOG}\n${handText(RIVER_HERO_CALL)}`);
-				expect(
-					await screen.findByText(
-						'hero · $0.05/$0.10 · 3 hands',
-						{},
-						{ timeout: RUN_TIMEOUT_MS }
-					)
-				).toBeTruthy();
+				expect(await findHeld(3)).toBeTruthy();
 				const after = await graded();
 				expect(after.map(({ summary }) => summary.id)).toEqual(['5001', '5002', '7001']);
 				expect(after.slice(0, 2)).toEqual(before);
@@ -472,8 +462,7 @@ describe('analysing a log in the app', () => {
 				await waitFor(() => expect(screen.queryByRole('status')).toBeNull(), {
 					timeout: RUN_TIMEOUT_MS,
 				});
-				expect(screen.getByText('hero · $0.05/$0.10 · 2 hands')).toBeTruthy();
-				expect(screen.getByText('hands.txt')).toBeTruthy();
+				expect(queryHeld(2)).toBeTruthy();
 			},
 			RUN_TIMEOUT_MS
 		);

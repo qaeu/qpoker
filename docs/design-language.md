@@ -219,11 +219,22 @@ phone, it needs no positioning inside a toolbar that wraps, and it is already a 
 to the keyboard. In a toolbar it takes `inline`, the label beside the control as a
 segmented group's is.
 
-The **Hands** select above Summary, Review and Openings is the library's scope: every
-hand, the latest sitting, the last week or month, or one of the recent sittings by its
-start. It is a select for the same two reasons: the sittings change with the data, and
-there can be many. It is shown only once there is more than one sitting to choose
-between, and not on Trends or Players, which are over everything.
+The **Hands** select in the header is the library's scope: every hand, the latest
+sitting, the last week or month, or one of the recent sittings by its start. It is a
+select for the same two reasons: the sittings change with the data, and there can be many.
+
+It is in the header because it decides what a whole view is over, as the tabs beside it
+decide which view: above the view it read as one more of that view's filters, and cost
+Review a line of its one window. It took the place of the line that named the log (the
+hero, the stakes, a count, the last file), which was true of one log and not of a library;
+the files are listed in the library panel on Trends. Every line of the menu ends in the
+hands it would leave, so the chosen one still says how many the page is over.
+
+It is a menu only where there is something to choose: on Summary, Review and Openings,
+once there is more than one sitting. Anywhere else the same place prints the library's
+count alone ("212 hands"), which is what Trends and Players are over. Printing it, rather
+than disabling the menu on its last choice, keeps the header from claiming Trends is over
+"Latest sitting".
 
 ### The Ranges keys
 

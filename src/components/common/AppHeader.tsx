@@ -1,6 +1,7 @@
 /**
- * The rail: the wordmark, the views, and the log on the table -- whose it is,
- * the stakes, how many hands, the file -- with the button that loads another.
+ * The rail: the wordmark, the views, and which of the library's hands the page
+ * is over -- a choice where there is one to make, their number where there is
+ * not -- with the button that loads another log.
  */
 
 import { Tabs } from '@ark-ui/solid/tabs';
@@ -8,22 +9,25 @@ import { For, Show, type Component } from 'solid-js';
 
 import { Upload } from 'lucide-solid';
 
+import Select, { type SelectOption } from '#c/common/Select';
 import { APP_TABS, type AppTab } from '#utils/app/hashRoute';
+import type { Scope } from '#utils/coach/sessions';
 
 import '#styles/common/AppHeader';
 
-export interface Session {
-	hero: string;
-	stakes: string;
-	hands: number;
-	fileName: string;
+export interface ScopeChoice {
+	options: readonly SelectOption<Scope>[];
+	value: Scope;
+	onChange: (scope: Scope) => void;
 }
 
 interface AppHeaderProps {
 	tab: AppTab;
 	onTabChange: (tab: AppTab) => void;
-	/** The log the report on the page was made from, once there is one. */
-	session: Session | null;
+	/** How many hands the library holds, or null while it holds none. */
+	hands: number | null;
+	/** The scopes to choose between, on a view that is over one and has a choice. */
+	scope: ScopeChoice | null;
 	/** Opens the file dialog. */
 	onLoad: () => void;
 }
@@ -49,7 +53,7 @@ const AppHeader: Component<AppHeaderProps> = (props) => (
 		>
 			<h1 class="app-header__title">
 				qpoker
-				<Show when={!props.session}>
+				<Show when={props.hands === null}>
 					<span class="app-header__title-sub">· hand-history coach</span>
 				</Show>
 			</h1>
@@ -67,23 +71,32 @@ const AppHeader: Component<AppHeaderProps> = (props) => (
 					)}
 				</For>
 			</Tabs.List>
-			<Show when={props.session}>
-				{(session) => (
-					<p class="app-header__session">
-						<span class="app-header__session-log">
-							{session().hero} · {session().stakes} · {session().hands}{' '}
-							{session().hands === 1 ? 'hand' : 'hands'}
-						</span>
-						<Show when={session().fileName}>
-							<span class="app-header__session-file">{session().fileName}</span>
-						</Show>
-					</p>
-				)}
+			<Show when={props.hands !== null}>
+				<div class="app-header__hands">
+					<Show
+						when={props.scope}
+						fallback={
+							<p class="app-header__count">
+								{props.hands} {props.hands === 1 ? 'hand' : 'hands'}
+							</p>
+						}
+					>
+						{(scope) => (
+							<Select
+								inline
+								label="Hands"
+								options={scope().options}
+								value={scope().value}
+								onChange={scope().onChange}
+							/>
+						)}
+					</Show>
+				</div>
 			</Show>
 			<button type="button" class="app-header__load" onClick={() => props.onLoad()}>
 				<Upload aria-hidden="true" />
 				<span class="app-header__load-label">
-					{props.session ? 'Load another log' : 'Load a log'}
+					{props.hands === null ? 'Load a log' : 'Load another log'}
 				</span>
 			</button>
 		</Tabs.Root>

@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@solidjs/testing-library';
 
 import {
+	findHeld,
 	follow,
 	loadLog,
 	loadLogs,
 	mountApp,
+	queryHeld,
 	resetBrowserState,
 	RUN_TIMEOUT_MS,
 	settle,
@@ -17,17 +19,9 @@ import { handText, RIVER_HERO_CALL } from '../utils/history/handText';
 /** Two logs, half an hour apart: the second a sitting of its own. */
 async function loadTwoLogs(): Promise<void> {
 	loadLog(TWO_HAND_LOG, 'first.txt');
-	await screen.findByText(
-		'hero · $0.05/$0.10 · 2 hands',
-		{},
-		{ timeout: RUN_TIMEOUT_MS }
-	);
+	await findHeld(2);
 	loadLog(handText(RIVER_HERO_CALL), 'second.txt');
-	await screen.findByText(
-		'hero · $0.05/$0.10 · 3 hands',
-		{},
-		{ timeout: RUN_TIMEOUT_MS }
-	);
+	await findHeld(3);
 }
 
 describe('a library built from more than one log', () => {
@@ -47,7 +41,13 @@ describe('a library built from more than one log', () => {
 			fireEvent.change(scope, { target: { value: 'latest' } });
 			await settle();
 			expect(window.location.hash).toBe('#summary?scope=latest');
-			expect(await screen.findByText('hero · $0.05/$0.10 · 1 hand')).toBeTruthy();
+			// The header's menu is the same control on the next view, on the same choice.
+			expect(
+				screen.getByRole<HTMLSelectElement>('combobox', { name: 'Hands' }).value
+			).toBe('latest');
+			expect(
+				within(scope).getByRole('option', { name: 'Latest sitting · 1 hand' })
+			).toBeTruthy();
 
 			// A link into Review keeps to the sitting.
 			await follow(screen.getByRole('link', { name: 'Called without the price' }));
@@ -66,11 +66,7 @@ describe('a library built from more than one log', () => {
 				{ text: 'just some notes', name: 'notes.txt' },
 				{ text: handText(RIVER_HERO_CALL), name: 'second.txt' }
 			);
-			await screen.findByText(
-				'hero · $0.05/$0.10 · 3 hands',
-				{},
-				{ timeout: RUN_TIMEOUT_MS }
-			);
+			await findHeld(3);
 			expect(screen.getByRole('alert').textContent).toBe(
 				'No PokerStars hands found in notes.txt.'
 			);
@@ -96,8 +92,9 @@ describe('a library built from more than one log', () => {
 				.getByRole('columnheader', { name: 'Sitting' })
 				.closest('table')!;
 			expect(within(sittings).getAllByRole('row')).toHaveLength(3);
-			// No scope is offered here: a trend is over everything.
+			// No scope is offered here: a trend is over everything, and the header says so.
 			expect(screen.queryByRole('combobox', { name: 'Hands' })).toBeNull();
+			expect(within(screen.getByRole('banner')).getByText('3 hands')).toBeTruthy();
 
 			const library = within(screen.getByRole('region', { name: 'Hand library' }));
 			expect(library.getByText('first.txt')).toBeTruthy();
@@ -108,7 +105,11 @@ describe('a library built from more than one log', () => {
 			await waitFor(() =>
 				expect(window.location.hash).toMatch(/^#summary\?scope=2026-01-02T10/)
 			);
-			expect(await screen.findByText('hero · $0.05/$0.10 · 2 hands')).toBeTruthy();
+			const scope = await screen.findByRole<HTMLSelectElement>('combobox', {
+				name: 'Hands',
+			});
+			expect(scope.value).toMatch(/^2026-01-02T10/);
+			expect(scope.selectedOptions[0].textContent).toMatch(/ · 2 hands$/);
 		},
 		RUN_TIMEOUT_MS
 	);
@@ -141,13 +142,11 @@ describe('a library built from more than one log', () => {
 			window.confirm = () => false;
 			fireEvent.click(empty);
 			await settle();
-			expect(screen.getByText('hero · $0.05/$0.10 · 3 hands')).toBeTruthy();
+			expect(queryHeld(3)).toBeTruthy();
 
 			window.confirm = () => true;
 			fireEvent.click(empty);
-			await waitFor(() =>
-				expect(screen.queryByText('hero · $0.05/$0.10 · 3 hands')).toBeNull()
-			);
+			await waitFor(() => expect(queryHeld(3)).toBeNull());
 			await switchTo('Summary');
 			expect(
 				await screen.findByRole('heading', { name: 'Drop a hand history' })

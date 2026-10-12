@@ -18,7 +18,7 @@ import {
 } from 'solid-js';
 
 import AppHeader from '#c/common/AppHeader';
-import Select, { type SelectOption } from '#c/common/Select';
+import type { SelectOption } from '#c/common/Select';
 import LibraryPanel from '#c/library/LibraryPanel';
 import PlayersView from '#c/players/PlayersView';
 import OpeningsView from '#c/ranges/OpeningsView';
@@ -41,7 +41,13 @@ import { createDetailCache } from '#utils/app/details';
 import { createHashRoute, type AppTab } from '#utils/app/hashRoute';
 import { clearLegacyReport } from '#utils/app/storage';
 import type { HandsReport } from '#utils/coach/report';
-import { DEFAULT_SCOPE, scopeHands, sessionsOf, type Scope } from '#utils/coach/sessions';
+import {
+	DEFAULT_SCOPE,
+	scopeHands,
+	sessionsOf,
+	type Scope,
+	type ScopePreset,
+} from '#utils/coach/sessions';
 import { backupName, backupOf, logTextOf } from '#utils/store/backup';
 import { openIdbStore } from '#utils/store/idbStore';
 import { libraryReport, loadLibrary, type Library } from '#utils/store/library';
@@ -83,11 +89,19 @@ const App: Component = () => {
 	const scopes = createMemo((): SelectOption<Scope>[] => {
 		const count = (hands: number) => `${hands} ${hands === 1 ? 'hand' : 'hands'}`;
 		const all = library()?.hands ?? [];
+		const sittings = sessions();
+		// Each says how many hands it would leave.
+		const presets: [ScopePreset, string][] = [
+			['all', 'All time'],
+			['latest', 'Latest sitting'],
+			['week', 'Last 7 days'],
+			['month', 'Last 30 days'],
+		];
 		return [
-			{ id: 'all', label: `All time · ${count(all.length)}` },
-			{ id: 'latest', label: 'Latest sitting' },
-			{ id: 'week', label: 'Last 7 days' },
-			{ id: 'month', label: 'Last 30 days' },
+			...presets.map(([id, label]) => ({
+				id,
+				label: `${label} · ${count(scopeHands(all, id, sittings).length)}`,
+			})),
 			...sessions()
 				.slice(-SITTINGS_LISTED)
 				.reverse()
@@ -232,17 +246,16 @@ const App: Component = () => {
 
 	const picker = createFilePicker(analyse);
 
-	const session = () => {
-		const loaded = report();
-		return loaded ?
-				{
-					hero: loaded.hero,
-					stakes: loaded.stakes,
-					hands: loaded.handCount,
-					fileName: library()?.imports.at(-1)?.fileName ?? '',
-				}
-			:	null;
-	};
+	// Offered on the views that are over a scope, once there is a choice of sitting.
+	const scopeChoice = () =>
+		report() && SCOPED_TABS.includes(tab()) && sessions().length > 1 ?
+			{
+				options: scopes(),
+				value: scope(),
+				onChange: (next: Scope) =>
+					navigate({ scope: next, review: { hand: null, step: null } }),
+			}
+		:	null;
 
 	// Review with a report is one window high: see "Review fits the window".
 	const fitted = () => tab() === 'review' && report() !== null;
@@ -252,7 +265,8 @@ const App: Component = () => {
 			<AppHeader
 				tab={tab()}
 				onTabChange={setTab}
-				session={session()}
+				hands={report() ? (library()?.hands.length ?? 0) : null}
+				scope={scopeChoice()}
 				onLoad={picker.open}
 			/>
 			<main class="app" classList={{ 'is-dragging': picker.dragging() }}>
@@ -260,19 +274,6 @@ const App: Component = () => {
 				<Show when={report() && (progress() || error())}>
 					<div class="log-status">
 						<LogStatus progress={progress()} error={error()} onCancel={cancel} />
-					</div>
-				</Show>
-				<Show when={report() && SCOPED_TABS.includes(tab()) && sessions().length > 1}>
-					<div class="app__scope">
-						<Select
-							inline
-							label="Hands"
-							options={scopes()}
-							value={scope()}
-							onChange={(next) =>
-								navigate({ scope: next, review: { hand: null, step: null } })
-							}
-						/>
 					</div>
 				</Show>
 				<Switch>
