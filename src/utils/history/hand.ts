@@ -71,4 +71,6 @@ export interface Hand {
 	 * antes, run-it-twice, ...). It is still parsed and counted.
 	 */
 	gradeable: boolean;
+	/** A hash of the hand's own lines: the same text has the same digest. */
+	digest: string;
 }

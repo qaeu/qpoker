@@ -60,6 +60,16 @@ describe('the analysis worker protocol', () => {
 		expect(responses.at(-1)!.type).toBe('complete');
 	});
 
+	it('grades nothing a report it is handed already answers for', async () => {
+		const previous = analyzeLog(longLog);
+		const responses = await drive([{ requestId: 2, text: longLog, previous }]);
+		expect(responses.map((response) => response.type)).toEqual(['progress', 'complete']);
+		const last = responses.at(-1)!;
+		if (last.type !== 'complete') return;
+		expect(last.report).toEqual(previous);
+		expect(last.report.hands[0]).toBe(previous.hands[0]);
+	});
+
 	it('stops when cancelled', async () => {
 		const responses = await drive([
 			{ requestId: 3, text: longLog },

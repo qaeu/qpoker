@@ -137,7 +137,14 @@ equity the opponent model gets wrong. See [accuracy.md](./accuracy.md).
 ## Rake
 
 Equity calculations take the rake off what is won. The rate is the log's own: total rake
-over total pot, across hands that saw a flop. It can be overridden.
+over total pot, across hands that saw a flop, rounded to the nearest half percent. It can
+be overridden, and an override is taken as given.
+
+The rounding is there because the rate is the one input to a hand's grade that comes from
+the other hands in the log. Unrounded, it moves in the fourth decimal place with every
+flop that is added, and every hand priced with it would have to be graded again for a
+difference far below what the model can resolve (see "Reusing a report"). Half a percent
+of the pot is at most 0.25% of a call's stake.
 
 ## Session frequencies
 
@@ -216,6 +223,32 @@ with a good play, most valuable first. No decision is in both, though a hand can
 worker posts and the UI renders. It is a pure function of the log text and the seed, and
 is versioned (`REPORT_VERSION`) so a cached report from an older build is dropped rather
 than rendered wrong. Bump the version when its shape changes.
+
+### Reusing a report
+
+A log is loaded again as the session goes on, a few hands longer each time. `startAnalysis`
+takes the earlier report as `previous` and the run grades only the hands it does not
+answer for; the app hands it the report on the page. It changes how long a run takes and
+never what it reports: the result equals a run without it, which the tests assert.
+
+A hand's report depends on the hand's own text and on four things from outside it: the
+hero, the seed, the sample count and the rake. So an earlier `HandReport` is kept when
+
+- the two reports share a version, hero, seed and `samples`;
+- the hand's `digest` is in the new log: a hash of the hand's decoded lines
+  (`Hand.digest`), so a hand the file held half-written the first time is graded again;
+- its `rake` is the run's rake, or null. `HandReport.rake` is the rate the hand's gradings
+  were priced at, and null when none of them read it, which is most hands: a preflop
+  grade reads the rake only to price a stack-off. It is recorded by handing the grader a
+  rake it reads through a getter, so it cannot fall out of step with the graders.
+
+Hands are matched by digest and not by place in the file, so new hands may land anywhere
+among the old, and the file's name does not matter. The session and opening summaries are
+recomputed from the whole log every time; they are cheap.
+
+On the 100-hand sample log, loading the same file again takes about 10ms where a full run
+takes 900ms. Hands priced with the rake are a third of the hands and three quarters of the
+time, which is why the rate is rounded: see "Rake".
 
 ### What a hand carries for the equity readout
 

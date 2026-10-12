@@ -6,6 +6,9 @@
  * The work is exposed as a run that advances a few hands at a time, so a
  * worker can report progress and be cancelled between chunks; `analyzeLog` is
  * the same run driven to the end in one call.
+ *
+ * A run can be handed an earlier report, and grades only the hands that one
+ * does not already answer for: see docs/coach-model.md, "Reusing a report".
  */
 
 import { cardsText } from '../cards/cards';
@@ -18,7 +21,7 @@ import { summariseOpenings, type OpeningSummary } from './openings';
 import { summariseSession, type SessionSummary } from './session';
 import { emptyEquity, handEquity, type HandEquity } from './stepEquity';
 
-export const REPORT_VERSION = 6;
+export const REPORT_VERSION = 7;
 
 export interface AnalysisOptions {
 	/** Defaults to the player the log was dealt to. */
@@ -79,6 +82,10 @@ export interface HandReport {
 	paid: Record<string, number>;
 	/** The hero's equity at each step of the replay. Empty when not graded. */
 	equity: HandEquity;
+	/** `Hand.digest`: what tells a later run this is the hand it has in front of it. */
+	digest: string;
+	/** The rake the gradings were priced at, or null when none of them read it. */
+	rake: number | null;
 }
 
 export interface LeakReport {
@@ -103,6 +110,8 @@ export interface AnalysisReport {
 	warnings: string[];
 	rake: number;
 	seed: number;
+	/** Runouts per equity calculation, or null for the engine's own defaults. */
+	samples: number | null;
 	session: SessionSummary;
 	/** The hands the hero opened first in, by seat, against the opening charts. */
 	openings: OpeningSummary;
@@ -121,8 +130,10 @@ export interface AnalysisRun {
 	hero: string;
 	replays: Replay[];
 	options: GradeOptions;
+	/** An earlier report's hands that would grade the same again, by digest. */
+	kept: Map<string, HandReport>;
 	reports: HandReport[];
-	/** Hands graded so far. */
+	/** Hands reported so far, graded or kept. */
 	done: number;
 	total: number;
 }
@@ -166,7 +177,13 @@ function detectHero(hands: readonly Hand[]): string {
 	return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
 }
 
-/** The rake the log shows, as a share of the pots that saw a flop. */
+/** Steps to a unit of rake: the observed rate is rounded to half a percent. */
+const RAKE_STEPS = 200;
+
+/**
+ * The rake the log shows, as a share of the pots that saw a flop, rounded so
+ * that a log a few hands longer is graded at the same rate.
+ */
 function observedRake(hands: readonly Hand[]): number {
 	let pots = 0;
 	let rake = 0;
@@ -175,7 +192,7 @@ function observedRake(hands: readonly Hand[]): number {
 		pots += hand.totalPot;
 		rake += hand.rake;
 	}
-	return pots > 0 ? rake / pots : 0.05;
+	return pots > 0 ? Math.round((rake / pots) * RAKE_STEPS) / RAKE_STEPS : 0.05;
 }
 
 function reportHand(replay: Replay, hero: string, options: GradeOptions): HandReport {
@@ -185,14 +202,21 @@ function reportHand(replay: Replay, hero: string, options: GradeOptions): HandRe
 	const dealtIn = layout !== null && hero in layout.positions;
 	const gradeable = hand.gradeable && dealtIn && hand.hero === hero && replay.reconciled;
 
+	const equityOptions = { seed: options.seed, samples: options.samples };
+	// Read through a getter, so the hand knows whether its gradings hang on the rate.
+	let rakeRead = false;
 	const gradings =
 		gradeable ?
 			decisionsOf(replay, hero).map((step) =>
 				// Each decision gets its own stream, so one hand's grade does not
 				// depend on how many came before it.
 				gradeDecision(replay, step, {
-					...options,
+					samples: options.samples,
 					seed: (options.seed ?? 0) + step.index,
+					get rake() {
+						rakeRead = true;
+						return options.rake;
+					},
 				})
 			)
 		:	[];
@@ -244,33 +268,82 @@ function reportHand(replay: Replay, hero: string, options: GradeOptions): HandRe
 		returned,
 		// As `replayHand` settles `net`: a cash-out replaces the pot's credit.
 		paid: { ...hand.won, ...hand.cashedOut },
-		equity: gradeable ? handEquity(replay, hero, gradings, options) : emptyEquity(),
+		equity: gradeable ? handEquity(replay, hero, gradings, equityOptions) : emptyEquity(),
+		digest: hand.digest,
+		rake: rakeRead ? options.rake : null,
 	};
 }
 
-/** Parses the log and sets up a run. Nothing is graded yet. */
-export function startAnalysis(text: string, options: AnalysisOptions = {}): AnalysisRun {
+/**
+ * The hands of an earlier report that this run would grade to the same thing:
+ * the same coach, seed and sample count, and a rake that either has not moved
+ * or was never read.
+ */
+function keptHands(
+	previous: AnalysisReport | undefined,
+	hero: string,
+	options: GradeOptions
+): Map<string, HandReport> {
+	const kept = new Map<string, HandReport>();
+	if (
+		!previous
+		|| previous.version !== REPORT_VERSION
+		|| previous.hero !== hero
+		|| previous.seed !== options.seed
+		|| previous.samples !== (options.samples ?? null)
+	) {
+		return kept;
+	}
+	for (const report of previous.hands) {
+		if (report.rake === null || report.rake === options.rake) {
+			kept.set(report.digest, report);
+		}
+	}
+	return kept;
+}
+
+/**
+ * Parses the log and sets up a run. Nothing is graded yet. `previous` is a
+ * report to take hands from where it can: it changes how long the run takes,
+ * never what it reports.
+ */
+export function startAnalysis(
+	text: string,
+	options: AnalysisOptions = {},
+	previous?: AnalysisReport
+): AnalysisRun {
 	const hands = parseHistory(text);
 	const replays = hands.map(replayHand);
+	const hero = options.hero ?? detectHero(hands);
+	const gradeOptions: GradeOptions = {
+		rake: options.rake ?? observedRake(hands),
+		seed: options.seed ?? 1,
+		samples: options.samples,
+	};
 	return {
-		hero: options.hero ?? detectHero(hands),
+		hero,
 		replays,
-		options: {
-			rake: options.rake ?? observedRake(hands),
-			seed: options.seed ?? 1,
-			samples: options.samples,
-		},
+		options: gradeOptions,
+		kept: keptHands(previous, hero, gradeOptions),
 		reports: [],
 		done: 0,
 		total: replays.length,
 	};
 }
 
-/** Grades up to `count` more hands. Returns true once the run is complete. */
+/**
+ * Grades up to `count` more hands, passing over any kept from an earlier report
+ * on the way: they cost nothing. Returns true once the run is complete.
+ */
 export function advanceAnalysis(run: AnalysisRun, count = Infinity): boolean {
-	const end = Math.min(run.total, run.done + count);
-	for (; run.done < end; run.done++) {
-		run.reports.push(reportHand(run.replays[run.done], run.hero, run.options));
+	for (let graded = 0; run.done < run.total; run.done++) {
+		const replay = run.replays[run.done];
+		const kept = run.kept.get(replay.hand.digest);
+		if (!kept) {
+			if (graded >= count) break;
+			graded++;
+		}
+		run.reports.push(kept ?? reportHand(replay, run.hero, run.options));
 	}
 	return run.done >= run.total;
 }
@@ -323,6 +396,7 @@ export function finishAnalysis(run: AnalysisRun): AnalysisReport {
 		),
 		rake: run.options.rake,
 		seed: run.options.seed ?? 1,
+		samples: run.options.samples ?? null,
 		session: summariseSession(run.replays, run.hero),
 		openings: summariseOpenings(run.replays, run.hero),
 		leaks: [...byType.values()].sort((a, b) => a.evLostBb - b.evLostBb),
@@ -334,8 +408,12 @@ export function finishAnalysis(run: AnalysisRun): AnalysisReport {
 }
 
 /** Analyses a whole hand-history file in one call. */
-export function analyzeLog(text: string, options: AnalysisOptions = {}): AnalysisReport {
-	const run = startAnalysis(text, options);
+export function analyzeLog(
+	text: string,
+	options: AnalysisOptions = {},
+	previous?: AnalysisReport
+): AnalysisReport {
+	const run = startAnalysis(text, options, previous);
 	advanceAnalysis(run);
 	return finishAnalysis(run);
 }

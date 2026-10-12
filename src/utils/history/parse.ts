@@ -72,6 +72,7 @@ function emptyHand(): Hand {
 		rake: 0,
 		warnings: [],
 		gradeable: true,
+		digest: '',
 	};
 }
 
@@ -168,8 +169,33 @@ function parseSummarySeat(hand: Hand, rest: string, names: readonly string[]): v
 	}
 }
 
+/**
+ * A 53-bit hash of a hand's lines (cyrb53), as text. Not for security: it only
+ * has to tell a hand apart from the same hand cut short or written differently.
+ */
+function digestOf(lines: readonly string[]): string {
+	let high = 0xdeadbeef;
+	let low = 0x41c6ce57;
+	for (const line of lines) {
+		// The line break is hashed too, so moving one changes the digest.
+		for (let i = 0; i <= line.length; i++) {
+			const code = i < line.length ? line.charCodeAt(i) : 10;
+			high = Math.imul(high ^ code, 2654435761);
+			low = Math.imul(low ^ code, 1597334677);
+		}
+	}
+	high =
+		Math.imul(high ^ (high >>> 16), 2246822507)
+		^ Math.imul(low ^ (low >>> 13), 3266489909);
+	low =
+		Math.imul(low ^ (low >>> 16), 2246822507)
+		^ Math.imul(high ^ (high >>> 13), 3266489909);
+	return (4294967296 * (2097151 & low) + (high >>> 0)).toString(36);
+}
+
 function parseHand(lines: readonly string[]): Hand {
 	const hand = emptyHand();
+	hand.digest = digestOf(lines);
 	parseHeader(lines[0], hand);
 
 	let names: string[] = [];

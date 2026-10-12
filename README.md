@@ -35,7 +35,7 @@ plays: the right decisions that were hard to make. Options:
 | `--json`             | The whole report as JSON.                                   |
 | `--seed <n>`         | Seed for the equity simulations. Default 1.                 |
 | `--samples <n>`      | Runouts sampled per equity calculation. Default 300.        |
-| `--rake <fraction>`  | Rake as a share of the pot. Default: taken from the log.    |
+| `--rake <fraction>`  | Rake as a share of the pot. Default: the log's, to 0.5%.    |
 | `--no-color`         | Plain text.                                                 |
 
 `npx qpoker <file>` does the same once the package is linked or installed.

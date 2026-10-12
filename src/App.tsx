@@ -69,7 +69,12 @@ const App: Component = () => {
 		latestRequestId++;
 		setError(null);
 		setProgress({ done: 0, total: 0 });
-		worker.postMessage({ requestId: latestRequestId, text });
+		// The same log again, longer: only what the report lacks is graded.
+		worker.postMessage({
+			requestId: latestRequestId,
+			text,
+			previous: report() ?? undefined,
+		});
 	};
 
 	const cancel = () =>

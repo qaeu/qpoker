@@ -142,6 +142,35 @@ describe('parsing odd input', () => {
 	});
 });
 
+describe('a hand’s digest', () => {
+	const text = [
+		ringHand(6, 'As Kd', 'raise', 3001),
+		ringHand(6, '7c 2d', 'fold', 3002),
+	].join('\n');
+	const digests = (log: string) => parseHistory(log).map((hand) => hand.digest);
+
+	it('is the same for the same text, wherever the hand sits in the file', () => {
+		const [first, second] = digests(text);
+		expect(first).not.toBe(second);
+		expect(digests(text)).toEqual([first, second]);
+		expect(digests(ringHand(6, '7c 2d', 'fold', 3002))).toEqual([second]);
+	});
+
+	it('does not turn on line endings or the mail encoding', () => {
+		expect(digests(text.replace(/\n/g, '\r\n'))).toEqual(digests(text));
+		const [hand] = parseHistory(emailed);
+		const again = parseHistory(decodeHistory(emailed)).find(({ id }) => id === hand.id)!;
+		expect(again.digest).toBe(hand.digest);
+	});
+
+	it('changes when the hand is cut short or a line of it differs', () => {
+		const [first, second] = digests(text);
+		const cut = text.slice(0, text.lastIndexOf('*** SUMMARY ***'));
+		expect(digests(cut)).toEqual([first, expect.not.stringMatching(second)]);
+		expect(digests(text.replace('7c 2d', '7c 2h'))[1]).not.toBe(second);
+	});
+});
+
 describe('parsing a network skin', () => {
 	const plain = handText({
 		id: 4321,
@@ -157,7 +186,8 @@ describe('parsing a network skin', () => {
 		const [hand] = parseHistory(skinned);
 		expect(hand.warnings).toEqual([]);
 		expect(hand.gradeable).toBe(true);
-		expect(hand).toEqual(parseHistory(plain)[0]);
+		// All but the digest, which is of the text and so of the brand in it.
+		expect(hand).toEqual({ ...parseHistory(plain)[0], digest: hand.digest });
 	});
 
 	it('does not start a hand on a line that only mentions one', () => {

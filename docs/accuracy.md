@@ -39,6 +39,16 @@ Not fixed, because they are choices of model or of chart data and not code disag
 with its doc: the multiway fold share in finding 10, the 12-combo threshold in finding 9,
 and the limp chart in the last row of finding 14. Changes A and C to K stand as written.
 
+### The rounded rake, added in version 7
+
+The rake a log is graded at is rounded to the nearest half percent, so that a longer copy
+of the same log is graded at the same rate and its old hands need not be graded again
+(coach-model.md, "Reusing a report"). Both sample logs go to 5.0%, from 5.05% and 5.14%.
+At seed 1 they still give 22 and 34 mistakes, at −24.04 and −68.29bb from −24.03 and
+−68.18. Sixteen costs moved, the largest by 0.10bb; no finding changed kind or severity,
+and the same three good plays are named. This is no claim to know the rake better: the
+references the charts were checked against do not state theirs to a half percent either.
+
 ### Fuller tables, added in version 6
 
 Tables of seven to nine players are graded from version 6. None of it was measured: the

@@ -34,6 +34,11 @@ Sites on the PokerStars network write the same format under their own name
 The parser never throws on a line it does not know. It adds to `hand.warnings` and
 carries on, so one odd line costs a note in the report rather than the file.
 
+- **A hand carries a digest of its own lines.** `Hand.digest` is a 53-bit hash of the
+  decoded, right-trimmed lines from the header to the last line of the summary. It is the
+  same however the file was encoded and wherever the hand sits in it, and differs for a
+  hand the file caught half-written. A later run uses it to recognise a hand it has
+  already graded: see coach-model.md, "Reusing a report".
 - **Money is integer cents.** A hand has to reconcile exactly, and floats of dollars do
   not.
 - **Players are matched by name, longest first.** Names hold spaces, dots and dashes

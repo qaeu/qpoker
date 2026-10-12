@@ -22,6 +22,8 @@ export interface AnalysisRequest {
 	requestId: number;
 	text: string;
 	options?: AnalysisOptions;
+	/** The report on the page: its hands are kept where they would grade the same. */
+	previous?: AnalysisReport;
 }
 
 export interface AnalysisCancelRequest {
@@ -66,7 +68,7 @@ export function handleAnalysisMessage(
 
 	let run: AnalysisRun;
 	try {
-		run = startAnalysis(message.text, message.options);
+		run = startAnalysis(message.text, message.options, message.previous);
 		if (run.total === 0) throw new Error('No PokerStars hands found in that file.');
 	} catch (error) {
 		active = null;

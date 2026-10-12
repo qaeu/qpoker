@@ -421,6 +421,30 @@ describe('analysing a log in the app', () => {
 		);
 
 		it(
+			'takes in the hands a longer copy of the same log adds',
+			async () => {
+				mountApp();
+				loadLog(TWO_HAND_LOG);
+				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
+				const graded = (): { id: string; gradings: unknown[] }[] =>
+					JSON.parse(localStorage.getItem('qpoker:report')!).report.hands;
+				const before = graded();
+
+				loadLog(`${TWO_HAND_LOG}\n${handText(RIVER_HERO_CALL)}`);
+				expect(
+					await screen.findByText(
+						'hero · $0.05/$0.10 · 3 hands',
+						{},
+						{ timeout: RUN_TIMEOUT_MS }
+					)
+				).toBeTruthy();
+				expect(graded().map((hand) => hand.id)).toEqual(['5001', '5002', '7001']);
+				expect(graded().slice(0, 2)).toEqual(before);
+			},
+			RUN_TIMEOUT_MS
+		);
+
+		it(
 			'leaves the report alone when the run is cancelled',
 			async () => {
 				mountApp();

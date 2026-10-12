@@ -12,7 +12,13 @@ import { parseHistory } from '#utils/history/parse';
 import { replayHand } from '#utils/history/replay';
 
 import emailed from '../../fixtures/emailed.txt?raw';
-import { BLINDS_HERO_UTG, handText, ringHand, TOUGH_FOLD } from '../history/handText';
+import {
+	BLINDS_HERO_UTG,
+	handText,
+	RIVER_HERO_CALL,
+	ringHand,
+	TOUGH_FOLD,
+} from '../history/handText';
 
 const folds = (...names: string[]) => names.map((name) => `${name}: folds`);
 
@@ -59,7 +65,9 @@ describe('the report', () => {
 		});
 		expect(report.firstHand < report.lastHand).toBe(true);
 		// Only the all-in pot saw a flop, and it paid 24 in rake on 473.
-		expect(report.rake).toBeCloseTo((24 + 3) / (473 + 52), 4);
+		// 5.14%, held to the half percent so a longer log is graded at the same rate.
+		expect((24 + 3) / (473 + 52)).toBeCloseTo(0.0514, 4);
+		expect(report.rake).toBe(0.05);
 	});
 
 	it('reports every hand with its action and its grades', () => {
@@ -83,10 +91,6 @@ describe('the report', () => {
 
 	describe('what a hand carries for replaying its table', () => {
 		const stackOff = report.hands.at(-1)!;
-
-		it('is at the version that added it', () => {
-			expect(REPORT_VERSION).toBe(6);
-		});
 
 		it('seats the players in acting order with their stacks in cents', () => {
 			expect(stackOff.bigBlind).toBe(5);
@@ -195,6 +199,110 @@ describe('the report', () => {
 	it('is empty for an empty log', () => {
 		const empty = analyzeLog('nothing here');
 		expect(empty).toMatchObject({ handCount: 0, hero: '', mistakes: [], hands: [] });
+	});
+});
+
+describe('reusing an earlier report', () => {
+	const folded = ringHand(6, 'As Ad', 'fold', 6001);
+	const opened = ringHand(6, 'Ah Kd', 'raise', 6002);
+	const called = handText(RIVER_HERO_CALL);
+	const log = [folded, opened, called].join('\n');
+	const earlier = analyzeLog(log, { seed: 5 });
+
+	it('is at the version that added it', () => {
+		expect(REPORT_VERSION).toBe(7);
+	});
+
+	it('records what a hand was graded from', () => {
+		expect(earlier.samples).toBeNull();
+		expect(earlier.hands.map((hand) => hand.digest)).toEqual(
+			parseHistory(log).map((hand) => hand.digest)
+		);
+		// Only the hand that went postflop was priced with the rake.
+		expect(earlier.hands.map((hand) => hand.rake)).toEqual([null, null, earlier.rake]);
+	});
+
+	describe('the same log', () => {
+		it('grades nothing again and reports the same', () => {
+			const run = startAnalysis(log, { seed: 5 }, earlier);
+			expect(advanceAnalysis(run, 0)).toBe(true);
+			const again = finishAnalysis(run);
+			expect(again).toEqual(earlier);
+			again.hands.forEach((hand, i) => expect(hand).toBe(earlier.hands[i]));
+		});
+	});
+
+	describe('a longer log', () => {
+		const added = ringHand(6, 'Kh Kd', 'raise', 7100);
+		const longer = `${log}\n${added}`;
+
+		it('grades only the hands the report lacks', () => {
+			const run = startAnalysis(longer, { seed: 5 }, earlier);
+			expect(run.total).toBe(4);
+			expect(advanceAnalysis(run, 1)).toBe(true);
+			const grown = finishAnalysis(run);
+			expect(grown).toEqual(analyzeLog(longer, { seed: 5 }));
+			earlier.hands.forEach((hand, i) => expect(grown.hands[i]).toBe(hand));
+		});
+
+		it('takes a new hand wherever it falls among the old', () => {
+			const between = ringHand(6, 'Qh Qd', 'raise', 6500);
+			const grown = analyzeLog(`${between}\n${log}`, { seed: 5 }, earlier);
+			expect(grown.hands.map((hand) => hand.id)).toEqual([
+				'6001',
+				'6002',
+				'6500',
+				'7001',
+			]);
+			expect(grown).toEqual(analyzeLog(`${log}\n${between}`, { seed: 5 }));
+			expect(grown.hands[3]).toBe(earlier.hands[2]);
+		});
+
+		it('grades again a hand that was cut short the first time', () => {
+			const cut = longer.slice(0, longer.lastIndexOf('*** SUMMARY ***'));
+			const partial = analyzeLog(cut, { seed: 5 });
+			const grown = analyzeLog(longer, { seed: 5 }, partial);
+			expect(grown).toEqual(analyzeLog(longer, { seed: 5 }));
+			expect(grown.hands[2]).toBe(partial.hands[2]);
+			expect(grown.hands[3]).not.toBe(partial.hands[3]);
+		});
+	});
+
+	describe('a run it does not answer for', () => {
+		it.each([
+			['another seed', { seed: 6 }],
+			['another sample count', { seed: 5, samples: 200 }],
+			['another hero', { seed: 5, hero: 'p2' }],
+		])('keeps nothing under %s', (_, options) => {
+			const run = startAnalysis(log, options, earlier);
+			expect(run.kept.size).toBe(0);
+			advanceAnalysis(run);
+			expect(finishAnalysis(run)).toEqual(analyzeLog(log, options));
+		});
+
+		it('keeps nothing from another version of the report', () => {
+			const old = { ...earlier, version: REPORT_VERSION - 1 };
+			expect(startAnalysis(log, { seed: 5 }, old).kept.size).toBe(0);
+		});
+
+		it('grades again, at another rake, only the hands priced with it', () => {
+			const options = { seed: 5, rake: earlier.rake + 0.01 };
+			const moved = analyzeLog(log, options, earlier);
+			expect(moved).toEqual(analyzeLog(log, options));
+			expect(moved.hands[0]).toBe(earlier.hands[0]);
+			expect(moved.hands[1]).toBe(earlier.hands[1]);
+			expect(moved.hands[2]).not.toBe(earlier.hands[2]);
+		});
+
+		it('holds for recorded hands too', () => {
+			const recorded = analyzeLog(emailed, { seed: 5 });
+			const options = { seed: 5, rake: 0.1 };
+			expect(recorded.hands.some((hand) => hand.rake === null)).toBe(true);
+			expect(recorded.hands.some((hand) => hand.rake === 0.05)).toBe(true);
+			expect(analyzeLog(emailed, options, recorded)).toEqual(
+				analyzeLog(emailed, options)
+			);
+		});
 	});
 });
 
