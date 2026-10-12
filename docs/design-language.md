@@ -236,7 +236,7 @@ on show, not one remembered, so the same address always moves the same way.
 
 The window takes the arrow keys while the view is up: left and right move the chart, up
 and down the scenario, and `D` flips the depth, printed as key caps under the rows (and
-hidden on touch, as every cap is). They stop at the ends rather than wrap. As in Review,
+hidden on touch, as every cap is). They go round: past the last chart is the first, and past the last scenario the first. As in Review,
 they stand down while a row of keys has the focus, because there Ark's radio group moves
 its own choice with the arrows. The choice is the view's address
 (`#ranges?chart=btnVsCo&depth=mid`); a click adds a history entry and a key rewrites it.

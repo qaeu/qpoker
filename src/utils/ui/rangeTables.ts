@@ -116,15 +116,23 @@ export function chartIn(group: RangeGroup, id: ChartId): ChartId {
 	return (seated ?? tables[0]).id;
 }
 
-/** The chart beside `id` in its scenario; `id` itself at either end. */
-export function stepChart(id: ChartId, by: 1 | -1): ChartId {
-	const tables = tablesIn(tableOf(id).group);
-	const at = tables.findIndex((table) => table.id === id);
-	return (tables[at + by] ?? tables[at]).id;
+/** The item `by` along from `at`, going round from either end to the other. */
+function around<T>(items: readonly T[], at: number, by: 1 | -1): T {
+	return items[(at + by + items.length) % items.length];
 }
 
-/** The chart in the scenario before or after `id`'s; `id` itself at either end. */
+/** The chart beside `id` in its scenario, the last one's next being the first. */
+export function stepChart(id: ChartId, by: 1 | -1): ChartId {
+	const tables = tablesIn(tableOf(id).group);
+	return around(
+		tables,
+		tables.findIndex((table) => table.id === id),
+		by
+	).id;
+}
+
+/** The chart in the scenario before or after `id`'s, going round the same way. */
 export function stepGroup(id: ChartId, by: 1 | -1): ChartId {
-	const group = RANGE_GROUPS[RANGE_GROUPS.indexOf(tableOf(id).group) + by];
-	return group ? chartIn(group, id) : id;
+	const group = around(RANGE_GROUPS, RANGE_GROUPS.indexOf(tableOf(id).group), by);
+	return chartIn(group, id);
 }

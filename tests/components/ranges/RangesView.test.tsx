@@ -112,10 +112,22 @@ describe('RangesView', () => {
 			expect(query().chart).toBe('rfiBtn');
 		});
 
-		it('stops at the ends', () => {
-			const { onQuery } = mount({ chart: 'rfiUtg' });
+		it('goes round past the ends', () => {
+			const { query } = mount({ chart: 'rfiUtg' });
 			press('ArrowLeft');
+			expect(query().chart).toBe('rfiSb');
+			press('ArrowRight');
+			expect(query().chart).toBe('rfiUtg');
 			press('ArrowUp');
+			expect(query().chart).toBe('overLimp');
+			press('ArrowDown');
+			expect(query().chart).toBe('rfiUtg');
+		});
+
+		it('has nowhere to step in a scenario of one chart', () => {
+			const { onQuery } = mount({ chart: 'cold4bet' });
+			press('ArrowRight');
+			press('ArrowLeft');
 			expect(onQuery).not.toHaveBeenCalled();
 		});
 

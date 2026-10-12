@@ -47,10 +47,15 @@ describe('the range tables', () => {
 			expect(stepChart('rfiBtn', 1)).toBe('rfiSb');
 		});
 
-		it('stops at either end rather than leaving the scenario', () => {
-			expect(stepChart('rfiUtg', -1)).toBe('rfiUtg');
-			expect(stepChart('rfiSb', 1)).toBe('rfiSb');
+		it('goes round from either end to the other, inside the scenario', () => {
+			expect(stepChart('rfiUtg', -1)).toBe('rfiSb');
+			expect(stepChart('rfiSb', 1)).toBe('rfiUtg');
+			expect(stepChart('bbVsSb', 1)).toBe('ipVsEp');
+		});
+
+		it('stays put in a scenario of one chart', () => {
 			expect(stepChart('cold4bet', 1)).toBe('cold4bet');
+			expect(stepChart('cold4bet', -1)).toBe('cold4bet');
 		});
 	});
 
@@ -72,9 +77,11 @@ describe('the range tables', () => {
 			expect(stepGroup('cold4bet', 1)).toBe('overLimp');
 		});
 
-		it('stops at the first and last scenario', () => {
-			expect(stepGroup('rfiCo', -1)).toBe('rfiCo');
-			expect(stepGroup('bbVsLimp', 1)).toBe('bbVsLimp');
+		it('goes round from the first scenario to the last and back', () => {
+			expect(stepGroup('rfiCo', -1)).toBe('overLimp');
+			expect(stepGroup('rfiSb', -1)).toBe('sbVsLimp');
+			expect(stepGroup('bbVsLimp', 1)).toBe('rfiUtg');
+			expect(stepGroup('sbVsLimp', 1)).toBe('rfiSb');
 		});
 	});
 
