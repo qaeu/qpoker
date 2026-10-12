@@ -60,7 +60,7 @@ npm run dev      # http://localhost:3000
 npm run build    # static site in dist/
 ```
 
-Drop a log on the page, then another: the hands are kept in the browser (IndexedDB), a
+Drop a log on the page, or several at once, then another: the hands are kept in the browser (IndexedDB), a
 hand loaded twice is counted once, and the views are over all of them or over the
 sitting or the days picked above them. **Summary** has the result, where the losses went and the
 frequencies, each linked to the hands behind it. **Review** lists the hands (all of them,

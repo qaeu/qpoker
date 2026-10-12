@@ -4,6 +4,7 @@ import { fireEvent, screen, waitFor, within } from '@solidjs/testing-library';
 import {
 	follow,
 	loadLog,
+	loadLogs,
 	mountApp,
 	resetBrowserState,
 	RUN_TIMEOUT_MS,
@@ -52,6 +53,34 @@ describe('a library built from more than one log', () => {
 			await follow(screen.getByRole('link', { name: 'Called without the price' }));
 			expect(window.location.hash).toBe('#review?scope=latest&kind=call-without-odds');
 			expect(await screen.findByRole('heading', { name: 'Hand 1 of 1' })).toBeTruthy();
+		},
+		RUN_TIMEOUT_MS
+	);
+
+	it(
+		'takes several logs at once, naming any it found no hands in',
+		async () => {
+			mountApp();
+			loadLogs(
+				{ text: TWO_HAND_LOG, name: 'first.txt' },
+				{ text: 'just some notes', name: 'notes.txt' },
+				{ text: handText(RIVER_HERO_CALL), name: 'second.txt' }
+			);
+			await screen.findByText(
+				'hero · $0.05/$0.10 · 3 hands',
+				{},
+				{ timeout: RUN_TIMEOUT_MS }
+			);
+			expect(screen.getByRole('alert').textContent).toBe(
+				'No PokerStars hands found in notes.txt.'
+			);
+
+			await switchTo('Trends');
+			const library = within(screen.getByRole('region', { name: 'Hand library' }));
+			expect(library.getByText('first.txt')).toBeTruthy();
+			expect(library.getByText('second.txt')).toBeTruthy();
+			expect(library.queryByText('notes.txt')).toBeNull();
+			expect(library.getByText(/3 hands from 2 logs/)).toBeTruthy();
 		},
 		RUN_TIMEOUT_MS
 	);

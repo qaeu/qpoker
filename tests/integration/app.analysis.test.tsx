@@ -24,7 +24,7 @@ describe('analysing a log in the app', () => {
 		expect(
 			await screen.findByRole('heading', { name: 'Drop a hand history' })
 		).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Choose a file' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Choose files' })).toBeTruthy();
 	});
 
 	it(
@@ -487,7 +487,7 @@ describe('analysing a log in the app', () => {
 
 				loadLog('just some notes');
 				const alert = await screen.findByRole('alert', {}, { timeout: RUN_TIMEOUT_MS });
-				expect(alert.textContent).toContain('No PokerStars hands found in that file.');
+				expect(alert.textContent).toContain('No PokerStars hands found in hands.txt.');
 				expect(screen.getByText('Frequencies')).toBeTruthy();
 			},
 			RUN_TIMEOUT_MS
@@ -500,8 +500,9 @@ describe('analysing a log in the app', () => {
 			mountApp();
 			loadLog('just some notes');
 			const alert = await screen.findByRole('alert', {}, { timeout: RUN_TIMEOUT_MS });
-			expect(alert.textContent).toContain('No PokerStars hands found in that file.');
-			expect(screen.getByRole('button', { name: 'Choose a file' })).toBeTruthy();
+			expect(alert.textContent).toContain('No PokerStars hands found in hands.txt.');
+			// The zone is back once the library has been read again.
+			expect(await screen.findByRole('button', { name: 'Choose files' })).toBeTruthy();
 		},
 		RUN_TIMEOUT_MS
 	);

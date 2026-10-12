@@ -52,11 +52,18 @@ export function mountApp(): () => void {
 	return render(() => <App />).unmount;
 }
 
+/** Picks several files together, as the file dialog or a drop would. */
+export function loadLogs(...logs: { text: string; name: string }[]): void {
+	const input = screen.getByLabelText('Hand history files');
+	const files = logs.map(
+		({ text, name }) => new File([text], name, { type: 'text/plain' })
+	);
+	fireEvent.change(input, { target: { files } });
+}
+
 /** Picks `text` as the hand-history file, as the file dialog would. */
 export function loadLog(text: string, name = 'hands.txt'): void {
-	const input = screen.getByLabelText('Hand history file');
-	const file = new File([text], name, { type: 'text/plain' });
-	fireEvent.change(input, { target: { files: [file] } });
+	loadLogs({ text, name });
 }
 
 export async function switchTo(

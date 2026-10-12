@@ -105,6 +105,15 @@ a new build. In the browser the worker does the writing
 (`analysisWorkerProtocol.ts`) and posts progress and a completion, not a report; the page
 then reads the library.
 
+Files dropped or picked together are one request, loaded one after another in the order
+they came, each a run and an import of its own: one cancel stops the lot, keeping the logs
+already finished. They are not set end to end into one log, so that the library still
+says which file a hand count came from. The cost is that a later file can move a stakes
+level's rake under hands an earlier one has just graded, and those are graded again by
+the run that moves it. A file with no hands in it does not stop the rest: the completion
+names it and the page says so. An import's key is its time, so the page hands each file
+of a request a millisecond of its own.
+
 ## Players
 
 Everything seen of a player (`PlayerAggregate`) is a running sum of `tallyHand` over the

@@ -54,7 +54,7 @@ asserts. Both inherit the plugin, aliases and setup file.
 - **integration** — renders the whole `<App />` over the real worker protocol and the
   real engine, and drives it as a user would: pick a file, read the summary, switch
   tabs, filter the Review list, open a hand. `appHarness.tsx` holds the mount (which
-  returns the unmount, for a reload), `loadLog`, `switchTo`, `goTo` for a typed hash and
+  returns the unmount, for a reload), `loadLog` (and `loadLogs` for several files at once), `switchTo`, `goTo` for a typed hash and
   `follow` for a link in the page (both wait for the `hashchange` jsdom delivers late),
   `settle` for the tick an Ark control takes, and
   `resetBrowserState`, which a `beforeEach` must call because the URL hash outlives a

@@ -27,24 +27,56 @@ describe('createFilePicker', () => {
 	it('opens the dialog of its one input', () => {
 		mountPicker();
 		const click = vi.spyOn(HTMLInputElement.prototype, 'click');
-		fireEvent.click(screen.getByRole('button', { name: 'Choose a file' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Choose files' }));
 		expect(click).toHaveBeenCalledOnce();
 		click.mockRestore();
 	});
 
-	it('reads a picked file as text', async () => {
+	it('reads a picked file as text, and lets several be picked', async () => {
 		const { onLoad } = mountPicker();
-		fireEvent.change(screen.getByLabelText('Hand history file'), {
+		fireEvent.change(screen.getByLabelText('Hand history files'), {
 			target: { files: [file('one hand', 'a.txt')] },
 		});
-		await waitFor(() => expect(onLoad).toHaveBeenCalledWith('a.txt', 'one hand'));
+		await waitFor(() =>
+			expect(onLoad).toHaveBeenCalledWith([{ name: 'a.txt', text: 'one hand' }])
+		);
+		expect(screen.getByLabelText<HTMLInputElement>('Hand history files').multiple).toBe(
+			true
+		);
+	});
+
+	it('hands over every file picked together, in the order they came', async () => {
+		const { onLoad } = mountPicker();
+		fireEvent.change(screen.getByLabelText('Hand history files'), {
+			target: { files: [file('second', 'b.txt'), file('first', 'a.txt')] },
+		});
+		await waitFor(() =>
+			expect(onLoad).toHaveBeenCalledWith([
+				{ name: 'b.txt', text: 'second' },
+				{ name: 'a.txt', text: 'first' },
+			])
+		);
+		expect(onLoad).toHaveBeenCalledOnce();
 	});
 
 	describe('a file dragged over the window', () => {
 		it('is read wherever it is dropped', async () => {
 			const { onLoad } = mountPicker();
 			fireEvent.drop(window, dragged(file('dropped', 'b.txt')));
-			await waitFor(() => expect(onLoad).toHaveBeenCalledWith('b.txt', 'dropped'));
+			await waitFor(() =>
+				expect(onLoad).toHaveBeenCalledWith([{ name: 'b.txt', text: 'dropped' }])
+			);
+		});
+
+		it('is read with the others dropped beside it', async () => {
+			const { onLoad } = mountPicker();
+			fireEvent.drop(window, dragged(file('one', 'a.txt'), file('two', 'b.txt')));
+			await waitFor(() =>
+				expect(onLoad).toHaveBeenCalledWith([
+					{ name: 'a.txt', text: 'one' },
+					{ name: 'b.txt', text: 'two' },
+				])
+			);
 		});
 
 		it('lights the zone until it is dropped or taken away', () => {
@@ -93,7 +125,7 @@ describe('LogDrop', () => {
 				/>
 			);
 		});
-		expect(screen.queryByRole('button', { name: 'Choose a file' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Choose files' })).toBeNull();
 		expect(screen.getByRole('status').textContent).toContain('Grading hand 3 of 10');
 	});
 });
@@ -108,6 +140,19 @@ describe('LogStatus', () => {
 		expect(screen.getByRole<HTMLProgressElement>('progressbar').value).toBe(3);
 		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 		expect(onCancel).toHaveBeenCalledOnce();
+	});
+
+	it('says which log the hands are of when there are several', () => {
+		render(() => (
+			<LogStatus
+				progress={{ done: 3, total: 10, log: 2, logs: 4 }}
+				error={null}
+				onCancel={() => {}}
+			/>
+		));
+		expect(screen.getByRole('status').textContent).toContain(
+			'Log 2 of 4 · grading hand 3 of 10'
+		);
 	});
 
 	it('says what went wrong', () => {

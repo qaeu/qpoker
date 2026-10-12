@@ -26,10 +26,16 @@ import RangesView from '#c/ranges/RangesView';
 import SummaryView from '#c/report/SummaryView';
 import ReviewView from '#c/review/ReviewView';
 import TrendsView from '#c/trends/TrendsView';
-import LogDrop, { createFilePicker, LogStatus, type Progress } from '#c/upload/LogDrop';
+import LogDrop, {
+	createFilePicker,
+	LogStatus,
+	type LoadedFile,
+	type Progress,
+} from '#c/upload/LogDrop';
 import type {
 	AnalysisWorkerMessage,
 	AnalysisWorkerResponse,
+	IngestLog,
 } from '#utils/analysisWorkerProtocol';
 import { createDetailCache } from '#utils/app/details';
 import { createHashRoute, type AppTab } from '#utils/app/hashRoute';
@@ -127,10 +133,14 @@ const App: Component = () => {
 		// A superseded run's answers are not wanted.
 		if (response.requestId !== latestRequestId) return;
 		if (response.type === 'progress') {
-			setProgress({ done: response.done, total: response.total });
+			const { done, total, log, logs } = response;
+			setProgress({ done, total, log, logs });
 			return;
 		}
 		if (response.type === 'error') setError(response.message);
+		if (response.type === 'complete' && response.empty.length > 0) {
+			setError(`No PokerStars hands found in ${response.empty.join(', ')}.`);
+		}
 		// The strip stays until the hands a finished run added are on the page.
 		if (response.type !== 'complete') setProgress(null);
 		// A cancelled run has kept what it finished, so the library is read either way.
@@ -149,24 +159,26 @@ const App: Component = () => {
 		worker.postMessage(message);
 	};
 
-	/** Loads a log into the library, or with no text brings the library up to date. */
-	const ingest = (text: string, fileName?: string) => {
+	/** Loads logs into the library, or with none brings the library up to date. */
+	const ingest = (logs: IngestLog[]) => {
 		latestRequestId++;
 		setError(null);
 		setProgress({ done: 0, total: 0 });
-		send({
-			type: 'ingest',
-			requestId: latestRequestId,
-			text,
-			fileName,
-			now: new Date().toISOString(),
-		});
+		send({ type: 'ingest', requestId: latestRequestId, logs });
 	};
 
-	const analyse = (name: string, text: string) => {
+	const analyse = (files: LoadedFile[]) => {
 		// Ask the browser not to evict the library under storage pressure.
 		void navigator.storage?.persist?.().catch(() => false);
-		ingest(logTextOf(text), name);
+		// An import is keyed by its time, so each file is given a millisecond of its own.
+		const now = Date.now();
+		ingest(
+			files.map(({ name, text }, index) => ({
+				text: logTextOf(text),
+				fileName: name,
+				now: new Date(now + index).toISOString(),
+			}))
+		);
 	};
 
 	// Read when the view that shows them is opened, and again when the library moves.
@@ -205,7 +217,7 @@ const App: Component = () => {
 		clearLegacyReport();
 		void refresh().then((loaded) => {
 			// Hands graded by an older build, or under other settings: grade them again.
-			if (loaded && loaded.stale > 0 && latestRequestId === 0) ingest('');
+			if (loaded && loaded.stale > 0 && latestRequestId === 0) ingest([]);
 		});
 	});
 
