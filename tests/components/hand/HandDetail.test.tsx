@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@solidjs/testing-library';
+import { fireEvent, render, screen, within } from '@solidjs/testing-library';
 
 import HandDetail from '#c/hand/HandDetail';
 import { analyzeLog } from '#utils/coach/report';
@@ -42,6 +42,31 @@ describe('HandDetail', () => {
 					name: 'Previous hand in the list',
 				}).disabled
 			).toBe(false);
+		});
+	});
+
+	describe('the table', () => {
+		it('is drawn at the step it is given', () => {
+			render(() => <HandDetail hand={opened} number={2} total={2} step={0} />);
+			const table = screen.getByRole('region', {
+				name: 'The table at this point in the hand',
+			});
+			expect(within(table).getByRole('group', { name: 'UTG hero' })).toBeTruthy();
+			expect(within(table).getByText('Pot')).toBeTruthy();
+			expect(table.querySelector('.hand-table__seat.is-acting')).toBeNull();
+		});
+
+		it('opens on the hand’s first finding when given no step', () => {
+			render(() => <HandDetail hand={folded} number={1} total={2} />);
+			const hero = screen.getByRole('group', { name: 'UTG hero' });
+			expect(hero.classList.contains('is-acting')).toBe(true);
+			expect(hero.classList.contains('is-folded')).toBe(true);
+		});
+
+		it('is left out of a hand with no seats to draw', () => {
+			render(() => <HandDetail hand={{ ...opened, seats: [] }} number={2} total={2} />);
+			expect(screen.queryByRole('region')).toBeNull();
+			expect(screen.getByText('hero (UTG) raises to $0.25')).toBeTruthy();
 		});
 	});
 

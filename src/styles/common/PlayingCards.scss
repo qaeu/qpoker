@@ -11,7 +11,6 @@
 			display: inline-flex;
 			align-items: baseline;
 			justify-content: center;
-			gap: 1px;
 			min-width: 30px;
 			padding: 3px 4px;
 			// Too small for the lifted object's 6px: it would round into a lozenge.
@@ -29,6 +28,12 @@
 			}
 		}
 
+		&__index {
+			display: inline-flex;
+			align-items: baseline;
+			gap: 1px;
+		}
+
 		&__pip {
 			font-size: 12px;
 		}
@@ -41,6 +46,72 @@
 
 		&--large &__pip {
 			font-size: 16px;
+		}
+
+		// A card on the table: whoever lays it out sets `--card-w`, and the index,
+		// the pip and the corners follow from it.
+		&--table {
+			gap: var(--card-gap, 4px);
+		}
+
+		&--table &__card {
+			@include card-stock;
+			display: grid;
+			grid-template-rows: auto 1fr;
+			justify-content: stretch;
+			width: var(--card-w, 46px);
+			min-width: 0;
+			aspect-ratio: 5 / 7;
+			padding: calc(var(--card-w, 46px) * 0.08) calc(var(--card-w, 46px) * 0.1);
+			border-radius: calc(var(--card-w, 46px) * 0.11);
+			font-size: calc(var(--card-w, 46px) * 0.35);
+			line-height: 1;
+		}
+
+		&--table &__index {
+			letter-spacing: -0.02em;
+		}
+
+		&--table &__pip {
+			font-size: 0.76em;
+			font-weight: 400;
+		}
+
+		&__suit {
+			place-self: center;
+			font-size: 1.5em;
+			font-weight: 400;
+			opacity: 0.9;
+		}
+
+		// Face down: the back's own red, hatched, inside a border of stock.
+		&--down {
+			gap: 0;
+		}
+
+		&__back {
+			display: block;
+			width: var(--back-w, 26px);
+			aspect-ratio: 13 / 18;
+			border: 2px solid $stock;
+			border-radius: 3px;
+			background:
+				repeating-linear-gradient(
+					45deg,
+					rgb(255 255 255 / 0.09) 0 3px,
+					transparent 3px 6px
+				),
+				repeating-linear-gradient(
+					-45deg,
+					rgb(255 255 255 / 0.09) 0 3px,
+					transparent 3px 6px
+				),
+				linear-gradient(160deg, var(--ruby-7) 0%, var(--ruby-5) 100%);
+			box-shadow: 0 3px 6px rgb(0 0 0 / 0.4);
+
+			& + & {
+				margin-left: calc(var(--back-w, 26px) * -0.3);
+			}
 		}
 	}
 }

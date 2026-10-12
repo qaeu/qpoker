@@ -284,6 +284,8 @@ const ReviewView: Component<ReviewViewProps> = (props) => {
 									hand={hand}
 									number={numbers().get(hand.id) ?? 0}
 									total={props.report.hands.length}
+									step={step()}
+									stakes={props.report.stakes}
 									onPrev={prev() ? () => open(prev()) : undefined}
 									onNext={next() ? () => open(next()) : undefined}
 								/>

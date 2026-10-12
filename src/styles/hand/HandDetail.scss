@@ -3,7 +3,13 @@
 @layer screen {
 	.hand-detail {
 		@include card;
+		// What lays out the table and the action is the pane's width, not the window's.
+		container: hand-detail / inline-size;
 		margin-bottom: 0;
+
+		@include phone {
+			padding: 12px;
+		}
 
 		&__head {
 			display: flex;
@@ -79,8 +85,34 @@
 			color: $ink-muted;
 		}
 
-		&__street {
-			margin-top: 18px;
+		// The table over the action, or beside it where the pane is wide enough.
+		&__body {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			gap: 20px;
+			margin-top: 16px;
+
+			@container hand-detail (min-width: 860px) {
+				grid-template-columns: minmax(0, 1.75fr) minmax(280px, 1fr);
+				align-items: start;
+			}
+		}
+
+		&__stage {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			width: 100%;
+			max-width: 720px;
+			min-width: 0;
+			justify-self: center;
+		}
+
+		&__log {
+			display: grid;
+			gap: 16px;
+			align-content: start;
+			min-width: 0;
 		}
 
 		&__street-name {
