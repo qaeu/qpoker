@@ -15,11 +15,12 @@ import {
 	UNRECONCILED,
 } from '../../utils/history/handText';
 
-// In the order played: 5001 folds aces, 5002 opens ace-king, 6001 is a good
+// Oldest first: 5001 folds aces, 5002 opens ace-king, 6001 is a good
 // play, 7001 a postflop blunder, 7002 does not reconcile.
 const report = analyzeLog(
 	[TWO_HAND_LOG, ...[TOUGH_FOLD, RIVER_HERO_CALL, UNRECONCILED].map(handText)].join('\n')
 );
+const MISTAKES: ReviewQuery = { ...DEFAULT_REVIEW, show: 'mistakes' };
 const numberOf = (id: string) => report.hands.findIndex((hand) => hand.id === id) + 1;
 
 /** Mounts the view over a query that takes every change, as the route does. */
@@ -70,9 +71,22 @@ const step = (name: 'Previous' | 'Next') =>
 
 describe('ReviewView', () => {
 	describe('the list', () => {
-		it('lists the hands with a mistake, the biggest first, and what they cost', () => {
+		it('lists every hand by default, the latest first', () => {
 			mount();
-			const expected = listHands(report, DEFAULT_REVIEW);
+			expect(radio(/^All/).checked).toBe(true);
+			expect(rows().map((label) => /^Hand \d+/.exec(label!)![0])).toEqual([
+				'Hand 5',
+				'Hand 4',
+				'Hand 3',
+				'Hand 2',
+				'Hand 1',
+			]);
+			expect(screen.getByRole('status').textContent).toBe('5 hands');
+		});
+
+		it('lists the hands with a mistake, the biggest first, and what they cost', () => {
+			mount(MISTAKES);
+			const expected = listHands(report, MISTAKES);
 			expect(rows()).toHaveLength(expected.length);
 			expect(rows()[0]).toMatch(new RegExp(`^Hand ${numberOf(expected[0].id)},`));
 			expect(screen.getByRole('status').textContent).toMatch(
@@ -109,7 +123,7 @@ describe('ReviewView', () => {
 
 	describe('the filters', () => {
 		it('offers severity and street only for mistakes', async () => {
-			mount();
+			mount(MISTAKES);
 			expect(screen.getByRole('radiogroup', { name: 'Severity' })).toBeTruthy();
 			expect(screen.getByRole('radiogroup', { name: 'Street' })).toBeTruthy();
 
@@ -120,7 +134,12 @@ describe('ReviewView', () => {
 		});
 
 		it('starts a list over when what it shows changes', async () => {
-			const { onQuery } = mount({ kind: 'open-tight', order: 'time', hand: '5001' });
+			const { onQuery } = mount({
+				...MISTAKES,
+				kind: 'open-tight',
+				order: 'time',
+				hand: '5001',
+			});
 			await pick(/^Played/);
 			expect(onQuery).toHaveBeenLastCalledWith({
 				show: 'played',
@@ -132,28 +151,28 @@ describe('ReviewView', () => {
 		});
 
 		it('narrows by street', async () => {
-			mount();
+			mount(MISTAKES);
 			await pick('Postflop', 'Street');
 			expect(rows()).toEqual([expect.stringMatching(/^Hand 4, 5h 4h/)]);
 			expect(screen.getByRole('status').textContent).toMatch(/^1 hand · −/);
 		});
 
 		it('orders findings biggest first until told otherwise', async () => {
-			mount();
+			mount(MISTAKES);
 			expect(radio('Biggest first', 'Order').checked).toBe(true);
 			await pick('As played', 'Order');
 			const numbers = rows().map((label) => Number(/^Hand (\d+)/.exec(label!)![1]));
-			expect(numbers).toEqual([...numbers].sort((a, b) => a - b));
+			expect(numbers).toEqual([...numbers].sort((a, b) => b - a));
 		});
 
 		it('orders a plain list as played', () => {
-			mount({ show: 'all' });
+			mount();
 			expect(radio('As played', 'Order').checked).toBe(true);
 		});
 
 		describe('a kind of mistake', () => {
 			it('shows as a chip that takes the filter off', () => {
-				const { onQuery } = mount({ kind: 'call-without-odds' });
+				const { onQuery } = mount({ ...MISTAKES, kind: 'call-without-odds' });
 				expect(rows()).toHaveLength(1);
 				fireEvent.click(
 					screen.getByRole('button', {
@@ -185,7 +204,7 @@ describe('ReviewView', () => {
 
 		describe('with nothing to list', () => {
 			it('says the filter is empty', () => {
-				mount({ kind: 'bb-overdefend' });
+				mount({ ...MISTAKES, kind: 'bb-overdefend' });
 				expect(screen.getByText('Nothing to show at this filter.')).toBeTruthy();
 				expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
 				expect(screen.getByRole('status').textContent).toBe('0 hands · 0.0bb estimated');
@@ -276,10 +295,10 @@ describe('ReviewView', () => {
 
 	describe('the hand', () => {
 		it('opens on the first hand listed', () => {
-			const { container } = mount({ show: 'all' });
-			expect(heading()).toBe('Hand 1 of 5');
+			const { container } = mount();
+			expect(heading()).toBe('Hand 5 of 5');
 			expect(
-				screen.getByRole('button', { name: /^Hand 1,/ }).getAttribute('aria-current')
+				screen.getByRole('button', { name: /^Hand 5,/ }).getAttribute('aria-current')
 			).toBe('true');
 			// Nothing in the route yet, so a narrow screen is still on the list.
 			expect(container.querySelector('.review-view.has-hand')).toBeNull();
@@ -322,24 +341,24 @@ describe('ReviewView', () => {
 
 				fireEvent.click(step('Next'));
 				expect(onQuery).toHaveBeenLastCalledWith(
-					{ hand: '5002', step: null },
+					{ hand: '7001', step: null },
 					{ replace: true }
 				);
-				expect(heading()).toBe('Hand 2 of 5');
+				expect(heading()).toBe('Hand 4 of 5');
 
 				fireEvent.click(step('Previous'));
-				expect(heading()).toBe('Hand 1 of 5');
+				expect(heading()).toBe('Hand 5 of 5');
 			});
 
 			it('stops at the last hand', () => {
-				mount({ show: 'all', hand: '7002' });
+				mount({ show: 'all', hand: '5001' });
 				expect(step('Next').disabled).toBe(true);
 				expect(step('Previous').disabled).toBe(false);
 			});
 
 			it('follows the list as it is ordered, not the log', () => {
-				mount();
-				const [first, second] = listHands(report, DEFAULT_REVIEW);
+				mount(MISTAKES);
+				const [first, second] = listHands(report, MISTAKES);
 				expect(heading()).toBe(`Hand ${numberOf(first.id)} of 5`);
 				fireEvent.click(step('Next'));
 				expect(heading()).toBe(`Hand ${numberOf(second.id)} of 5`);
@@ -351,7 +370,7 @@ describe('ReviewView', () => {
 				fireEvent.keyDown(window, { key: 'J' });
 				expect(heading()).toBe('Hand 3 of 5');
 				fireEvent.keyDown(window, { key: 'k' });
-				expect(heading()).toBe('Hand 2 of 5');
+				expect(heading()).toBe('Hand 4 of 5');
 			});
 
 			it('leaves the keys alone with a modifier, or at the end of the list', () => {
@@ -394,7 +413,7 @@ describe('ReviewView', () => {
 				const { onQuery } = mount({ show: 'all' });
 				fireEvent.keyDown(window, { key: 'ArrowRight' });
 				expect(onQuery).toHaveBeenLastCalledWith(
-					{ hand: '5001', step: expect.any(Number) },
+					{ hand: '7002', step: expect.any(Number) },
 					{ replace: true }
 				);
 			});
@@ -448,7 +467,7 @@ describe('ReviewView', () => {
 				const { onQuery } = mount({ show: 'all', hand: '6001', step: 3 });
 				fireEvent.keyDown(window, { key: 'j' });
 				expect(onQuery).toHaveBeenLastCalledWith(
-					{ hand: '7001', step: null },
+					{ hand: '5002', step: null },
 					{ replace: true }
 				);
 			});

@@ -51,7 +51,9 @@ describe('a library built from more than one log', () => {
 
 			// A link into Review keeps to the sitting.
 			await follow(screen.getByRole('link', { name: 'Called without the price' }));
-			expect(window.location.hash).toBe('#review?scope=latest&kind=call-without-odds');
+			expect(window.location.hash).toBe(
+				'#review?scope=latest&show=mistakes&kind=call-without-odds'
+			);
 			expect(await screen.findByRole('heading', { name: 'Hand 1 of 1' })).toBeTruthy();
 		},
 		RUN_TIMEOUT_MS

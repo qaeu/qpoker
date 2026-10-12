@@ -61,7 +61,7 @@ describe('analysing a log in the app', () => {
 
 			// One kind of mistake: its hands, with the filter there to take off.
 			await follow(screen.getByRole('link', { name: 'Called without the price' }));
-			expect(window.location.hash).toBe('#review?kind=call-without-odds');
+			expect(window.location.hash).toBe('#review?show=mistakes&kind=call-without-odds');
 			expect(await screen.findByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
 			expect(screen.getByRole('status').textContent).toMatch(/^1 hand · −/);
 
@@ -71,13 +71,13 @@ describe('analysing a log in the app', () => {
 				})
 			);
 			await settle();
-			expect(window.location.hash).toBe('#review');
+			expect(window.location.hash).toBe('#review?show=mistakes');
 			expect(screen.getByRole('status').textContent).toMatch(/^2 hands · −/);
 
 			// Back is the list as it was filtered, then the Summary.
 			window.history.back();
 			await waitFor(() =>
-				expect(window.location.hash).toBe('#review?kind=call-without-odds')
+				expect(window.location.hash).toBe('#review?show=mistakes&kind=call-without-odds')
 			);
 			expect(screen.getByRole('status').textContent).toMatch(/^1 hand · −/);
 		},
@@ -92,7 +92,7 @@ describe('analysing a log in the app', () => {
 			await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 
 			await follow(screen.getByRole('link', { name: 'SB' }));
-			expect(window.location.hash).toBe('#review?show=all&position=SB');
+			expect(window.location.hash).toBe('#review?position=SB');
 			expect(screen.getByRole('status').textContent).toBe('1 hand');
 			expect(await screen.findByRole('heading', { name: 'Hand 3 of 3' })).toBeTruthy();
 			const position = screen.getByRole<HTMLSelectElement>('combobox', {
@@ -103,17 +103,17 @@ describe('analysing a log in the app', () => {
 			// The other seat, then one of its spots: both are in the address.
 			fireEvent.change(position, { target: { value: 'UTG' } });
 			await settle();
-			expect(window.location.hash).toBe('#review?show=all&position=UTG');
+			expect(window.location.hash).toBe('#review?position=UTG');
 			expect(screen.getByRole('status').textContent).toBe('2 hands');
 			fireEvent.change(screen.getByRole('combobox', { name: 'Preflop spot' }), {
 				target: { value: 'rfi' },
 			});
 			await settle();
-			expect(window.location.hash).toBe('#review?show=all&position=UTG&scenario=rfi');
+			expect(window.location.hash).toBe('#review?position=UTG&scenario=rfi');
 
 			// A typed address with a seat that has a plus in it lists nothing here.
-			await goTo('#review?show=all&position=UTG+1');
-			expect(window.location.hash).toBe('#review?show=all&position=UTG%2B1');
+			await goTo('#review?position=UTG+1');
+			expect(window.location.hash).toBe('#review?position=UTG%2B1');
 			expect(screen.getByText('Nothing to show at this filter.')).toBeTruthy();
 		},
 		RUN_TIMEOUT_MS
@@ -149,14 +149,21 @@ describe('analysing a log in the app', () => {
 			).getByRole<HTMLInputElement>('radio', { name });
 
 		it(
-			'lists the hands with a mistake and reads one',
+			'opens on every hand, then lists those with a mistake and reads one',
 			async () => {
 				mountApp();
 				loadLog(TWO_HAND_LOG);
 				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 
 				await switchTo('Review');
-				expect(radio(/^Mistakes/).checked).toBe(true);
+				expect(radio(/^All/).checked).toBe(true);
+				expect((await screen.findByRole('status')).textContent).toBe('2 hands');
+				// The latest hand comes first, and is the one open.
+				expect(await screen.findByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
+
+				fireEvent.click(radio(/^Mistakes/));
+				await settle();
+				expect(window.location.hash).toBe('#review?show=mistakes');
 				expect((await screen.findByRole('status')).textContent).toMatch(
 					/^1 hand · −\d+\.\dbb estimated$/
 				);
@@ -180,24 +187,24 @@ describe('analysing a log in the app', () => {
 				mountApp();
 				loadLog(TWO_HAND_LOG);
 				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
-				await switchTo('Review');
+				await goTo('#review?show=mistakes');
 
 				fireEvent.click(radio(/^All/));
 				await settle();
-				expect(window.location.hash).toBe('#review?show=all');
+				expect(window.location.hash).toBe('#review');
 				expect(screen.queryByRole('radiogroup', { name: 'Severity' })).toBeNull();
 
 				fireEvent.click(screen.getByRole('button', { name: 'Hand 2, Ah Kd' }));
 				expect(await screen.findByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
 				expect(screen.getByText('hero (UTG) raises to $0.25')).toBeTruthy();
 				expect(screen.getByText('on baseline')).toBeTruthy();
-				expect(window.location.hash).toBe('#review?show=all&hand=5002');
+				expect(window.location.hash).toBe('#review?hand=5002');
 
 				// A step is not somewhere to come back to: it rewrites the entry.
 				const entries = window.history.length;
-				fireEvent.keyDown(window, { key: 'k' });
+				fireEvent.keyDown(window, { key: 'j' });
 				expect(await screen.findByRole('heading', { name: 'Hand 1 of 2' })).toBeTruthy();
-				expect(window.location.hash).toBe('#review?show=all&hand=5001');
+				expect(window.location.hash).toBe('#review?hand=5001');
 				expect(window.history.length).toBe(entries);
 			},
 			RUN_TIMEOUT_MS
@@ -209,7 +216,7 @@ describe('analysing a log in the app', () => {
 				const unmount = mountApp();
 				loadLog(`${TWO_HAND_LOG}\n${handText(RIVER_HERO_CALL)}`);
 				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
-				await goTo('#review?show=all&hand=7001');
+				await goTo('#review?hand=7001');
 				await screen.findByRole('heading', { name: 'Hand 3 of 3' });
 				const where = () => document.querySelector('.step-caption__where')!.textContent;
 				const stepNow = () => Number(/step (\d+) of/.exec(where()!)![1]);
@@ -225,9 +232,7 @@ describe('analysing a log in the app', () => {
 				const entries = window.history.length;
 				fireEvent.click(screen.getByRole('button', { name: 'Back a step' }));
 				expect(stepNow()).toBe(opensAt - 1);
-				expect(window.location.hash).toBe(
-					`#review?show=all&hand=7001&step=${opensAt - 2}`
-				);
+				expect(window.location.hash).toBe(`#review?hand=7001&step=${opensAt - 2}`);
 				expect(
 					screen.queryByRole('heading', { name: 'Called without the price' })
 				).toBeNull();
@@ -236,9 +241,7 @@ describe('analysing a log in the app', () => {
 				fireEvent.keyDown(window, { key: 'ArrowLeft' });
 				fireEvent.keyDown(window, { key: 'ArrowRight' });
 				expect(stepNow()).toBe(opensAt - 2);
-				expect(window.location.hash).toBe(
-					`#review?show=all&hand=7001&step=${opensAt - 3}`
-				);
+				expect(window.location.hash).toBe(`#review?hand=7001&step=${opensAt - 3}`);
 				expect(window.history.length).toBe(entries);
 
 				// A line of the action is a way to the same place.
@@ -261,9 +264,9 @@ describe('analysing a log in the app', () => {
 				).toBe(true);
 
 				// Another hand starts where it opens, not at the step this one was on.
-				fireEvent.keyDown(window, { key: 'k' });
+				fireEvent.keyDown(window, { key: 'j' });
 				expect(await screen.findByRole('heading', { name: 'Hand 2 of 3' })).toBeTruthy();
-				expect(window.location.hash).toBe('#review?show=all&hand=5002');
+				expect(window.location.hash).toBe('#review?hand=5002');
 				expect(where()).toMatch(/^Preflop · step 1 of /);
 			},
 			RUN_TIMEOUT_MS
@@ -275,7 +278,7 @@ describe('analysing a log in the app', () => {
 				const unmount = mountApp();
 				loadLog(TWO_HAND_LOG);
 				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
-				await goTo('#review?show=all&hand=5002');
+				await goTo('#review?hand=5002');
 				expect(await screen.findByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
 
 				unmount();
@@ -316,11 +319,11 @@ describe('analysing a log in the app', () => {
 				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
 
 				await goTo('#hands');
-				expect(window.location.hash).toBe('#review?show=all');
+				expect(window.location.hash).toBe('#review');
 				expect(radio(/^All/).checked).toBe(true);
 
 				await goTo('#mistakes');
-				expect(window.location.hash).toBe('#review');
+				expect(window.location.hash).toBe('#review?show=mistakes');
 				expect(radio(/^Mistakes/).checked).toBe(true);
 
 				await goTo('#plays');
@@ -335,7 +338,7 @@ describe('analysing a log in the app', () => {
 				mountApp();
 				loadLog(TWO_HAND_LOG);
 				await screen.findByText('Frequencies', {}, { timeout: RUN_TIMEOUT_MS });
-				await goTo('#review?show=all&hand=5002');
+				await goTo('#review?hand=5002');
 				expect(await screen.findByRole('heading', { name: 'Hand 2 of 2' })).toBeTruthy();
 
 				// A later hand: the one being read is still the second, now of three.
@@ -347,7 +350,7 @@ describe('analysing a log in the app', () => {
 						{ timeout: RUN_TIMEOUT_MS }
 					)
 				).toBeTruthy();
-				expect(window.location.hash).toBe('#review?show=all&hand=5002');
+				expect(window.location.hash).toBe('#review?hand=5002');
 			},
 			RUN_TIMEOUT_MS
 		);
@@ -380,7 +383,7 @@ describe('analysing a log in the app', () => {
 			const strayed = screen.getByRole('row', { name: /^Folded inside the chart/ });
 			fireEvent.click(within(strayed).getByRole('link', { name: 'AA, hand 1' }));
 			expect(await screen.findByRole('heading', { name: 'Hand 1 of 2' })).toBeTruthy();
-			expect(window.location.hash).toBe('#review?show=all&hand=5001');
+			expect(window.location.hash).toBe('#review?hand=5001');
 		},
 		RUN_TIMEOUT_MS
 	);

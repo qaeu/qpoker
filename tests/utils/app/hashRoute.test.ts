@@ -66,7 +66,7 @@ describe('the hash route', () => {
 			});
 
 			it('is dropped without a hand to be a step of', () => {
-				expect(stepOf('#review?show=all&step=4')).toBeNull();
+				expect(stepOf('#review?show=plays&step=4')).toBeNull();
 			});
 		});
 
@@ -140,9 +140,9 @@ describe('the hash route', () => {
 	describe('the scope and the player', () => {
 		it('reads a scope on any view, and leaves every hand unsaid', () => {
 			expect(parseRoute('#summary?scope=latest').scope).toBe('latest');
-			expect(parseRoute('#review?scope=week&show=all')).toMatchObject({
+			expect(parseRoute('#review?scope=week&show=plays')).toMatchObject({
 				scope: 'week',
-				review: { show: 'all' },
+				review: { show: 'plays' },
 			});
 			expect(parseRoute('#ranges?scope=2026-01-02T10:23:21').scope).toBe(
 				'2026-01-02T10:23:21'
@@ -154,7 +154,9 @@ describe('the hash route', () => {
 		it('writes the scope first, whatever the view', () => {
 			const scoped = (hash: string) => formatRoute(parseRoute(hash));
 			expect(scoped('#summary?scope=latest')).toBe('#summary?scope=latest');
-			expect(scoped('#review?show=all&scope=month')).toBe('#review?scope=month&show=all');
+			expect(scoped('#review?show=plays&scope=month')).toBe(
+				'#review?scope=month&show=plays'
+			);
 			expect(scoped('#trends?scope=all')).toBe('#trends');
 			expect(scoped('#summary?scope=2026-01-02T10:23:21')).toBe(
 				'#summary?scope=2026-01-02T10%3A23%3A21'
@@ -162,8 +164,11 @@ describe('the hash route', () => {
 		});
 
 		it('carries the scope into a link to Review', () => {
-			expect(reviewHref({ show: 'all' }, 'latest')).toBe('#review?scope=latest&show=all');
-			expect(reviewHref({ show: 'all' })).toBe('#review?show=all');
+			expect(reviewHref({ show: 'plays' }, 'latest')).toBe(
+				'#review?scope=latest&show=plays'
+			);
+			expect(reviewHref({ show: 'plays' })).toBe('#review?show=plays');
+			expect(reviewHref({}, 'latest')).toBe('#review?scope=latest');
 		});
 
 		it('names the player being read, in Players only', () => {
@@ -190,9 +195,9 @@ describe('the hash route', () => {
 				formatRoute({
 					tab: 'review',
 					ranges: DEFAULT_RANGES,
-					review: { ...DEFAULT_REVIEW, hand: '5001', street: 'pre', show: 'all' },
+					review: { ...DEFAULT_REVIEW, hand: '5001', street: 'pre', show: 'mistakes' },
 				})
-			).toBe('#review?show=all&street=pre&hand=5001');
+			).toBe('#review?show=mistakes&street=pre&hand=5001');
 			expect(
 				formatRoute({
 					tab: 'review',
@@ -216,9 +221,9 @@ describe('the hash route', () => {
 				formatRoute({
 					tab: 'review',
 					ranges: DEFAULT_RANGES,
-					review: { ...DEFAULT_REVIEW, show: 'all', hand: '5001', step: 0 },
+					review: { ...DEFAULT_REVIEW, show: 'plays', hand: '5001', step: 0 },
 				})
-			).toBe('#review?show=all&hand=5001&step=0');
+			).toBe('#review?show=plays&hand=5001&step=0');
 			expect(
 				formatRoute({
 					tab: 'review',
@@ -262,9 +267,9 @@ describe('the hash route', () => {
 		});
 
 		it('gives the legacy tabs their new address', () => {
-			expect(formatRoute(parseRoute('#mistakes'))).toBe('#review');
+			expect(formatRoute(parseRoute('#mistakes'))).toBe('#review?show=mistakes');
 			expect(formatRoute(parseRoute('#plays'))).toBe('#review?show=plays');
-			expect(formatRoute(parseRoute('#hands'))).toBe('#review?show=all');
+			expect(formatRoute(parseRoute('#hands'))).toBe('#review');
 		});
 	});
 
@@ -295,7 +300,7 @@ describe('the hash route', () => {
 			{
 				tab: 'review',
 				ranges: DEFAULT_RANGES,
-				review: { ...DEFAULT_REVIEW, show: 'all', position: 'BB' },
+				review: { ...DEFAULT_REVIEW, position: 'BB' },
 			},
 			{
 				tab: 'review',
@@ -319,11 +324,10 @@ describe('the hash route', () => {
 			expect(reviewHref({})).toBe('#review');
 			expect(reviewHref({ show: 'ungraded' })).toBe('#review?show=ungraded');
 			expect(reviewHref({ kind: 'missed-value' })).toBe('#review?kind=missed-value');
-			expect(reviewHref({ show: 'all', hand: '5001' })).toBe(
-				'#review?show=all&hand=5001'
-			);
+			expect(reviewHref({ show: 'mistakes' })).toBe('#review?show=mistakes');
+			expect(reviewHref({ show: 'all', hand: '5001' })).toBe('#review?hand=5001');
 			expect(reviewHref({ show: 'all', position: 'CO', scenario: 'rfi' })).toBe(
-				'#review?show=all&position=CO&scenario=rfi'
+				'#review?position=CO&scenario=rfi'
 			);
 		});
 	});

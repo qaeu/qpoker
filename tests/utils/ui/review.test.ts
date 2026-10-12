@@ -29,10 +29,14 @@ const query = (change: Partial<ReviewQuery> = {}): ReviewQuery => ({
 });
 const ids = (change: Partial<ReviewQuery>) =>
 	listHands(report, query(change)).map(({ id }) => id);
+const mistakes = (change: Partial<ReviewQuery> = {}): ReviewQuery =>
+	query({ show: 'mistakes', ...change });
+const mistakeIds = (change: Partial<ReviewQuery> = {}) => ids(mistakes(change));
 
 describe('the Review list', () => {
 	describe('orderOf', () => {
 		it('reads findings biggest first and hands as played', () => {
+			expect(orderOf(query())).toBe('time');
 			expect(orderOf(query({ show: 'mistakes' }))).toBe('impact');
 			expect(orderOf(query({ show: 'plays' }))).toBe('impact');
 			expect(orderOf(query({ show: 'all' }))).toBe('time');
@@ -90,12 +94,13 @@ describe('the Review list', () => {
 	});
 
 	describe('listHands', () => {
-		it('lists every hand as played', () => {
-			expect(ids({ show: 'all' })).toEqual(['5001', '5002', '6001', '7001', '7002']);
+		it('lists every hand by default, the latest first', () => {
+			expect(ids({})).toEqual(['7002', '7001', '6001', '5002', '5001']);
+			expect(ids({ show: 'all' })).toEqual(ids({}));
 		});
 
 		it('lists the hands the hero played', () => {
-			expect(ids({ show: 'played' })).toEqual(['5002', '6001', '7001']);
+			expect(ids({ show: 'played' })).toEqual(['7001', '6001', '5002']);
 		});
 
 		it('lists the hands that could not be graded', () => {
@@ -108,7 +113,7 @@ describe('the Review list', () => {
 
 		describe('mistakes', () => {
 			it('puts the hand with the largest finding first', () => {
-				const listed = listHands(report, query());
+				const listed = listHands(report, mistakes());
 				const worst = listed.map((item) =>
 					Math.min(...item.gradings.map((grading) => grading.evLostBb))
 				);
@@ -117,38 +122,38 @@ describe('the Review list', () => {
 				expect(worst).toEqual([...worst].sort((a, b) => a - b));
 			});
 
-			it('lists them as played when asked', () => {
-				const listed = ids({ order: 'time' });
-				expect(listed).toEqual([...listed].sort());
+			it('lists them as played when asked, the latest first', () => {
+				const listed = mistakeIds({ order: 'time' });
+				expect(listed).toEqual([...listed].sort().reverse());
 			});
 
 			it('narrows by street', () => {
-				expect(ids({ street: 'pre' })).toContain('5001');
-				expect(ids({ street: 'pre' })).not.toContain('7001');
-				expect(ids({ street: 'post' })).toEqual(['7001']);
+				expect(mistakeIds({ street: 'pre' })).toContain('5001');
+				expect(mistakeIds({ street: 'pre' })).not.toContain('7001');
+				expect(mistakeIds({ street: 'post' })).toEqual(['7001']);
 			});
 
 			it('narrows by kind', () => {
-				expect(ids({ kind: 'open-tight' })).toEqual(['5001']);
-				expect(ids({ kind: 'call-without-odds' })).toEqual(['7001']);
-				expect(ids({ kind: 'bb-overdefend' })).toEqual([]);
+				expect(mistakeIds({ kind: 'open-tight' })).toEqual(['5001']);
+				expect(mistakeIds({ kind: 'call-without-odds' })).toEqual(['7001']);
+				expect(mistakeIds({ kind: 'bb-overdefend' })).toEqual([]);
 			});
 
 			it('narrows by severity', () => {
-				const blunders = ids({ floor: 'blunder' });
+				const blunders = mistakeIds({ floor: 'blunder' });
 				expect(blunders).toContain('7001');
 				for (const id of blunders) {
 					expect(hand(id).gradings.some(({ severity }) => severity === 'blunder')).toBe(
 						true
 					);
 				}
-				expect(ids({ floor: 'inaccuracy' }).length).toBeGreaterThanOrEqual(
+				expect(mistakeIds({ floor: 'inaccuracy' }).length).toBeGreaterThanOrEqual(
 					blunders.length
 				);
 			});
 
 			it('needs one finding to pass every filter at once', () => {
-				expect(ids({ kind: 'call-without-odds', street: 'pre' })).toEqual([]);
+				expect(mistakeIds({ kind: 'call-without-odds', street: 'pre' })).toEqual([]);
 			});
 		});
 
@@ -156,20 +161,20 @@ describe('the Review list', () => {
 			expect(ids({ show: 'all', street: 'post', floor: 'blunder' })).toHaveLength(5);
 		});
 
-		it('sorts a plain list by its findings when asked, ties as played', () => {
+		it('sorts a plain list by its findings when asked, ties latest first', () => {
 			const listed = ids({ show: 'all', order: 'impact' });
 			expect(listed).toHaveLength(5);
-			expect(listed.slice(-2)).toEqual(['5002', '7002']);
+			expect(listed.slice(-2)).toEqual(['7002', '5002']);
 		});
 	});
 
 	describe('tallyOf', () => {
 		it('sums the cost of the mistakes listed', () => {
-			const all = tallyOf(listHands(report, query()), query());
+			const all = tallyOf(listHands(report, mistakes()), mistakes());
 			expect(all.hands).toBe(countsOf(report).mistakes);
 			expect(all.evBb).toBeCloseTo(report.totalEvLostBb, 6);
 
-			const post = query({ street: 'post' });
+			const post = mistakes({ street: 'post' });
 			const tally = tallyOf(listHands(report, post), post);
 			expect(tally.hands).toBe(1);
 			expect(tally.evBb).toBeLessThan(0);
@@ -195,10 +200,10 @@ describe('the Review list', () => {
 			it('lists the hands the hero played from one seat', () => {
 				expect(ids({ show: 'all', position: 'SB' })).toEqual(['7001']);
 				expect(ids({ show: 'all', position: 'UTG' })).toEqual([
-					'5001',
-					'5002',
-					'6001',
 					'7002',
+					'6001',
+					'5002',
+					'5001',
 				]);
 				expect(ids({ show: 'all', position: 'BTN' })).toEqual([]);
 			});
@@ -209,10 +214,10 @@ describe('the Review list', () => {
 				expect(ids({ show: 'all', scenario: 'vs3bet' })).toEqual(['6001']);
 				// A hand that was not graded has no decisions to be in a spot.
 				expect(ids({ show: 'all', scenario: 'rfi' })).toEqual([
-					'5001',
-					'5002',
-					'6001',
 					'7001',
+					'6001',
+					'5002',
+					'5001',
 				]);
 				expect(ids({ show: 'all', scenario: 'squeeze' })).toEqual([]);
 			});

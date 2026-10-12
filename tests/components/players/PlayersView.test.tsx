@@ -99,7 +99,7 @@ describe('PlayersView', () => {
 				.getAllByRole<HTMLAnchorElement>('link')
 				.find((candidate) => candidate.getAttribute('href')!.startsWith('#review'))!;
 			expect(link.getAttribute('href')).toBe(
-				`#review?show=all&hand=${shower.showdowns.at(-1)!.handId}`
+				`#review?hand=${shower.showdowns.at(-1)!.handId}`
 			);
 		});
 	});

@@ -34,7 +34,9 @@ describe('SummaryView', () => {
 			const cards = [...container.querySelectorAll<HTMLElement>('.stat-band__card')];
 			const card = (label: string) =>
 				cards.find((item) => item.textContent!.startsWith(label))!;
-			expect(link('Review them', card('Mistakes')).getAttribute('href')).toBe('#review');
+			expect(link('Review them', card('Mistakes')).getAttribute('href')).toBe(
+				'#review?show=mistakes'
+			);
 			expect(link('Review them', card('Good plays')).getAttribute('href')).toBe(
 				'#review?show=plays'
 			);
@@ -57,7 +59,9 @@ describe('SummaryView', () => {
 				'Frequencies',
 			]);
 			for (const leak of report.leaks) {
-				expect(link(leak.title).getAttribute('href')).toBe(`#review?kind=${leak.type}`);
+				expect(link(leak.title).getAttribute('href')).toBe(
+					`#review?show=mistakes&kind=${leak.type}`
+				);
 			}
 		});
 
@@ -131,8 +135,8 @@ describe('SummaryView', () => {
 	describe('by position', () => {
 		it('links each seat to its hands in Review', () => {
 			render(() => <SummaryView report={report} />);
-			expect(link('UTG').getAttribute('href')).toBe('#review?show=all&position=UTG');
-			expect(link('SB').getAttribute('href')).toBe('#review?show=all&position=SB');
+			expect(link('UTG').getAttribute('href')).toBe('#review?position=UTG');
+			expect(link('SB').getAttribute('href')).toBe('#review?position=SB');
 		});
 	});
 

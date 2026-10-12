@@ -95,7 +95,7 @@ describe('OpeningsView', () => {
 			const link = within(strays('Opened outside the chart')).getByRole('link', {
 				name: '72o, hand 3',
 			});
-			expect(link.getAttribute('href')).toBe('#review?show=all&hand=5003');
+			expect(link.getAttribute('href')).toBe('#review?hand=5003');
 			fireEvent.click(link);
 			expect(onOpenHand).toHaveBeenCalledWith('5003');
 		});
@@ -104,9 +104,7 @@ describe('OpeningsView', () => {
 	it('links the seat on show to its first-in hands in Review', () => {
 		mount();
 		const link = screen.getByRole('link', { name: /^Review the \w+ first-in hands$/ });
-		expect(link.getAttribute('href')).toMatch(
-			/^#review\?show=all&position=\w+&scenario=rfi$/
-		);
+		expect(link.getAttribute('href')).toMatch(/^#review\?position=\w+&scenario=rfi$/);
 	});
 
 	it('says how many spots came from seats no chart covers', () => {

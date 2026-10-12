@@ -40,7 +40,7 @@ export interface ReviewQuery {
 }
 
 export const DEFAULT_REVIEW: ReviewQuery = {
-	show: 'mistakes',
+	show: 'all',
 	floor: 'inaccuracy',
 	street: 'all',
 	kind: null,
@@ -51,7 +51,7 @@ export const DEFAULT_REVIEW: ReviewQuery = {
 	step: null,
 };
 
-/** Findings are read biggest first; a plain list of hands, as it was played. */
+/** Findings are read biggest first; a plain list of hands as played, latest first. */
 export function orderOf(query: ReviewQuery): ReviewOrder {
 	return (
 		query.order
@@ -146,9 +146,10 @@ export function listHands<T extends HandSummary>(
 	report: Listing<T>,
 	query: ReviewQuery
 ): T[] {
-	const listed = report.hands.filter((hand) => isListed(hand, query));
+	// The report holds them oldest first: the list reads from the latest back.
+	const listed = report.hands.filter((hand) => isListed(hand, query)).reverse();
 	if (orderOf(query) === 'time') return listed;
-	// Stable, so hands of equal weight (most have none) stay as they were played.
+	// Stable, so hands of equal weight (most have none) stay latest first.
 	return listed
 		.map((hand) => ({ hand, weight: impact(hand, query) }))
 		.sort((a, b) => b.weight - a.weight)
