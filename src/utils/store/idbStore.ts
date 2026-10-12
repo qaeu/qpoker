@@ -126,6 +126,16 @@ export function openIdbStore(name = DATABASE_NAME): HandStore {
 				'readwrite'
 			);
 			const done = finished(transaction);
+			for (const id of change.forget?.hands ?? []) {
+				for (const store of [ROWS, DETAILS, RAW])
+					transaction.objectStore(store).delete(id);
+			}
+			for (const name of change.forget?.players ?? []) {
+				transaction.objectStore(PLAYERS).delete(name);
+			}
+			for (const key of change.forget?.imports ?? []) {
+				transaction.objectStore(IMPORTS).delete(key);
+			}
 			for (const { summary, key, detail, raw } of change.hands ?? []) {
 				transaction.objectStore(ROWS).put({ summary, key });
 				transaction.objectStore(DETAILS).put(detail, summary.id);

@@ -75,7 +75,7 @@ export interface IngestRun {
 
 const seesFlop = (hand: Hand): boolean => hand.board.length >= 3;
 
-function addRake(rakes: Record<string, RakeSeen>, hand: Hand, sign: 1 | -1): void {
+export function addRake(rakes: Record<string, RakeSeen>, hand: Hand, sign: 1 | -1): void {
 	if (!seesFlop(hand)) return;
 	const seen = (rakes[stakesText(hand)] ??= { pots: 0, rake: 0 });
 	seen.pots += sign * hand.totalPot;
@@ -108,7 +108,7 @@ export function stalenessOf(
 	return key.facts === FACTS_VERSION ? null : 'resum';
 }
 
-const parseOne = (text: string): Replay => replayHand(parseHands(text)[0].hand);
+export const parseOne = (text: string): Replay => replayHand(parseHands(text)[0].hand);
 
 /** Reads the log and works out what there is to do. Nothing is graded or written yet. */
 export async function startIngest(
@@ -199,6 +199,7 @@ export async function startIngest(
 					hands: parsed.size,
 					added,
 					replaced,
+					handIds: [...parsed.keys()],
 				}
 			:	null,
 	};

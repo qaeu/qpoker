@@ -1,9 +1,11 @@
 /**
- * The library itself: the logs that have been loaded into it, how much room
- * it takes, and the two things to do with all of it -- save a copy, or empty it.
+ * The library itself: the logs that have been loaded into it, each with a way
+ * to forget it, how much room it takes, and the two things to do with all of
+ * it -- save a copy, or empty it.
  */
 
 import { For, Show, type Component } from 'solid-js';
+import { X } from 'lucide-solid';
 
 import type { ImportRecord } from '#utils/store/types';
 import { shortTime } from '#utils/ui/format';
@@ -15,8 +17,11 @@ interface LibraryPanelProps {
 	hands: number;
 	/** Bytes the browser reports the site as using, when it will say. */
 	usage: number | null;
+	/** A run is writing to the library, so nothing may be taken out of it. */
+	busy?: boolean;
 	onExport: () => void;
 	onClear: () => void;
+	onForget: (record: ImportRecord) => void;
 }
 
 /** Imports listed, the latest first. */
@@ -34,6 +39,7 @@ const LibraryPanel: Component<LibraryPanelProps> = (props) => (
 					<th scope="col">File</th>
 					<th scope="col">Hands</th>
 					<th scope="col">New</th>
+					<th scope="col" class="library-panel__forget" aria-label="Forget" />
 				</tr>
 			</thead>
 			<tbody>
@@ -44,6 +50,21 @@ const LibraryPanel: Component<LibraryPanelProps> = (props) => (
 							<td>{record.fileName || '—'}</td>
 							<td>{record.hands}</td>
 							<td>{record.added + record.replaced}</td>
+							<td class="library-panel__forget">
+								<button
+									type="button"
+									aria-label={`Forget ${record.fileName || 'this log'}`}
+									title={
+										record.handIds ?
+											'Forget this log and the hands only it holds'
+										:	'Loaded before a log could be forgotten on its own'
+									}
+									disabled={props.busy || !record.handIds}
+									onClick={() => props.onForget(record)}
+								>
+									<X aria-hidden="true" />
+								</button>
+							</td>
 						</tr>
 					)}
 				</For>
@@ -56,7 +77,8 @@ const LibraryPanel: Component<LibraryPanelProps> = (props) => (
 				{' '}
 				· {megabytes(props.usage ?? 0)} in this browser
 			</Show>
-			. Kept in this browser only. A hand loaded twice is counted once.
+			. Kept in this browser only. A hand loaded twice is counted once, and is kept until
+			every log it came in is forgotten.
 		</p>
 		<div class="library-panel__actions">
 			<button type="button" onClick={() => props.onExport()}>

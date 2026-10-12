@@ -68,6 +68,11 @@ export interface ImportRecord {
 	hands: number;
 	added: number;
 	replaced: number;
+	/**
+	 * Every hand in the file, which is what forgetting the log goes by. Absent
+	 * from an import made before a log could be forgotten.
+	 */
+	handIds?: string[];
 }
 
 /** The pots that saw a flop at one stakes level, and the rake taken, in cents. */
@@ -93,8 +98,17 @@ export interface LibraryMeta {
 	facts: number;
 }
 
+/** What a commit takes out: hands by id, players by name, imports by their time. */
+export interface Forgotten {
+	hands?: string[];
+	players?: string[];
+	imports?: string[];
+}
+
 /** One atomic write: all of it lands or none of it does. */
 export interface Commit {
+	/** Taken out before anything else is put in. */
+	forget?: Forgotten;
 	hands?: StoredHand[];
 	/** Empties the players first, for a rebuild. */
 	resetPlayers?: boolean;

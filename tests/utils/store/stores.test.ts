@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createFileStore } from '#cli/fileStore';
+import { forgetImport } from '#utils/store/forget';
 import { ingestLog } from '#utils/store/ingest';
 import { openIdbStore } from '#utils/store/idbStore';
 import { loadLibrary } from '#utils/store/library';
@@ -75,6 +76,27 @@ describe.each([
 		]);
 	});
 
+	it('forgets a log as the reference store does', async () => {
+		const store = create();
+		const reference = createMemoryStore();
+		await fill(store);
+		await fill(reference);
+		const ids = (await store.rows()).map(({ summary }) => summary.id);
+		await forgetImport(store, '2026-10-12T10:00:00Z');
+		await forgetImport(reference, '2026-10-12T10:00:00Z');
+
+		const rows = await store.rows();
+		expect(rows.map(({ summary }) => summary.id)).toEqual(['6002', '7001']);
+		expect(rows).toEqual(await reference.rows());
+		expect(await store.known()).toEqual(await reference.known());
+		expect(await store.meta()).toEqual(await reference.meta());
+		expect(await store.imports()).toEqual(await reference.imports());
+		expect(byName(await store.players())).toEqual(byName(await reference.players()));
+		expect(await store.raw(ids)).toEqual(await reference.raw(ids));
+		for (const id of ids)
+			expect(await store.detail(id)).toEqual(await reference.detail(id));
+	});
+
 	it('forgets everything when cleared', async () => {
 		const store = create();
 		await fill(store);
@@ -113,6 +135,18 @@ describe('the file store', () => {
 		expect(await again.rows()).toEqual(await reference.rows());
 		expect(await again.detail('7001')).toEqual(await reference.detail('7001'));
 		expect(await again.imports()).toEqual(await reference.imports());
+	});
+
+	it('has a forgotten log gone for the next run, text and all', async () => {
+		const at = directory();
+		await fill(createFileStore(at));
+		await forgetImport(createFileStore(at), '2026-10-12T11:00:00Z');
+		const again = createFileStore(at);
+		expect(await again.rows()).toHaveLength(4);
+		expect((await again.imports()).map(({ fileName }) => fileName)).toEqual(['a.txt']);
+		expect(readFileSync(join(at, 'raw', '2026-01.jsonl'), 'utf8')).not.toContain(
+			'"id":"7001"'
+		);
 	});
 
 	it('only adds to its files, and reads the later line for a hand', async () => {

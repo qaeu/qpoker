@@ -70,6 +70,7 @@ describe('loading a log into the library', () => {
 					hands: 3,
 					added: 3,
 					replaced: 0,
+					handIds: ['6001', '6002', '7001'],
 				},
 			]);
 		});

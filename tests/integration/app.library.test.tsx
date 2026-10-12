@@ -132,6 +132,37 @@ describe('a library built from more than one log', () => {
 	);
 
 	it(
+		'forgets one log and the hands only it holds, once that is confirmed',
+		async () => {
+			mountApp();
+			await loadTwoLogs();
+			await switchTo('Trends');
+			const forget = () => screen.getByRole('button', { name: 'Forget second.txt' });
+
+			window.confirm = () => false;
+			fireEvent.click(forget());
+			await settle();
+			expect(queryHeld(3)).toBeTruthy();
+
+			let asked = '';
+			window.confirm = (message) => {
+				asked = message ?? '';
+				return true;
+			};
+			fireEvent.click(forget());
+			await findHeld(2);
+			expect(asked).toBe(
+				'Forget second.txt? The 1 hand only it holds will be forgotten.'
+			);
+			const library = within(screen.getByRole('region', { name: 'Hand library' }));
+			await waitFor(() => expect(library.queryByText('second.txt')).toBeNull());
+			expect(library.getByText('first.txt')).toBeTruthy();
+			expect(library.getByText(/2 hands from 1 log\b/)).toBeTruthy();
+		},
+		RUN_TIMEOUT_MS
+	);
+
+	it(
 		'forgets everything when emptied, once that is confirmed',
 		async () => {
 			mountApp();

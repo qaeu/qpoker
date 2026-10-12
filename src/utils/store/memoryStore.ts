@@ -61,6 +61,10 @@ export function createMemoryStore(): HandStore {
 		},
 		async commit(change: Commit) {
 			const copy = structuredClone(change);
+			for (const id of copy.forget?.hands ?? []) hands.delete(id);
+			for (const name of copy.forget?.players ?? []) players.delete(name);
+			const gone = new Set(copy.forget?.imports);
+			imports = imports.filter((record) => !gone.has(record.importedAt));
 			for (const hand of copy.hands ?? []) hands.set(hand.summary.id, hand);
 			if (copy.resetPlayers) players.clear();
 			for (const player of copy.players ?? []) players.set(player.name, player);

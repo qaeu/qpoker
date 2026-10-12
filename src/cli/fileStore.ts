@@ -1,7 +1,8 @@
 /**
  * The hand store on disk, for the command line: a directory of JSON-lines
- * files that are only ever added to, so a commit costs what it adds and not
- * what the library holds. A later line for the same hand wins. The light rows
+ * files that are only added to unless a hand is forgotten, so a commit costs
+ * what it adds and not what the library holds. A later line for the same hand
+ * wins. The light rows
  * are one file, read on every run; the heavy halves are a file a month, read
  * only for the months asked of. See docs/library.md.
  */
@@ -22,6 +23,7 @@ import type { HandDetail } from '#utils/coach/report';
 import { chronological } from '#utils/history/parse';
 import type {
 	Commit,
+	Forgotten,
 	HandRow,
 	HandStore,
 	ImportRecord,
@@ -81,9 +83,37 @@ export function createFileStore(directory: string): HandStore {
 		{ details: Map<string, HandDetail>; raw: Map<string, string> }
 	>();
 
+	/** Writes a lines file again without some of its lines, if it is there. */
+	const strike = <T>(path: string, gone: (line: T) => boolean) => {
+		if (!existsSync(path)) return;
+		writeWhole(path, linesOf(readLines<T>(path).filter((line) => !gone(line))));
+	};
+
+	/** The heavy halves go before the rows that say which month they are in. */
+	const forget = ({ hands = [], imports = [] }: Forgotten) => {
+		const ids = new Set(hands);
+		if (ids.size > 0) {
+			const held = readLines<HandRow>(at(ROWS)).filter(({ summary }) =>
+				ids.has(summary.id)
+			);
+			for (const month of new Set(
+				held.map(({ summary }) => monthOf(summary.timestamp))
+			)) {
+				strike<DetailLine>(at(DETAILS, `${month}.jsonl`), ({ id }) => ids.has(id));
+				strike<RawLine>(at(RAW, `${month}.jsonl`), ({ id }) => ids.has(id));
+				months.delete(month);
+			}
+			strike<HandRow>(at(ROWS), ({ summary }) => ids.has(summary.id));
+		}
+		if (imports.length > 0) {
+			strike<ImportRecord>(at(IMPORTS), ({ importedAt }) => imports.includes(importedAt));
+		}
+	};
+
 	const apply = (change: Commit) => {
 		mkdirSync(at(DETAILS), { recursive: true });
 		mkdirSync(at(RAW), { recursive: true });
+		if (change.forget) forget(change.forget);
 		const hands = change.hands ?? [];
 		for (const month of new Set(hands.map(({ summary }) => monthOf(summary.timestamp)))) {
 			const mine = hands.filter(({ summary }) => monthOf(summary.timestamp) === month);
@@ -103,7 +133,8 @@ export function createFileStore(directory: string): HandStore {
 			at(ROWS),
 			linesOf(hands.map(({ summary, key }) => ({ summary, key })))
 		);
-		if (change.resetPlayers || change.players) {
+		const unseen = change.forget?.players ?? [];
+		if (change.resetPlayers || change.players || unseen.length > 0) {
 			const players = new Map(
 				change.resetPlayers ?
 					[]
@@ -112,6 +143,7 @@ export function createFileStore(directory: string): HandStore {
 						player,
 					])
 			);
+			for (const name of unseen) players.delete(name);
 			for (const player of change.players ?? []) players.set(player.name, player);
 			writeWhole(at(PLAYERS), JSON.stringify([...players.values()]));
 		}

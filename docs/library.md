@@ -114,6 +114,27 @@ the run that moves it. A file with no hands in it does not stop the rest: the co
 names it and the page says so. An import's key is its time, so the page hands each file
 of a request a millisecond of its own.
 
+## Forgetting a log
+
+`store/forget.ts`, and the `x` that ends each row of the library's table on Trends. An
+import records the id of every hand in its file (`ImportRecord.handIds`), not only the
+ones it added, because a hand is the library's and not a file's: **forgetting a log
+takes out the hands no other log holds**, so a hand loaded in two files outlives either
+one of them. The page says how many will go before it is done.
+
+The hands are taken out of what was summed from them in the same commit
+(`Commit.forget`): each out of its players' tallies with a `sign` of -1, from its own
+text, and out of its stakes' rake. A player left with no hands is dropped. One whose
+first or last sighting was a forgotten hand is looked for in what is left, from that end
+of the library, reading text only until they are found. A rake the forgetting moves
+leaves hands stale, and the page runs an import of nothing to grade them again, as
+loading a log that moved it would.
+
+An import made before the ids were recorded cannot say which hands were its own: its
+`x` is disabled, and such a log goes only with the whole library. Its hands are not
+counted as held either, so a hand it shared with a later log goes when the later one is
+forgotten. The page does not forget while a run is writing.
+
 ## Players
 
 Everything seen of a player (`PlayerAggregate`) is a running sum of `tallyHand` over the
@@ -152,7 +173,9 @@ decides a view.
   JSON-lines files that are only added to, a later line for a hand winning: `rows.jsonl`
   read on every run, and `details/` and `raw/` a file a month, read for the months asked
   of. A commit is written whole to `journal.json` first and applied again if a run died
-  in it; every write is safe to repeat.
+  in it; every write is safe to repeat. Forgetting is the one write that is not an
+  addition: the files a forgotten hand is in are written again without it, the heavy
+  halves before the rows that say which month they are in, so the text is gone too.
 
 All three are held to one contract (`tests/utils/store/stores.test.ts`).
 
@@ -162,6 +185,8 @@ the library itself does; the library never leaves the machine.
 
 ## Not done
 
+- **The command line forgets no single log.** The file store can (it is held to the
+  contract), but `library` only offers `--clear`.
 - **The file store is never compacted.** A hand graded again adds a line and the old one
   stays. It costs disk, not correctness.
 - **No statistics beyond the session's ten.** A profile could use a limp rate, a fold to

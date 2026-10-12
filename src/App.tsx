@@ -49,9 +49,10 @@ import {
 	type ScopePreset,
 } from '#utils/coach/sessions';
 import { backupName, backupOf, logTextOf } from '#utils/store/backup';
+import { forgetImport, handsOnlyIn } from '#utils/store/forget';
 import { openIdbStore } from '#utils/store/idbStore';
 import { libraryReport, loadLibrary, type Library } from '#utils/store/library';
-import type { PlayerAggregate } from '#utils/store/types';
+import type { ImportRecord, PlayerAggregate } from '#utils/store/types';
 import { shortTime } from '#utils/ui/format';
 import { DEFAULT_REVIEW } from '#utils/ui/review';
 
@@ -225,6 +226,22 @@ const App: Component = () => {
 		await refresh();
 	};
 
+	const forgetLog = async ({ importedAt, fileName }: ImportRecord) => {
+		// A run in the worker is writing the sums this takes from.
+		if (progress()) return;
+		const hands = handsOnlyIn(library()?.imports ?? [], importedAt)?.length ?? 0;
+		const going =
+			hands === 0 ? 'Every hand in it is in another log, so none will be forgotten.'
+			: hands === 1 ? 'The 1 hand only it holds will be forgotten.'
+			: `The ${hands} hands only it holds will be forgotten.`;
+		if (!window.confirm(`Forget ${fileName || 'this log'}? ${going}`)) return;
+		await forgetImport(store, importedAt);
+		setPlayers([]);
+		const loaded = await refresh();
+		// The rake its stakes are graded at may have moved: grade those hands again.
+		if (loaded && loaded.stale > 0) ingest([]);
+	};
+
 	const cancel = () => send({ type: 'cancel', requestId: latestRequestId });
 
 	onMount(() => {
@@ -301,8 +318,10 @@ const App: Component = () => {
 										imports={library()?.imports ?? []}
 										hands={library()?.hands.length ?? 0}
 										usage={usage()}
+										busy={progress() !== null}
 										onExport={() => void exportLibrary()}
 										onClear={() => void clearLibrary()}
+										onForget={(record) => void forgetLog(record)}
 									/>
 								</Match>
 								<Match when={tab() === 'players'}>
