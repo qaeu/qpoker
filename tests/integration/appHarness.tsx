@@ -47,7 +47,6 @@ export const TWO_HAND_LOG = [
 	}),
 ].join('\n');
 
-
 /** Returns the way to take the app down again, as closing the tab would. */
 export function mountApp(): () => void {
 	return render(() => <App />).unmount;

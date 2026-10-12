@@ -229,6 +229,14 @@ $breakpoint-short: 600px;
 	}
 }
 
+// Wide *and* tall: exactly where `compact` does not apply, for a layout that
+// only holds with room to spare.
+@mixin roomy {
+	@media (min-width: #{$breakpoint-tablet + 0.02px}) and (min-height: #{$breakpoint-short + 0.02px}) {
+		@content;
+	}
+}
+
 @mixin phone {
 	@media (max-width: $breakpoint-mobile) {
 		@content;

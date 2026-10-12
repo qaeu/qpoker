@@ -11,6 +11,25 @@
 		}
 	}
 
+	// One window high, the header on top and the view filling what is left, so
+	// that a view can scroll inside itself instead of the page. Only with room.
+	@include roomy {
+		.app-shell--fitted {
+			display: flex;
+			flex-direction: column;
+			height: 100dvh;
+
+			.app {
+				display: flex;
+				flex: 1;
+				flex-direction: column;
+				// Auto margins would shrink a flex item to its content.
+				width: 100%;
+				min-height: 0;
+			}
+		}
+	}
+
 	.app__empty {
 		@include print(13px, 0.01em, $caps: false);
 		max-width: 620px;

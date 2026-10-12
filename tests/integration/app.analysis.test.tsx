@@ -112,6 +112,29 @@ describe('analysing a log in the app', () => {
 		RUN_TIMEOUT_MS
 	);
 
+	it(
+		'holds Review, and only Review, to the height of the window',
+		async () => {
+			const fitted = () =>
+				document.querySelector('.app-shell')!.classList.contains('app-shell--fitted');
+			mountApp();
+			// Nothing to fit while there is no report to review.
+			await goTo('#review');
+			expect(fitted()).toBe(false);
+
+			loadLog(TWO_HAND_LOG);
+			await screen.findByRole('list', { name: 'Hands' }, { timeout: RUN_TIMEOUT_MS });
+			expect(fitted()).toBe(true);
+			for (const tab of ['Summary', 'Openings', 'Ranges'] as const) {
+				await switchTo(tab);
+				expect(fitted()).toBe(false);
+			}
+			await switchTo('Review');
+			expect(fitted()).toBe(true);
+		},
+		RUN_TIMEOUT_MS
+	);
+
 	describe('Review', () => {
 		const radio = (name: string | RegExp) =>
 			within(

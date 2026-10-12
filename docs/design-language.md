@@ -236,6 +236,28 @@ the line says. The card is in the caption under the table (see below), so the li
 list: twenty lines that can be read down, not a column broken open wherever something
 went wrong.
 
+## Review fits the window
+
+With room (the complement of `compact`, the `roomy` mixin: wider than 800px and taller
+than 600px) Review is exactly one window high. The header is on top, the toolbar under
+it, and the list and the hand share what is left, **each scrolling inside itself**. The
+page does not scroll, so the filters and the list stay in reach while a long hand is
+read, and the list's last row is always inside the window.
+
+It is done without a single computed height. `App` marks its shell `app-shell--fitted`
+when Review is showing a report; that shell is a column `100dvh` high, and `main`, the
+view and the panes are each a flex child told to take the rest (`flex: 1; min-height:
+0`). The earlier `max-height: calc(100vh - 24px)` on the list assumed the list started
+at the top of the window, which it only did once the page had been scrolled; and any
+arithmetic that knew the header's height would break the day the toolbar wrapped to a
+second line. Here a taller toolbar simply leaves less for the panes.
+
+- Only Review is fitted. Summary, Openings and Ranges are documents and scroll as pages.
+- Compact layouts are not fitted: there the list and the hand are separate screens, and
+  each scrolls as the page.
+- The hand's pane is inset a few pixels at the sides and pulled back out by the same
+  margin, so a focus ring at its edge is not clipped by the scroll box.
+
 ## The replay table
 
 A reviewed hand is drawn on a table of its own (`#c/hand/HandTable`): the app's ground

@@ -1,6 +1,7 @@
 /**
  * The shell: the header, the view the hash route names, and the one piece of
- * state the views share -- the report. The analysis itself runs in a worker
+ * state the views share -- the report. It is also what holds Review to the
+ * height of the window. The analysis itself runs in a worker
  * that this component owns for as long as it is mounted.
  */
 
@@ -94,8 +95,11 @@ const App: Component = () => {
 			:	null;
 	};
 
+	// Review with a report is one window high: see "Review fits the window".
+	const fitted = () => tab() === 'review' && report() !== null;
+
 	return (
-		<>
+		<div class="app-shell" classList={{ 'app-shell--fitted': fitted() }}>
 			<AppHeader
 				tab={tab()}
 				onTabChange={setTab}
@@ -148,7 +152,7 @@ const App: Component = () => {
 					</Match>
 				</Switch>
 			</main>
-		</>
+		</div>
 	);
 };
 

@@ -51,29 +51,59 @@
 			}
 		}
 
-		&__list-panel {
-			position: sticky;
-			top: 12px;
-
-			@include compact {
-				position: static;
-			}
-		}
-
 		&__list {
 			display: grid;
+			align-content: start;
 			gap: 2px;
-			max-height: calc(100vh - 24px);
 			margin: 0;
 			padding: 0;
-			overflow-y: auto;
 			list-style: none;
 
 			// A screen of its own: the page scrolls, not a window in it.
 			@include compact {
 				gap: 4px;
-				max-height: none;
-				overflow-y: visible;
+			}
+		}
+
+		// With room, the view is as high as the window allows it (the shell sees
+		// to that): the toolbar keeps its height, however it wraps, and the two
+		// panes share the rest, each scrolling inside itself. No height is
+		// worked out here, so nothing has to know how tall the header is.
+		@include roomy {
+			display: flex;
+			flex: 1;
+			flex-direction: column;
+			min-height: 0;
+
+			&__toolbar {
+				flex: none;
+			}
+
+			&__panes {
+				flex: 1;
+				grid-template-rows: minmax(0, 1fr);
+				align-items: stretch;
+				min-height: 0;
+			}
+
+			&__list-panel {
+				display: flex;
+				flex-direction: column;
+				min-height: 0;
+			}
+
+			&__list {
+				flex: 1;
+				min-height: 0;
+				overflow-y: auto;
+			}
+
+			// Room at the sides for a focus ring, which a scroll box would clip.
+			&__detail {
+				min-height: 0;
+				margin-inline: -4px;
+				padding-inline: 4px;
+				overflow-y: auto;
 			}
 		}
 
