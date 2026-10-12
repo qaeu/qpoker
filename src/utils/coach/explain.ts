@@ -88,6 +88,13 @@ const PRAISE: Record<GoodPlay['type'], string> = {
 		'A hand this strong is hard to let go, and it still does not have the price.',
 };
 
+/** Said when UTG's chart graded a seat a fuller table puts before it. */
+const STAND_IN: Record<NonNullable<PreflopFacts['standIn']>, string> = {
+	hero: 'No chart is written for a seat this early at a full table: the UTG chart stands in, and runs a little wide for it.',
+	villain:
+		'The raise came from a seat earlier than any chart: the UTG chart stands in for that range, and runs a little wide for it.',
+};
+
 /** What a good play was worth, against the mistake the other action would have been. */
 function praise(play: GoodPlay): string {
 	const other = ALTERNATIVE[play.alternative];
@@ -105,7 +112,8 @@ function frequencies(facts: PreflopFacts, free: boolean): string {
 }
 
 function preflopText(grading: Grading, facts: PreflopFacts): string {
-	const lead = `${facts.hand}, ${grading.spot} (${Math.round(facts.effectiveBb)}bb effective).`;
+	const seat = facts.standIn ? ` ${STAND_IN[facts.standIn]}` : '';
+	const lead = `${facts.hand}, ${grading.spot} (${Math.round(facts.effectiveBb)}bb effective).${seat}`;
 	if (facts.equity !== undefined && facts.potOdds !== undefined) {
 		const price = `You have about ${pct(facts.equity)} equity against the shoving range and need ${pct(facts.potOdds)}: calling is worth ${bbText(facts.callEvBb ?? 0)}.`;
 		return [

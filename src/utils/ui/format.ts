@@ -1,6 +1,6 @@
 /** Display formatting shared by the views. */
 
-import { MIN_SAMPLE } from '../coach/session';
+import { MIN_SAMPLE, type TableSize } from '../coach/session';
 
 /** `0.42` -> `42%`; null -> an em dash. */
 export function percent(value: number | null): string {
@@ -53,4 +53,17 @@ export function readingOf(
 ): string {
 	if (leak) return words[leak];
 	return opportunities < MIN_SAMPLE ? 'too few to say' : '';
+}
+
+/** `6-handed 80 hands, 5-handed 20`: the table sizes a session was dealt at. */
+export function tableSizesText(sizes: readonly TableSize[]): string {
+	if (sizes.length === 0) return 'no hands dealt';
+	return sizes
+		.map(({ players, hands }, index) => {
+			const table = players === 2 ? 'heads-up' : `${players}-handed`;
+			return index === 0 ?
+					`${table} ${hands} ${hands === 1 ? 'hand' : 'hands'}`
+				:	`${table} ${hands}`;
+		})
+		.join(', ');
 }

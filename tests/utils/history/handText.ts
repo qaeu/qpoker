@@ -1,13 +1,14 @@
 /**
  * Writes a PokerStars hand in the client's own plain format, for tests that
- * need a particular spot rather than a recorded one. Six seats, `hero` in seat
- * 1, $0.05/$0.10: the caller supplies the action and what the pot came to.
+ * need a particular spot rather than a recorded one. Six seats unless told
+ * otherwise, `hero` in seat 1, $0.05/$0.10: the caller supplies the action and
+ * what the pot came to.
  */
 
 export interface HandSpec {
 	id?: number;
 	heroCards: string;
-	/** Seat that holds the button, 1 to 6. */
+	/** Seat that holds the button, counted from 1. */
 	button: number;
 	/** Every line from the blinds to the last action, street markers included. */
 	lines: string[];
@@ -16,9 +17,18 @@ export interface HandSpec {
 	winner: string;
 	/** Dollars per seat; 10 by default. */
 	stacks?: Record<string, number>;
+	/** The names seated, seat 1 first; `SEATS` by default. */
+	seats?: string[];
+	/** The table's size as the header states it; 6 by default. */
+	max?: number;
+	/** Seated players marked as sitting out. */
+	sittingOut?: string[];
 }
 
 export const SEATS = ['hero', 'p2', 'p3', 'p4', 'p5', 'p6'];
+
+/** A full ring: `hero` in seat 1 and eight others. */
+export const NINE_SEATS = [...SEATS, 'p7', 'p8', 'p9'];
 
 let nextId = 1000;
 
@@ -27,21 +37,92 @@ export function handText(spec: HandSpec): string {
 	const second = String(id % 60).padStart(2, '0');
 	const holeCards = spec.lines.indexOf('*** HOLE CARDS ***');
 	const lines = [...spec.lines];
+	const seats = spec.seats ?? SEATS;
 	lines.splice(holeCards + 1, 0, `Dealt to hero [${spec.heroCards}]`);
 	return [
 		`PokerStars Hand #${id}:  Hold'em No Limit ($0.05/$0.10 USD) - 2026/01/02 10:${String(Math.floor(id / 60) % 60).padStart(2, '0')}:${second} ET`,
-		`Table 'Builder' 6-max Seat #${spec.button} is the button`,
-		...SEATS.map(
-			(name, i) => `Seat ${i + 1}: ${name} ($${spec.stacks?.[name] ?? 10} in chips)`
+		`Table 'Builder' ${spec.max ?? 6}-max Seat #${spec.button} is the button`,
+		...seats.map(
+			(name, i) =>
+				`Seat ${i + 1}: ${name} ($${spec.stacks?.[name] ?? 10} in chips)${
+					spec.sittingOut?.includes(name) ? ' is sitting out' : ''
+				}`
 		),
 		...lines,
 		'*** SUMMARY ***',
 		`Total pot $${spec.pot} | Rake $0`,
-		`Seat ${SEATS.indexOf(spec.winner) + 1}: ${spec.winner} collected ($${spec.pot})`,
+		`Seat ${seats.indexOf(spec.winner) + 1}: ${spec.winner} collected ($${spec.pot})`,
 		'',
 		'',
 	].join('\n');
 }
+
+export type RingAction = 'fold' | 'raise' | 'cbet';
+
+/**
+ * A hand at a table of three to nine with `hero` first to act: the last two
+ * seats post, and everyone but the hero gets out of the way. `cbet` has the big
+ * blind call the open and fold the flop to a bet.
+ */
+export function ringHand(
+	players: number,
+	heroCards = '7c 2d',
+	action: RingAction = 'fold',
+	id?: number
+): string {
+	const seats = NINE_SEATS.slice(0, players);
+	const [smallBlind, bigBlind] = seats.slice(-2);
+	const folds = (names: string[]) => names.map((name) => `${name}: folds`);
+	const between = seats.slice(1, -1);
+	const lines = {
+		fold: [
+			...folds(['hero', ...between]),
+			`Uncalled bet ($0.05) returned to ${bigBlind}`,
+			`${bigBlind} collected $0.10 from pot`,
+		],
+		raise: [
+			'hero: raises $0.15 to $0.25',
+			...folds([...between, bigBlind]),
+			'Uncalled bet ($0.15) returned to hero',
+			'hero collected $0.25 from pot',
+		],
+		cbet: [
+			'hero: raises $0.15 to $0.25',
+			...folds(between),
+			`${bigBlind}: calls $0.15`,
+			'*** FLOP *** [Kd 7s 2c]',
+			`${bigBlind}: checks`,
+			'hero: bets $0.30',
+			`${bigBlind}: folds`,
+			'Uncalled bet ($0.30) returned to hero',
+			'hero collected $0.55 from pot',
+		],
+	}[action];
+	return handText({
+		id,
+		heroCards,
+		button: Math.max(1, players - 2),
+		seats,
+		max: players > 6 ? 9 : 6,
+		lines: [
+			`${smallBlind}: posts small blind $0.05`,
+			`${bigBlind}: posts big blind $0.10`,
+			'*** HOLE CARDS ***',
+			...lines,
+		],
+		pot: { fold: '0.10', raise: '0.25', cbet: '0.55' }[action],
+		winner: action === 'fold' ? bigBlind : 'hero',
+	});
+}
+
+/**
+ * Nine-handed with the button in seat 4: p5 and p6 post, p7 to p9 are the three
+ * seats no chart covers and `hero` is the lojack, five players behind.
+ */
+export const BLINDS_NINE_HERO_LJ = [
+	'p5: posts small blind $0.05',
+	'p6: posts big blind $0.10',
+];
 
 /** Button in seat 6, so `hero` in seat 1 is the small blind and p2 the big. */
 export const BLINDS_HERO_SB = [

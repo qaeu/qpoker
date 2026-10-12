@@ -15,7 +15,14 @@ import {
 import { handTier, marginTier, TRASH_TIER } from '#utils/ranges/tiers';
 
 import emailed from '../../fixtures/emailed.txt?raw';
-import { BLINDS_HERO_BTN, BLINDS_HERO_SB, handText } from '../history/handText';
+import {
+	BLINDS_HERO_BTN,
+	BLINDS_HERO_SB,
+	BLINDS_NINE_HERO_LJ,
+	handText,
+	NINE_SEATS,
+	ringHand,
+} from '../history/handText';
 
 const cls = classFromName;
 
@@ -249,5 +256,96 @@ describe('classifying a preflop spot', () => {
 		);
 		expect(limped).toMatchObject({ scenario: 'vsLimp', limpers: 1, chart: null });
 		expect(limped.raiseToBb).toBe(3.5);
+	});
+});
+
+describe('spots at a fuller table', () => {
+	const firstSpot = (text: string) => {
+		const replay = replayHand(parseHistory(text)[0]);
+		return classifyPreflop(replay, decisionsOf(replay, 'hero')[0]);
+	};
+	const folds = (...names: string[]) => names.map((name) => `${name}: folds`);
+	/** Nine-handed, hero in the lojack behind p7, p8 and p9. */
+	const fromLojack = (before: string[], hero: string, after: string[], winner: string) =>
+		firstSpot(
+			handText({
+				heroCards: 'Ah Kh',
+				button: 4,
+				seats: NINE_SEATS,
+				max: 9,
+				lines: [...BLINDS_NINE_HERO_LJ, '*** HOLE CARDS ***', ...before, hero, ...after],
+				pot: '0.25',
+				winner,
+			})
+		);
+
+	describe('a seat earlier than any chart', () => {
+		it('reads UTG’s chart under its own name, at medium confidence', () => {
+			for (const [players, seat] of [
+				[7, 'UTG'],
+				[8, 'UTG'],
+				[9, 'UTG'],
+			] as const) {
+				expect(firstSpot(ringHand(players, 'Ah Kh', 'raise'))).toMatchObject({
+					scenario: 'rfi',
+					position: seat,
+					chart: 'rfiUtg',
+					standIn: 'hero',
+					confidence: 'medium',
+					label: 'UTG, first in',
+				});
+			}
+		});
+
+		it('softens the read on a raise that came from one', () => {
+			const spot = fromLojack(
+				['p7: folds', 'p8: raises $0.15 to $0.25', 'p9: folds'],
+				'hero: folds',
+				[
+					...folds('p2', 'p3', 'p4', 'p5', 'p6'),
+					'Uncalled bet ($0.15) returned to p8',
+					'p8 collected $0.25 from pot',
+				],
+				'p8'
+			);
+			expect(spot).toMatchObject({
+				scenario: 'vsOpen',
+				chart: 'ipVsEp',
+				standIn: 'villain',
+				confidence: 'medium',
+				label: 'LJ vs UTG+1, facing an open',
+			});
+		});
+	});
+
+	describe('a seat the charts do cover', () => {
+		it('gives the lojack UTG’s chart at full confidence', () => {
+			const spot = fromLojack(
+				folds('p7', 'p8', 'p9'),
+				'hero: raises $0.15 to $0.25',
+				[
+					...folds('p2', 'p3', 'p4', 'p5', 'p6'),
+					'Uncalled bet ($0.15) returned to hero',
+					'hero collected $0.25 from pot',
+				],
+				'hero'
+			);
+			expect(spot).toMatchObject({
+				position: 'LJ',
+				chart: 'rfiUtg',
+				standIn: null,
+				confidence: 'high',
+				label: 'LJ, first in',
+			});
+		});
+
+		it('leaves a six-handed UTG as it was', () => {
+			expect(firstSpot(ringHand(6, 'Ah Kh', 'raise'))).toMatchObject({
+				position: 'UTG',
+				chart: 'rfiUtg',
+				standIn: null,
+				confidence: 'high',
+			});
+		});
 	});
 });

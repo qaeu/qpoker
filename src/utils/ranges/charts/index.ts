@@ -7,7 +7,8 @@ import { parseRange, parseStrategy } from '../notation';
 import type { Range, Strategy } from '../range';
 import { DEEP, JAM_RANGES, LIMP_RANGE, MID, type ChartEntry, type ChartId } from './data';
 
-export type { ChartId } from './data';
+export { CHART_SEAT } from './data';
+export type { ChartId, ChartSeat } from './data';
 
 /** Under 30bb, 30 to 70bb, and deeper. */
 export type Depth = 'short' | 'mid' | 'deep';

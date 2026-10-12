@@ -8,12 +8,34 @@
  * for how to swap real solver ranges in: this file is the only place to change.
  */
 
+import type { Position } from '../../history/replay';
+
 export interface ChartEntry {
 	raise: string;
 	call: string;
 }
 
 export type ChartId = keyof typeof DEEP;
+
+/** The seats the charts are written for: a six-handed table's. */
+export type ChartSeat = 'UTG' | 'HJ' | 'CO' | 'BTN' | 'SB' | 'BB';
+
+/**
+ * The chart seat each table position reads. The lojack of a fuller table has
+ * five players behind, as a six-handed UTG does, and is that seat exactly. The
+ * seats before it have no chart: UTG's stands in, and is a little wide for them.
+ */
+export const CHART_SEAT: Record<Position, ChartSeat> = {
+	UTG: 'UTG',
+	'UTG+1': 'UTG',
+	'UTG+2': 'UTG',
+	LJ: 'UTG',
+	HJ: 'HJ',
+	CO: 'CO',
+	BTN: 'BTN',
+	SB: 'SB',
+	BB: 'BB',
+};
 
 /** 70bb and deeper. */
 export const DEEP = {

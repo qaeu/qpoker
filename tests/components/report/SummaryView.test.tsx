@@ -7,6 +7,7 @@ import { analyzeLog, type AnalysisReport } from '#utils/coach/report';
 import { TWO_HAND_LOG } from '../../integration/appHarness';
 import {
 	handText,
+	ringHand,
 	RIVER_HERO_CALL,
 	TOUGH_FOLD,
 	UNRECONCILED,
@@ -124,6 +125,18 @@ describe('SummaryView', () => {
 		it('say nothing of a frequency that is in line', () => {
 			render(() => <SummaryView report={withStat({ leak: null, opportunities: 40 })} />);
 			expect(reading()).toBe('');
+		});
+	});
+
+	describe('the table sizes', () => {
+		it('are listed under the frequencies, the fullest first', () => {
+			const mixed = analyzeLog([ringHand(9), ringHand(6), ringHand(6)].join('\n'));
+			render(() => <SummaryView report={mixed} />);
+			expect(
+				screen.getByText(
+					'Typical figures are weighted by table size: 9-handed 1 hand, 6-handed 2.'
+				)
+			).toBeTruthy();
 		});
 	});
 

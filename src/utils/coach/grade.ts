@@ -37,6 +37,10 @@ export interface PreflopFacts {
 	/** `AKo`. */
 	hand: string;
 	spot: string;
+	/** The kind of spot, which the Review list filters on. */
+	scenario: Scenario;
+	/** Set when UTG's chart stood in for a seat earlier than any chart. */
+	standIn?: 'hero' | 'villain';
 	effectiveBb: number;
 	/** The chart the spot was graded against, for showing the whole range. */
 	chart: ChartId | null;
@@ -50,6 +54,8 @@ export interface PreflopFacts {
 	suggestedRaiseToBb?: number;
 	/** Facing a shove: equity, the equity needed, and what a call is worth. */
 	equity?: number;
+	/** The ranges that equity was taken against. */
+	opponents?: number;
 	potOdds?: number;
 	callEvBb?: number;
 }
@@ -212,6 +218,7 @@ function gradeStackOff(
 	const stake = step.potBefore - uncovered + step.toCall;
 	const callEv = equity * stake * (1 - options.rake) - step.toCall;
 	facts.equity = equity;
+	facts.opponents = ranges.length;
 	facts.potOdds = step.toCall / stake;
 	facts.callEvBb = callEv / bb;
 
@@ -267,6 +274,8 @@ function gradePreflop(replay: Replay, step: Step, options: GradeOptions): Gradin
 	const facts: PreflopFacts = {
 		hand: className(cls),
 		spot: spot.label,
+		scenario: spot.scenario,
+		...(spot.standIn ? { standIn: spot.standIn } : {}),
 		effectiveBb: spot.effectiveBb,
 		chart: spot.chart,
 		depth: spot.depth,

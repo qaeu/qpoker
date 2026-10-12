@@ -5,15 +5,38 @@
  */
 
 import type { Card } from '../cards/cards';
+import { MAX_PLAYERS } from './hand';
 import type { Action, Hand, Street } from './hand';
 
-export type Position = 'UTG' | 'HJ' | 'CO' | 'BTN' | 'SB' | 'BB';
+/** Earliest to latest preflop, at a full ring of nine. */
+export const POSITIONS = [
+	'UTG',
+	'UTG+1',
+	'UTG+2',
+	'LJ',
+	'HJ',
+	'CO',
+	'BTN',
+	'SB',
+	'BB',
+] as const;
 
-/** Earliest to latest preflop. */
-export const POSITIONS: readonly Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+export type Position = (typeof POSITIONS)[number];
 
-/** Postflop the blinds act first and the button last. */
-const POSTFLOP_ORDER: readonly Position[] = ['SB', 'BB', 'UTG', 'HJ', 'CO', 'BTN'];
+/** The seats named from the big blind back, before the early ones. */
+const LATE: readonly Position[] = ['BB', 'SB', 'BTN', 'CO', 'HJ'];
+
+/** The early seats, first to act first, by how many there are. */
+const EARLY: readonly (readonly Position[])[] = [
+	[],
+	['UTG'],
+	['UTG', 'LJ'],
+	['UTG', 'UTG+1', 'LJ'],
+	['UTG', 'UTG+1', 'UTG+2', 'LJ'],
+];
+
+/** A seat with more players than this left to act is earlier than any chart. */
+const CHARTED_BEHIND = 5;
 
 export interface Layout {
 	/** Players dealt in, in preflop acting order: first to act first, BB last. */
@@ -21,6 +44,11 @@ export interface Layout {
 	positions: Record<string, Position>;
 	/** Stacks at the start of the hand. */
 	stacks: Record<string, number>;
+	/**
+	 * How many of `players`, from the front, sit earlier than the charts' UTG:
+	 * the seats a seventh, eighth and ninth player add.
+	 */
+	extra: number;
 }
 
 export interface Step {
@@ -79,6 +107,8 @@ function boardAt(hand: Hand, street: Street): Card[] {
 /**
  * Seats the hand's players by position. Positions are counted back from the
  * big blind, so a short-handed table loses its earliest seats, not its latest.
+ * Null when the hand has no big blind, fewer than two players or more than a
+ * full ring.
  */
 export function layoutOf(hand: Hand): Layout | null {
 	const acted = new Set(hand.actions.map((action) => action.player));
@@ -98,12 +128,27 @@ export function layoutOf(hand: Hand): Layout | null {
 	// Back from the big blind. A dead small blind leaves no SB seat, and heads-up
 	// the small blind is the button.
 	const hasSmallBlind = players.length > 2 && players.at(-2) === smallBlind;
-	const backwards: Position[] =
-		hasSmallBlind ? ['BB', 'SB', 'BTN', 'CO', 'HJ'] : ['BB', 'BTN', 'CO', 'HJ'];
-	for (let i = 0; i < players.length; i++) {
-		positions[players[players.length - 1 - i]] = backwards[i] ?? 'UTG';
-	}
-	return { players, positions, stacks };
+	const late = (hasSmallBlind ? LATE : LATE.filter((seat) => seat !== 'SB')).slice(
+		0,
+		players.length
+	);
+	const early = EARLY[players.length - late.length];
+	if (players.length > MAX_PLAYERS || !early) return null;
+	const names = [...early, ...late.toReversed()];
+	players.forEach((name, i) => (positions[name] = names[i]));
+	return {
+		players,
+		positions,
+		stacks,
+		extra: Math.max(0, players.length - 1 - CHARTED_BEHIND),
+	};
+}
+
+/** True when `player` sits earlier than the earliest seat the charts cover. */
+export function isExtraSeat(layout: Layout | null, player: string): boolean {
+	if (!layout) return false;
+	const index = layout.players.indexOf(player);
+	return index >= 0 && index < layout.extra;
 }
 
 /** Replays a hand into the steps its graders read. */
@@ -123,13 +168,15 @@ export function replayHand(hand: Hand): Replay {
 	let streetPot = 0;
 	let raises = 0;
 
+	// Postflop the blinds act first, then everyone else as they did preflop.
+	const isBlind = (name: string) =>
+		layout?.positions[name] === 'SB' || layout?.positions[name] === 'BB';
 	const order =
 		layout ?
-			[...layout.players].sort(
-				(a, b) =>
-					POSTFLOP_ORDER.indexOf(layout.positions[a])
-					- POSTFLOP_ORDER.indexOf(layout.positions[b])
-			)
+			[
+				...layout.players.filter(isBlind),
+				...layout.players.filter((name) => !isBlind(name)),
+			]
 		:	[];
 
 	hand.actions.forEach((action, index) => {

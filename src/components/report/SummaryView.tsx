@@ -9,7 +9,14 @@ import { For, Show, type Component } from 'solid-js';
 import StatBand, { type StatFigure } from '#c/common/StatBand';
 import { reviewHref } from '#utils/app/hashRoute';
 import type { AnalysisReport } from '#utils/coach/report';
-import { percent, readingOf, shortTime, signClass, signed } from '#utils/ui/format';
+import {
+	percent,
+	readingOf,
+	shortTime,
+	signClass,
+	signed,
+	tableSizesText,
+} from '#utils/ui/format';
 
 import '#styles/report/SummaryView';
 
@@ -196,6 +203,10 @@ const SummaryView: Component<SummaryViewProps> = (props) => {
 						typical figure for a balanced player instead. A frequency is flagged only when
 						the sample is large enough to bear it; a small one reads "too few to say"
 						rather than nothing.
+					</p>
+					<p class="summary-view__note">
+						Typical figures are weighted by table size:{' '}
+						{tableSizesText(session().tableSizes)}.
 					</p>
 				</div>
 			</div>

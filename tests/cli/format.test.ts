@@ -3,7 +3,12 @@ import { describe, it, expect } from 'vitest';
 import { formatReport } from '#cli/format';
 import { analyzeLog } from '#utils/coach/report';
 
-import { BLINDS_HERO_UTG, handText, TOUGH_FOLD } from '../utils/history/handText';
+import {
+	BLINDS_HERO_UTG,
+	handText,
+	ringHand,
+	TOUGH_FOLD,
+} from '../utils/history/handText';
 
 const folds = (...names: string[]) => names.map((name) => `${name}: folds`);
 
@@ -49,6 +54,23 @@ describe('the terminal report', () => {
 		expect(text).toMatch(/UTG\s+1\s+0%\s+100%\s+0/);
 		expect(text).toContain('Folded inside the chart: AA UTG #4242');
 		expect(text).not.toContain('Opened outside the chart');
+	});
+
+	describe('a fuller table', () => {
+		const full = analyzeLog([log, ringHand(9, 'As Kd', 'raise')].join('\n'));
+		const text = formatReport(full, OPTIONS);
+
+		it('lists the table sizes under the session', () => {
+			expect(text).toContain('Tables: 9-handed 1 hand, 6-handed 1.');
+			expect(formatReport(report, OPTIONS)).toContain('Tables: 6-handed 1 hand.');
+		});
+
+		it('says which first-in spots no chart covers', () => {
+			expect(text.replace(/\s+/g, ' ')).toContain(
+				'1 spots from seats before the lojack left out'
+			);
+			expect(formatReport(report, OPTIONS)).not.toContain('before the lojack');
+		});
 	});
 
 	it('uses no escape codes unless asked for colour', () => {

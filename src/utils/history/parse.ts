@@ -7,6 +7,7 @@
 
 import { parseCards } from '../cards/cards';
 import { decodeHistory } from './decode';
+import { MAX_PLAYERS } from './hand';
 import type { Action, Hand, Street } from './hand';
 
 /** The divider an emailed history puts between hands. */
@@ -210,6 +211,10 @@ function parseHand(lines: readonly string[]): Hand {
 			hand.table = match[1];
 			hand.maxSeats = Number(match[2]);
 			hand.buttonSeat = Number(match[3]);
+			if (hand.maxSeats > MAX_PLAYERS) {
+				hand.warnings.push(`Unsupported table size: ${hand.maxSeats}-max`);
+				hand.gradeable = false;
+			}
 		} else if (!dealt && (match = SEAT.exec(line))) {
 			hand.seats.push({
 				seat: Number(match[1]),

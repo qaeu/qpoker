@@ -12,6 +12,7 @@ import {
 	BLINDS_HERO_SB,
 	BLINDS_HERO_UTG,
 	handText,
+	ringHand,
 	TOUGH_FOLD,
 	type HandSpec,
 } from '../history/handText';
@@ -674,6 +675,41 @@ describe('good plays', () => {
 				winner: 'p2',
 			}).at(-1)!;
 			expect(fold).toMatchObject({ chosen: 'fold', mistake: null, goodPlay: null });
+		});
+	});
+});
+
+describe('what a preflop grade records', () => {
+	const first = (text: string) => {
+		const replay = replayHand(parseHistory(text)[0]);
+		return gradeDecision(replay, decisionsOf(replay, 'hero')[0], OPTIONS);
+	};
+
+	it('keeps the kind of spot, for the Review filter', () => {
+		expect(firstIn('As Kd', 'raise').preflop!.scenario).toBe('rfi');
+		const [open, facing] = grade(TOUGH_FOLD);
+		expect(open.preflop!.scenario).toBe('rfi');
+		expect(facing.preflop!.scenario).toBe('vs3bet');
+	});
+
+	describe('from a seat earlier than any chart', () => {
+		const early = first(ringHand(9, '7c 2d', 'raise'));
+
+		it('grades against UTG’s chart at medium confidence, and says so', () => {
+			expect(early).toMatchObject({
+				spot: 'UTG, first in',
+				confidence: 'medium',
+				mistake: 'open-loose',
+			});
+			expect(early.preflop).toMatchObject({ chart: 'rfiUtg', standIn: 'hero' });
+			expect(early.explanation).toContain('the UTG chart stands in');
+		});
+
+		it('says nothing of it at six players', () => {
+			const six = first(ringHand(6, '7c 2d', 'raise'));
+			expect(six.confidence).toBe('high');
+			expect(six.preflop!.standIn).toBeUndefined();
+			expect(six.explanation).not.toContain('stands in');
 		});
 	});
 });

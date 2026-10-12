@@ -152,6 +152,11 @@ const OpeningsView: Component<OpeningsViewProps> = (props) => {
 									{props.report.openings.shortStacked} spots under 30bb are left out: the
 									opening charts do not cover them.
 								</Show>
+								<Show when={props.report.openings.earlySeats > 0}>
+									{' '}
+									{props.report.openings.earlySeats} spots from seats before the lojack
+									are left out too: no chart is written for them.
+								</Show>
 							</p>
 
 							<h3 class="openings-view__subtitle">

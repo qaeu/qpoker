@@ -46,12 +46,20 @@ export interface PositionRow {
 	netBb: number;
 }
 
+/** How many of the hero's hands were dealt at one table size. */
+export interface TableSize {
+	players: number;
+	hands: number;
+}
+
 export interface SessionSummary {
 	hands: number;
 	netBb: number;
 	bbPer100: number;
 	stats: Stat[];
 	positions: PositionRow[];
+	/** The fullest table first. The typical baselines are weighted by this mix. */
+	tableSizes: TableSize[];
 }
 
 const LABELS: Record<StatId, string> = {
@@ -67,13 +75,28 @@ const LABELS: Record<StatId, string> = {
 	wonAtShowdown: 'Won at showdown',
 };
 
-/** Reference frequencies for a balanced 6-max player, where no chart applies. */
-const TYPICAL: Partial<Record<StatId, number>> = {
-	cbet: 0.6,
-	foldToCbet: 0.45,
-	wtsd: 0.28,
-	wonAtShowdown: 0.52,
+/** The table sizes a typical figure is kept for, by players dealt in. */
+const TABLE_BUCKETS = ['headsUp', 'short', 'sixMax', 'fullRing'] as const;
+
+type TableBucket = (typeof TABLE_BUCKETS)[number];
+
+/**
+ * Reference frequencies for a balanced player, where no chart applies, by
+ * table size: fewer players means wider ranges, more betting and more
+ * showdowns. Rules of thumb, not measurements. See docs/accuracy.md.
+ */
+const TYPICAL: Partial<Record<StatId, Record<TableBucket, number>>> = {
+	cbet: { headsUp: 0.66, short: 0.63, sixMax: 0.6, fullRing: 0.57 },
+	foldToCbet: { headsUp: 0.4, short: 0.43, sixMax: 0.45, fullRing: 0.48 },
+	wtsd: { headsUp: 0.32, short: 0.3, sixMax: 0.28, fullRing: 0.26 },
+	wonAtShowdown: { headsUp: 0.52, short: 0.52, sixMax: 0.52, fullRing: 0.52 },
 };
+
+const bucketOf = (players: number): TableBucket =>
+	players <= 2 ? 'headsUp'
+	: players <= 4 ? 'short'
+	: players <= 6 ? 'sixMax'
+	: 'fullRing';
 
 /** Opportunities below which a frequency is never called a leak. */
 export const MIN_SAMPLE = 10;
@@ -83,6 +106,22 @@ interface Tally {
 	count: number;
 	opportunities: number;
 	expected: number;
+}
+
+type Mix = Record<TableBucket, number>;
+
+const emptyMix = (): Mix => ({ headsUp: 0, short: 0, sixMax: 0, fullRing: 0 });
+
+/**
+ * A typical figure for a mix of table sizes: each size's figure weighted by
+ * the hands at it. One size alone gives its figure exactly.
+ */
+function typicalOf(figures: Record<TableBucket, number>, mix: Mix): number | null {
+	const present = TABLE_BUCKETS.filter((bucket) => mix[bucket] > 0);
+	if (present.length === 0) return null;
+	if (present.length === 1) return figures[present[0]];
+	const total = present.reduce((sum, bucket) => sum + mix[bucket], 0);
+	return present.reduce((sum, bucket) => sum + figures[bucket] * mix[bucket], 0) / total;
 }
 
 /** The chance a range takes an action, given per-hand frequencies for it. */
@@ -138,6 +177,19 @@ export function summariseSession(
 		])
 	);
 
+	// The table sizes behind each typical stat's own opportunities, and behind
+	// every hand dealt, which stands in for a stat that never came up.
+	const mixes = new Map<StatId, Mix>();
+	const dealt = emptyMix();
+	const sizes = new Map<number, number>();
+	let bucket: TableBucket = 'sixMax';
+	const addTypical = (id: StatId, hit: boolean) => {
+		const mix = mixes.get(id) ?? emptyMix();
+		mix[bucket]++;
+		mixes.set(id, mix);
+		add(id, hit);
+	};
+
 	let hands = 0;
 	let netBb = 0;
 
@@ -145,6 +197,9 @@ export function summariseSession(
 		const { hand, layout } = replay;
 		if (!layout || !(hero in layout.positions)) continue;
 		hands++;
+		bucket = bucketOf(layout.players.length);
+		dealt[bucket]++;
+		sizes.set(layout.players.length, (sizes.get(layout.players.length) ?? 0) + 1);
 		const bb = hand.stakes.bigBlind;
 		const net = (replay.net[hero] ?? 0) / bb;
 		netBb += net;
@@ -200,19 +255,19 @@ export function summariseSession(
 		)?.action.player;
 		const flop = decisions.find((step) => step.street === 'flop');
 		if (flop && aggressor === hero && flop.raisesBefore === 0) {
-			add('cbet', flop.action.kind === 'bet');
+			addTypical('cbet', flop.action.kind === 'bet');
 		}
 		if (flop && aggressor && aggressor !== hero && flop.raisesBefore === 1) {
 			const bettor = replay.steps.find(
 				(step) => step.street === 'flop' && step.action.kind === 'bet'
 			)?.action.player;
-			if (bettor === aggressor) add('foldToCbet', flop.action.kind === 'fold');
+			if (bettor === aggressor) addTypical('foldToCbet', flop.action.kind === 'fold');
 		}
 
 		const folded = decisions.some((step) => step.action.kind === 'fold');
 		const showdown = !folded && Object.keys(hand.shown).length > 0;
-		add('wtsd', showdown);
-		if (showdown) add('wonAtShowdown', (hand.won[hero] ?? 0) > 0);
+		addTypical('wtsd', showdown);
+		if (showdown) addTypical('wonAtShowdown', (hand.won[hero] ?? 0) > 0);
 	}
 
 	const stats = (Object.keys(LABELS) as StatId[]).map((id): Stat => {
@@ -220,7 +275,8 @@ export function summariseSession(
 		const typical = TYPICAL[id];
 		const value = opportunities > 0 ? count / opportunities : null;
 		const baseline =
-			typical !== undefined ? typical
+			typical !== undefined ?
+				(typicalOf(typical, mixes.get(id) ?? dealt) ?? typical.sixMax)
 			: opportunities > 0 ? expected / opportunities
 			: null;
 		return {
@@ -241,5 +297,8 @@ export function summariseSession(
 		bbPer100: hands > 0 ? (netBb / hands) * 100 : 0,
 		stats,
 		positions: [...rows.values()].filter((row) => row.hands > 0),
+		tableSizes: [...sizes.entries()]
+			.sort((a, b) => b[0] - a[0])
+			.map(([players, count]) => ({ players, hands: count })),
 	};
 }

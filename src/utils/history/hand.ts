@@ -10,6 +10,9 @@ export type Street = 'preflop' | 'flop' | 'turn' | 'river';
 
 export const STREETS: readonly Street[] = ['preflop', 'flop', 'turn', 'river'];
 
+/** A full ring: the largest table a hand is seated and graded at. */
+export const MAX_PLAYERS = 9;
+
 export type ActionKind =
 	'post-sb' | 'post-bb' | 'post-dead' | 'fold' | 'check' | 'call' | 'bet' | 'raise';
 

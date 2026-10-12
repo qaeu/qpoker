@@ -5,7 +5,14 @@ import { analyzeLog } from '#utils/coach/report';
 import { parseHistory } from '#utils/history/parse';
 import { replayHand } from '#utils/history/replay';
 
-import { BLINDS_HERO_BTN, BLINDS_HERO_UTG, handText } from '../history/handText';
+import {
+	BLINDS_HERO_BTN,
+	BLINDS_HERO_UTG,
+	BLINDS_NINE_HERO_LJ,
+	handText,
+	NINE_SEATS,
+	ringHand,
+} from '../history/handText';
 
 const folds = (...names: string[]) => names.map((name) => `${name}: folds`);
 
@@ -119,7 +126,44 @@ describe('opening ranges', () => {
 
 		it('leaves out and counts a stack under 30bb', () => {
 			const summary = openings(firstIn('As Kd', 'raise', 2));
-			expect(summary).toEqual({ rows: [], shortStacked: 1 });
+			expect(summary).toEqual({ rows: [], shortStacked: 1, earlySeats: 0 });
+		});
+
+		it('leaves out and counts a seat earlier than any chart', () => {
+			const summary = openings(
+				ringHand(9, 'As Kd', 'raise'),
+				ringHand(7, 'As Kd', 'raise'),
+				ringHand(6, 'As Kd', 'raise')
+			);
+			expect(summary.earlySeats).toBe(2);
+			expect(summary.rows.map((row) => [row.position, row.spots])).toEqual([['UTG', 1]]);
+		});
+
+		it('gives the lojack of a full ring a row of its own on UTG’s chart', () => {
+			const lojack = handText({
+				heroCards: 'As Kd',
+				button: 4,
+				seats: NINE_SEATS,
+				max: 9,
+				lines: [
+					...BLINDS_NINE_HERO_LJ,
+					'*** HOLE CARDS ***',
+					...folds('p7', 'p8', 'p9'),
+					'hero: raises $0.15 to $0.25',
+					...folds('p2', 'p3', 'p4', 'p5', 'p6'),
+					'Uncalled bet ($0.15) returned to hero',
+					'hero collected $0.25 from pot',
+				],
+				pot: '0.25',
+				winner: 'hero',
+			});
+			const summary = openings(lojack);
+			expect(summary.earlySeats).toBe(0);
+			expect(summary.rows[0]).toMatchObject({
+				position: 'LJ',
+				chart: 'rfiUtg',
+				spots: 1,
+			});
 		});
 
 		it('needs the hero’s cards', () => {

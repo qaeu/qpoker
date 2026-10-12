@@ -56,6 +56,11 @@ export interface OpeningSummary {
 	rows: OpeningRow[];
 	/** First-in spots under 30bb, which the opening charts do not cover. */
 	shortStacked: number;
+	/**
+	 * First-in spots from a seat earlier than any chart, at seven players or
+	 * more. UTG's chart only stands in there, so they are left out as well.
+	 */
+	earlySeats: number;
 }
 
 interface Tally extends Omit<OpeningRow, 'hands' | 'leak'> {
@@ -69,6 +74,7 @@ export function summariseOpenings(
 ): OpeningSummary {
 	const tallies = new Map<Position, Tally>();
 	let shortStacked = 0;
+	let earlySeats = 0;
 
 	for (const replay of replays) {
 		const { hand } = replay;
@@ -81,6 +87,10 @@ export function summariseOpenings(
 		if (spot.position === 'BB') continue;
 		if (spot.depth === 'short') {
 			shortStacked++;
+			continue;
+		}
+		if (spot.standIn === 'hero') {
+			earlySeats++;
 			continue;
 		}
 
@@ -149,5 +159,5 @@ export function summariseOpenings(
 		];
 	});
 
-	return { rows, shortStacked };
+	return { rows, shortStacked, earlySeats };
 }

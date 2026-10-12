@@ -101,8 +101,15 @@ describe('OpeningsView', () => {
 		});
 	});
 
+	it('says how many spots came from seats no chart covers', () => {
+		mount({ ...report, openings: { ...report.openings, earlySeats: 3 } });
+		expect(
+			screen.getByText(/3 spots from seats before the lojack are left out too/)
+		).toBeTruthy();
+	});
+
 	it('says so when the hero was never first in', () => {
-		mount({ ...report, openings: { rows: [], shortStacked: 0 } });
+		mount({ ...report, openings: { rows: [], shortStacked: 0, earlySeats: 0 } });
 		expect(screen.getByText(/there are no opening ranges to show/)).toBeTruthy();
 	});
 });

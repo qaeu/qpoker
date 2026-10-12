@@ -5,7 +5,7 @@ import { decodeHistory, isQuotedPrintable } from '#utils/history/decode';
 import { parseHistory } from '#utils/history/parse';
 
 import emailed from '../../fixtures/emailed.txt?raw';
-import { BLINDS_HERO_UTG, handText } from './handText';
+import { BLINDS_HERO_UTG, handText, ringHand } from './handText';
 
 describe('decoding', () => {
 	it('recognises a quoted-printable export', () => {
@@ -166,5 +166,27 @@ describe('parsing a network skin', () => {
 			'*** HOLE CARDS ***\np2 said, "Betfair Hand #12: was mine"'
 		);
 		expect(parseHistory(chatty)).toHaveLength(1);
+	});
+});
+
+describe('parsing a fuller table', () => {
+	it('reads a nine-max hand with a seat sitting out', () => {
+		const text = ringHand(9)
+			.replace('Seat 4: p4 ($10 in chips)', 'Seat 4: p4 ($10 in chips) is sitting out')
+			.replace('p4: folds\n', '');
+		const [hand] = parseHistory(text);
+		expect(hand.maxSeats).toBe(9);
+		expect(hand.seats).toHaveLength(9);
+		expect(hand.seats.filter((seat) => seat.sittingOut).map((seat) => seat.name)).toEqual(
+			['p4']
+		);
+		expect(hand.warnings).toEqual([]);
+		expect(hand.gradeable).toBe(true);
+	});
+
+	it('does not grade a table of more than nine', () => {
+		const [hand] = parseHistory(ringHand(9).replace('9-max', '10-max'));
+		expect(hand.gradeable).toBe(false);
+		expect(hand.warnings).toEqual(['Unsupported table size: 10-max']);
 	});
 });

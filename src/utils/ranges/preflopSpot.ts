@@ -5,23 +5,27 @@
  * range, so the two can never disagree about what a spot was.
  */
 
+import { isExtraSeat } from '../history/replay';
 import type { Replay, Position, Step } from '../history/replay';
 import { CLASS_COUNT } from '../cards/combos';
-import { chart, depthOf, hasOwnChart, jamRange, limpRange, type ChartId } from './charts';
-import type { Depth, JamId } from './charts';
+import { chart, CHART_SEAT, depthOf, hasOwnChart, jamRange, limpRange } from './charts';
+import type { ChartId, ChartSeat, Depth, JamId } from './charts';
 import { emptyRange, fullRange, multiplyRanges, rangeCombos } from './range';
 import type { Range, Strategy } from './range';
 
-export type Scenario =
-	| 'rfi'
-	| 'vsLimp'
-	| 'vsOpen'
-	| 'squeeze'
-	| 'vs3bet'
-	| 'cold4bet'
-	| 'vs4bet'
-	| 'vs5bet'
-	| 'limpedVsRaise';
+export const SCENARIOS = [
+	'rfi',
+	'vsLimp',
+	'vsOpen',
+	'squeeze',
+	'vs3bet',
+	'cold4bet',
+	'vs4bet',
+	'vs5bet',
+	'limpedVsRaise',
+] as const;
+
+export type Scenario = (typeof SCENARIOS)[number];
 
 export type Confidence = 'high' | 'medium' | 'low';
 
@@ -36,6 +40,11 @@ export interface PreflopSpot {
 	chart: ChartId | null;
 	strategy: Strategy;
 	confidence: Confidence;
+	/**
+	 * Whose seat is earlier than any chart, so that UTG's stood in for it: the
+	 * player's own, or a raiser's. Null at six players or fewer.
+	 */
+	standIn: 'hero' | 'villain' | null;
 	/** Calling puts the player all-in, or the raiser already is: call or fold. */
 	facingAllIn: boolean;
 	/** Raises, limps, and calls of the last raise, before this action. */
@@ -48,7 +57,7 @@ export interface PreflopSpot {
 	raiseToBb: number | null;
 }
 
-const SCENARIO_NAMES: Record<Scenario, string> = {
+export const SCENARIO_NAMES: Record<Scenario, string> = {
 	rfi: 'first in',
 	vsLimp: 'facing a limp',
 	vsOpen: 'facing an open',
@@ -60,7 +69,7 @@ const SCENARIO_NAMES: Record<Scenario, string> = {
 	limpedVsRaise: 'raised after limping',
 };
 
-const EARLIER: Record<Position, Position> = {
+const EARLIER: Record<ChartSeat, ChartSeat> = {
 	UTG: 'UTG',
 	HJ: 'UTG',
 	CO: 'HJ',
@@ -69,7 +78,7 @@ const EARLIER: Record<Position, Position> = {
 	BB: 'CO',
 };
 
-const RFI_CHART: Record<Position, ChartId> = {
+const RFI_CHART: Record<ChartSeat, ChartId> = {
 	UTG: 'rfiUtg',
 	HJ: 'rfiHj',
 	CO: 'rfiCo',
@@ -79,7 +88,9 @@ const RFI_CHART: Record<Position, ChartId> = {
 };
 
 /** The chart for a seat facing a single open from another. */
-function vsOpenChart(hero: Position, opener: Position): ChartId {
+function vsOpenChart(heroSeat: Position, openerSeat: Position): ChartId {
+	const hero = CHART_SEAT[heroSeat];
+	const opener = CHART_SEAT[openerSeat];
 	if (hero === 'BB') {
 		return (
 			opener === 'UTG' ? 'bbVsUtg'
@@ -102,7 +113,8 @@ function vsOpenChart(hero: Position, opener: Position): ChartId {
 }
 
 /** The chart for an opener facing a 3-bet. */
-function vs3betChart(hero: Position, threeBettor: Position): ChartId {
+function vs3betChart(heroSeat: Position, threeBettor: Position): ChartId {
+	const hero = CHART_SEAT[heroSeat];
 	const blinds = threeBettor === 'SB' || threeBettor === 'BB';
 	if (hero === 'BTN') return 'btnVs3bet';
 	if (hero === 'SB') return 'sbVs3bet';
@@ -112,7 +124,7 @@ function vs3betChart(hero: Position, threeBettor: Position): ChartId {
 
 /** Iso-raise like the seat before, or limp along with hands that play well multiway. */
 function vsLimpStrategy(position: Position): Strategy {
-	const raise = chart(RFI_CHART[EARLIER[position]]).raise;
+	const raise = chart(RFI_CHART[EARLIER[CHART_SEAT[position]]]).raise;
 	const call = emptyRange();
 	const along = chart('overLimp').call;
 	for (let cls = 0; cls < CLASS_COUNT; cls++)
@@ -164,7 +176,7 @@ export function classifyPreflop(replay: Replay, step: Step): PreflopSpot {
 
 	if (raises === 0 && limpers === 0) {
 		scenario = 'rfi';
-		chartId = RFI_CHART[position];
+		chartId = RFI_CHART[CHART_SEAT[position]];
 		strategy = chart(chartId, depth);
 	} else if (raises === 0) {
 		scenario = 'vsLimp';
@@ -193,7 +205,7 @@ export function classifyPreflop(replay: Replay, step: Step): PreflopSpot {
 		strategy = chart(chartId, depth);
 	} else if (raises === 3 && madeLastButOne) {
 		scenario = 'vs4bet';
-		const opener = layout?.positions[raisers[0]] ?? 'UTG';
+		const opener = CHART_SEAT[layout?.positions[raisers[0]] ?? 'UTG'];
 		chartId = opener === 'UTG' || opener === 'HJ' ? 'vs4betTight' : 'vs4betWide';
 		strategy = chart(chartId, depth);
 	} else if (raises === 4 && madeLastButOne) {
@@ -212,6 +224,11 @@ export function classifyPreflop(replay: Replay, step: Step): PreflopSpot {
 	if (chartId && !hasOwnChart(chartId, depth) && depth === 'mid' && raises >= 2) {
 		soften('medium');
 	}
+	const standIn =
+		isExtraSeat(layout, player) ? 'hero'
+		: raisers.some((name) => name !== player && isExtraSeat(layout, name)) ? 'villain'
+		: null;
+	if (standIn) soften('medium');
 
 	const villainStep =
 		villain ? before.findLast((s) => s.action.player === villain) : null;
@@ -251,6 +268,7 @@ export function classifyPreflop(replay: Replay, step: Step): PreflopSpot {
 		chart: chartId,
 		strategy,
 		confidence,
+		standIn,
 		facingAllIn,
 		raises,
 		limpers,

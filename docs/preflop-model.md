@@ -70,6 +70,33 @@ marked low.
 The same classifier serves the hero's grade and every opponent's range, so the two can
 never disagree about what a spot was.
 
+## Fuller tables
+
+The charts are six-handed, and what a chart is really written for is the number of
+players left to act. `CHART_SEAT` in `charts/data.ts` maps each table position to the
+chart seat it reads, so the mapping is data like the ranges.
+
+- **The lojack is UTG's chart exactly.** At seven to nine players the lojack has five
+  players behind, which is the six-handed UTG seat under another name. Its findings keep
+  full confidence.
+- **UTG, UTG+1 and UTG+2 at seven to nine players have no chart.** UTG's stands in, and
+  is too wide for them: a nine-handed UTG opens perhaps 10 to 12% of hands where this
+  chart opens 17%. The spot is marked `standIn: 'hero'`, its confidence is lowered to
+  medium, and the explanation says a stand-in was used. The same is done, as
+  `standIn: 'villain'`, when a raise the player faces came from such a seat: the range
+  assumed for it is too wide, so a fold looks worse and a call better than it is.
+- **Why medium and not low:** the direction of the error is known and it is small against
+  the size of most findings. A hand well outside UTG's chart is outside a tighter one
+  too, so "opened too loose" holds; a hand at the chart's edge is where the stand-in
+  misleads, and "Mixed hands" already lets the edge through. What it cannot do is call an
+  open too tight with any authority, which is what medium says.
+- **Labels keep the true seat** (`UTG+1, first in`), so the reader sees where they sat.
+- Six players and fewer are untouched: a short-handed table already loses its earliest
+  seats, and the seat left first to act has the right number of players behind.
+
+The proper fix is nine-handed charts in `data.ts`, at which point `CHART_SEAT` becomes
+the identity for those seats and `standIn` goes away.
+
 ## Stack depth
 
 Three buckets by effective stack: **deep** (70bb and up), **mid** (30 to 70bb), **short**

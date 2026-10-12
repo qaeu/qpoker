@@ -50,7 +50,7 @@ carries on, so one odd line costs a note in the report rather than the file.
 - **Shown cards** are read from showdown lines and from the summary's `showed` /
   `mucked`.
 - **Not graded:** anything that is not No-Limit Hold'em, tournaments, antes and
-  straddles, run-it-twice. Those hands are parsed and counted, marked
+  straddles, run-it-twice, a table of more than nine. Those hands are parsed and counted, marked
   `gradeable: false`, and say why in `warnings`.
 
 Table chatter (`joins the table`, `has timed out`, `said, "..."`, `will be allowed to
@@ -62,15 +62,27 @@ play after the button`) is recognised and ignored.
 records a `Step` per action: the pot before it, the price to call, the actor's stack, the
 bets and raises so far on the street, who is still live, and the effective stack.
 
-- **Positions are counted back from the big blind**: BB, SB, BTN, CO, HJ, UTG. A
+- **Positions are counted back from the big blind**: BB, SB, BTN, CO, HJ. A
   short-handed table loses its earliest seats. Heads-up the small blind is the button. A
-  dead small blind leaves no SB seat. The dealt-in players are those who posted or acted,
-  which excludes a seat that is sitting out or waiting for the button.
+  dead small blind leaves no SB seat.
+- **The seats before the hijack are named by how many there are**: one is UTG, two are
+  UTG and LJ, three UTG, UTG+1 and LJ, four UTG, UTG+1, UTG+2 and LJ. So a six-handed
+  table is UTG, HJ, CO, BTN, SB, BB as it always was, and no seat is ever named twice.
+  More than nine players dealt in have no layout and the hand is not graded.
+- **`Layout.extra`** counts the seats with more than five players left to act, which is
+  more than any chart was written for: none at six players, one at seven, three at nine.
+  See "Fuller tables" in [preflop-model.md](./preflop-model.md).
+- **The dealt-in players are those who posted or acted**, which excludes a seat that is
+  sitting out or waiting for the button. The table's size is that count, hand by hand,
+  not the `N-max` in the header: a nine-max table with three seats away is a six-handed
+  hand. `Seat.sittingOut` records the flag and decides nothing.
 - **`toCall` is capped at the actor's stack**, so a shove for more than they have is
   priced at what they can lose.
 - **`effectiveStack`** is the smaller of the actor's stack and the deepest live
   opponent's, as they stood at the start of the street.
-- **`live` is in postflop acting order**, so the last name is the player in position.
+- **`live` is in postflop acting order**, so the last name is the player in position:
+  the blinds first, then everyone else in the order they acted preflop. The order is
+  taken from the seating, not from the seats' names.
 
 ### Reconciliation
 

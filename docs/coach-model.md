@@ -153,6 +153,23 @@ For the postflop ones (c-bet, fold to c-bet, showdowns) there is no chart, and t
 baseline is a typical figure for a balanced player. The report marks these with an
 asterisk.
 
+The typical figure depends on how many players were dealt in, since fewer players means
+wider ranges, more pots taken down with a bet and more showdowns reached:
+
+| Stat               | 2    | 3–4  | 5–6  | 7–9  |
+| ------------------ | ---- | ---- | ---- | ---- |
+| Flop c-bet         | 0.66 | 0.63 | 0.60 | 0.57 |
+| Fold to flop c-bet | 0.40 | 0.43 | 0.45 | 0.48 |
+| Went to showdown   | 0.32 | 0.30 | 0.28 | 0.26 |
+| Won at showdown    | 0.52 | 0.52 | 0.52 | 0.52 |
+
+A session's baseline is these **weighted by the table sizes the stat's own opportunities
+came at**, so a c-bet baseline is made of the hands where there was a c-bet to make. A
+stat that never came up takes the mix of all hands dealt. There is one set of statistics,
+not one per table size: a hundred hands split four ways would say nothing. `tableSizes`
+lists the mix, and both front ends print it under the table. The figures are rules of
+thumb; see [accuracy.md](./accuracy.md).
+
 **A leak is called only when the sample can bear it**: at least ten opportunities, and a
 gap of more than eight points and more than two standard errors of a sample that size.
 Three opens out of three says nothing; twenty out of twenty does. Even so, a hundred
@@ -179,6 +196,10 @@ not read as playing too loose.
 - **Spots under 30bb are left out** and counted. There are no short-stack charts (see
   [preflop-model.md](./preflop-model.md)), and a 20bb stack measured against a 100bb
   opening range would be a wrong answer rather than a low-confidence one.
+- **Seats earlier than any chart are left out** and counted (`earlySeats`), for the same
+  reason: at seven to nine players UTG's chart only stands in for the seats before the
+  lojack, and a row measured against a stand-in would flag a correct, tighter range as
+  too tight. The lojack has its own row, on UTG's chart, which is its chart.
 - **The big blind has no row.** It is only "first in" over a posted blind that checked,
   which is not an opening spot.
 

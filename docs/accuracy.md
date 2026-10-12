@@ -39,6 +39,27 @@ Not fixed, because they are choices of model or of chart data and not code disag
 with its doc: the multiway fold share in finding 10, the 12-combo threshold in finding 9,
 and the limp chart in the last row of finding 14. Changes A and C to K stand as written.
 
+### Fuller tables, added in version 6
+
+Tables of seven to nine players are graded from version 6. None of it was measured: the
+sample logs have no hand above six players, and the figures above describe six-max play
+only.
+
+- **The seats before the lojack are graded on a stand-in.** UTG's six-handed chart is a
+  third or so too wide for a nine-handed UTG. Those findings are marked medium, not high.
+  Expect "opened too loose" to be under-reported there and "folded a standard open" to be
+  over-reported at the chart's edge. The same widening applies to an opponent's range
+  when they raised from such a seat, which carries into every postflop equity in the
+  hand; that is not flagged beyond the preflop decision.
+- **The baselines run a little wide at nine players.** The chart-derived session
+  frequencies (VPIP, PFR, raise first in) average the stand-in chart over those seats, so
+  a sound full-ring player reads slightly tight against them.
+- **The typical figures by table size are rules of thumb.** The 5–6 column is the one
+  the tool has always used; the others were set by reasoning about direction (fewer
+  players, wider ranges, more c-bets and showdowns) and not from data or a solver. A
+  leak flagged against a typical figure at a table size other than five or six deserves
+  less weight than one at six-max.
+
 ## What was measured and how
 
 The "GTO baseline" is three things of different reliability, and each was tested against

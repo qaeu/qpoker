@@ -58,9 +58,11 @@ filters and the open hand are in the address, so a view can be linked or reloade
 ## What it reads
 
 PokerStars text histories, either saved by the client or requested by email (those arrive
-quoted-printable, which is decoded). No-Limit Hold'em cash games at tables of two to six
-players; a fuller table is graded with the earliest seat's charts. Other games are parsed
-and counted but not graded.
+quoted-printable, which is decoded). No-Limit Hold'em cash games at tables of two to nine
+players, counted by who was dealt in, so a seat sitting out does not shift the positions.
+The charts are six-handed: at seven to nine players the seats before the lojack are graded
+on the earliest chart at lower confidence. Other games are parsed and counted but not
+graded.
 
 ## How far to trust it
 

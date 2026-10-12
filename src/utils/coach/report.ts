@@ -17,7 +17,7 @@ import { MISTAKES, type MistakeType } from './mistakes';
 import { summariseOpenings, type OpeningSummary } from './openings';
 import { summariseSession, type SessionSummary } from './session';
 
-export const REPORT_VERSION = 5;
+export const REPORT_VERSION = 6;
 
 export interface AnalysisOptions {
 	/** Defaults to the player the log was dealt to. */

@@ -12,7 +12,7 @@ import { parseHistory } from '#utils/history/parse';
 import { replayHand } from '#utils/history/replay';
 
 import emailed from '../../fixtures/emailed.txt?raw';
-import { BLINDS_HERO_UTG, handText, TOUGH_FOLD } from '../history/handText';
+import { BLINDS_HERO_UTG, handText, ringHand, TOUGH_FOLD } from '../history/handText';
 
 const folds = (...names: string[]) => names.map((name) => `${name}: folds`);
 
@@ -85,7 +85,7 @@ describe('the report', () => {
 		const stackOff = report.hands.at(-1)!;
 
 		it('is at the version that added it', () => {
-			expect(REPORT_VERSION).toBe(5);
+			expect(REPORT_VERSION).toBe(6);
 		});
 
 		it('seats the players in acting order with their stacks in cents', () => {
@@ -228,5 +228,56 @@ describe('session frequencies', () => {
 		expect(stat(session(3, 'As Kd', true), 'rfi').leak).toBeNull();
 		expect(stat(session(20, 'As Kd', true), 'rfi').leak).toBe('high');
 		expect(stat(session(40, '7c 2d', false), 'rfi').leak).toBe('low');
+	});
+});
+
+describe('typical figures by table size', () => {
+	const summary = (...players: number[]) =>
+		summariseSession(
+			parseHistory(
+				players.map((count) => ringHand(count, 'As Kd', 'cbet')).join('\n')
+			).map(replayHand),
+			'hero'
+		);
+	const baseline = (session: ReturnType<typeof summary>, id: string) =>
+		session.stats.find((stat) => stat.id === id)!.baseline;
+
+	it('are the six-max ones at a table of five or six', () => {
+		const session = summary(6, 6, 5);
+		expect(baseline(session, 'cbet')).toBe(0.6);
+		expect(baseline(session, 'foldToCbet')).toBe(0.45);
+		expect(baseline(session, 'wtsd')).toBe(0.28);
+		expect(baseline(session, 'wonAtShowdown')).toBe(0.52);
+	});
+
+	it('shift with the table: more betting short-handed, less at a full ring', () => {
+		expect(baseline(summary(3), 'cbet')).toBe(0.63);
+		expect(baseline(summary(9), 'cbet')).toBe(0.57);
+		expect(baseline(summary(9), 'wtsd')).toBe(0.26);
+	});
+
+	it('are weighted by the tables the stat came up at', () => {
+		// Three c-bet spots six-handed and one nine-handed.
+		const session = summary(6, 6, 6, 9);
+		expect(baseline(session, 'cbet')).toBeCloseTo((3 * 0.6 + 0.57) / 4);
+		expect(baseline(session, 'wtsd')).toBeCloseTo((3 * 0.28 + 0.26) / 4);
+	});
+
+	it('fall back to the hands dealt for a stat that never came up', () => {
+		const session = summary(6, 9);
+		expect(session.stats.find((stat) => stat.id === 'foldToCbet')!.opportunities).toBe(0);
+		expect(baseline(session, 'foldToCbet')).toBeCloseTo((0.45 + 0.48) / 2);
+	});
+
+	it('list the table sizes, the fullest first', () => {
+		expect(summary(6, 9, 6, 3).tableSizes).toEqual([
+			{ players: 9, hands: 1 },
+			{ players: 6, hands: 2 },
+			{ players: 3, hands: 1 },
+		]);
+		expect(analyzeLog(emailed).session.tableSizes).toEqual([
+			{ players: 6, hands: 2 },
+			{ players: 5, hands: 2 },
+		]);
 	});
 });

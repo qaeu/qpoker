@@ -8,6 +8,7 @@ import { GOOD_PLAYS } from '#utils/coach/goodPlays';
 import type { Grading } from '#utils/coach/grade';
 import { MISTAKES, SEVERITIES, type Severity } from '#utils/coach/mistakes';
 import type { OpeningSummary } from '#utils/coach/openings';
+import { tableSizesText } from '#utils/ui/format';
 import { STREETS } from '#utils/history/hand';
 import type { PreflopChoice } from '#utils/ranges/range';
 
@@ -179,11 +180,15 @@ function openingLines(openings: OpeningSummary, paint: Paint): string[] {
 		openings.shortStacked > 0 ?
 			` ${openings.shortStacked} spots under 30bb left out.`
 		:	'';
+	const early =
+		openings.earlySeats > 0 ?
+			` ${openings.earlySeats} spots from seats before the lojack left out: no chart covers them.`
+		:	'';
 	out.push(
-		paint(
-			'dim',
-			`  Folded to you. Chart: what the seat's chart opens with the cards you held.${short}`
-		)
+		...wrap(
+			`Folded to you. Chart: what the seat's chart opens with the cards you held.${short}${early}`,
+			'  '
+		).map((line) => paint('dim', line))
 	);
 	for (const { chosen, label } of DEVIATIONS) {
 		const strays = openings.rows.flatMap((row) =>
@@ -250,6 +255,7 @@ export function formatReport(report: AnalysisReport, options: FormatOptions): st
 			'dim',
 			'  Baseline: what the charts do in the spots you were in. * a typical figure.'
 		),
+		paint('dim', `  Tables: ${tableSizesText(session.tableSizes)}.`),
 		''
 	);
 
