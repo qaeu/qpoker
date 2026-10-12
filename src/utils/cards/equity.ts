@@ -5,7 +5,8 @@
  * Against one range the opponent's combos are always enumerated in full, and
  * the board is enumerated too when one card or none is left to come. With more
  * cards to come, or more than one opponent, the runouts are sampled from a
- * seeded stream, so a result is reproducible to the last digit.
+ * seeded stream, so a result is reproducible to the last digit. `sampleEquity`
+ * is the simulation on its own, for a quick figure against any number of ranges.
  */
 
 import { mulberry32 } from '../app/rng';
@@ -156,22 +157,23 @@ function sampleCombo(sampler: Sampler, random: () => number): number {
 const MAX_REDRAWS = 20;
 
 /**
- * Equity against any number of ranges at once, by simulation. Every opponent's
- * hand is drawn from their own range and a deal where two hands share a card
- * is thrown away, which is the joint distribution; drawing them one after
- * another is not. A tie counts for the share of the pot it wins.
+ * Equity against one range or several by simulation alone: `deals` whole deals,
+ * each a hand per opponent and a runout. Every opponent's hand is drawn from
+ * their own range and a deal where two hands share a card is thrown away, which
+ * is the joint distribution; drawing them one after another is not. A tie
+ * counts for the share of the pot it wins.
  */
-export function equityVsRanges(
+export function sampleEquity(
 	hero: readonly Card[],
 	board: readonly Card[],
 	villains: readonly ComboRange[],
-	options: EquityOptions = {}
+	deals: number,
+	seed: number = DEFAULT_SEED
 ): Equity {
 	if (villains.length === 0) return { equity: 1, win: 1, tie: 0 };
-	if (villains.length === 1) return equityVsRange(hero, board, villains[0], options);
 
-	const random = mulberry32(options.seed ?? DEFAULT_SEED);
-	const samples = (options.samples ?? DEFAULT_SAMPLES) * 10;
+	const random = mulberry32(seed);
+	const samples = deals;
 	const seven: Card[] = new Array(7);
 	let win = 0;
 	let tie = 0;
@@ -185,28 +187,32 @@ export function equityVsRanges(
 	}
 	const hands: number[] = new Array(villains.length);
 
+	// One mask of dealt cards, reset each deal: this loop is the readout's cost.
+	const taken = new Uint8Array(52);
+	for (const card of known) taken[card] = 1;
+	const dead = new Uint8Array(52);
+	for (let i = 0; i < board.length; i++) seven[i] = board[i];
+
 	for (let n = 0; n < samples * MAX_REDRAWS && total < samples; n++) {
-		const dead = new Set<Card>(known);
+		dead.set(taken);
 		let clash = false;
 		for (let v = 0; v < samplers.length && !clash; v++) {
 			const index = sampleCombo(samplers[v], random);
 			const { a, b } = COMBOS[index];
-			clash = dead.has(a) || dead.has(b);
+			clash = dead[a] === 1 || dead[b] === 1;
 			hands[v] = index;
-			dead.add(a);
-			dead.add(b);
+			dead[a] = 1;
+			dead[b] = 1;
 		}
 		if (clash) continue;
 
-		const full = [...board];
-		while (full.length < 5) {
+		for (let dealt = board.length; dealt < 5;) {
 			const card = Math.floor(random() * 52);
-			if (!dead.has(card)) {
-				dead.add(card);
-				full.push(card);
+			if (dead[card] === 0) {
+				dead[card] = 1;
+				seven[dealt++] = card;
 			}
 		}
-		for (let i = 0; i < 5; i++) seven[i] = full[i];
 		seven[5] = hero[0];
 		seven[6] = hero[1];
 		const mine = evaluate(seven);
@@ -231,4 +237,25 @@ export function equityVsRanges(
 
 	if (total === 0) return { equity: 0.5, win: 0, tie: 0 };
 	return { equity: share / total, win: win / total, tie: tie / total };
+}
+
+/**
+ * Equity against any number of ranges at once: one is enumerated as
+ * `equityVsRange` does, more are simulated, ten deals to a sample.
+ */
+export function equityVsRanges(
+	hero: readonly Card[],
+	board: readonly Card[],
+	villains: readonly ComboRange[],
+	options: EquityOptions = {}
+): Equity {
+	if (villains.length === 0) return { equity: 1, win: 1, tie: 0 };
+	if (villains.length === 1) return equityVsRange(hero, board, villains[0], options);
+	return sampleEquity(
+		hero,
+		board,
+		villains,
+		(options.samples ?? DEFAULT_SAMPLES) * 10,
+		options.seed ?? DEFAULT_SEED
+	);
 }

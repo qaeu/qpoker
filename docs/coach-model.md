@@ -217,6 +217,15 @@ worker posts and the UI renders. It is a pure function of the log text and the s
 is versioned (`REPORT_VERSION`) so a cached report from an older build is dropped rather
 than rendered wrong. Bump the version when its shape changes.
 
+### What a hand carries for the equity readout
+
+`HandReport.equity` holds the hero's equity at each step: `deals` by street, for the
+state as that street's cards came, and `actions` by `ActionLine.stepIndex`, for the state
+after that action. A step with no figure has no entry, and a hand that was not graded
+has none at all. How the figure is defined is in
+[postflop-model.md](./postflop-model.md), "The equity readout". The CLI does not print
+it: a figure per step is a thing to scrub through, not to read down.
+
 ### What a hand carries for the replay table
 
 The browser keeps the report and nothing else, so a `HandReport` has to be enough to put

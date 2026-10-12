@@ -16,6 +16,7 @@ import {
 	equityVsRange,
 	equityVsRanges,
 	removeDead,
+	sampleEquity,
 } from '#utils/cards/equity';
 import { categoryName, evaluate } from '#utils/cards/evaluate';
 
@@ -217,5 +218,24 @@ describe('equity', () => {
 			samples: 3000,
 		});
 		expect(sampled.equity).toBeCloseTo(share / total, 2);
+	});
+
+	describe('the simulation on its own', () => {
+		const hero = parseCards('As Ad');
+		const ranges = [rangeOf('KK'), rangeOf('QQ', 'AKs')];
+
+		it('is what several ranges are priced with, to the digit', () => {
+			for (const board of [[], parseCards('Kd 7s 2c')]) {
+				expect(sampleEquity(hero, board, ranges, 3000, 11)).toEqual(
+					equityVsRanges(hero, board, ranges, { samples: 300, seed: 11 })
+				);
+			}
+		});
+
+		it('prices one range too, near the enumerated answer', () => {
+			const sampled = sampleEquity(hero, [], [rangeOf('KK')], 4000, 5).equity;
+			expect(sampled).toBeCloseTo(0.82, 1);
+			expect(sampleEquity(hero, [], [], 100, 5).equity).toBe(1);
+		});
 	});
 });

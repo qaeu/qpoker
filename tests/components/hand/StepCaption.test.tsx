@@ -65,6 +65,30 @@ describe('StepCaption', () => {
 		});
 	});
 
+	describe('the equity', () => {
+		it('is given at the deal, against everyone dealt in', () => {
+			const { container } = mount(opened, 0);
+			expect(part(container, 'equity')).toMatch(
+				/^Equity about \d+% · an estimate against 5 modelled ranges$/
+			);
+		});
+
+		it('is the percent the mistake card gives', () => {
+			const { container } = mount(called, stepAt(called, 'hero (SB) calls $4.00'));
+			const shown = /about (\d+%)/.exec(part(container, 'equity')!)![1];
+			expect(container.querySelector('.mistake-card')!.textContent).toContain(
+				`about ${shown} equity`
+			);
+		});
+
+		it('is gone once the hero has folded, and at the result', () => {
+			expect(
+				part(mount(folded, stepAt(folded, 'hero (UTG) folds')).container, 'equity')
+			).toBeUndefined();
+			expect(part(mount(called, -1).container, 'equity')).toBeUndefined();
+		});
+	});
+
 	describe('the grade', () => {
 		it('says nothing at a step that was not the hero’s decision', () => {
 			const { container } = mount(opened, 0);

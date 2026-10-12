@@ -154,6 +154,43 @@ and they were the two largest costs in either report. The other four medium find
 held. A missed value bet out of position on the river is marked low, which is the more
 careful side of the table above.
 
+## The equity readout
+
+`coach/stepEquity.ts` gives the hero's equity at every step of a hand's replay: at each
+deal and after each action, their share of the pot against the range of **every opponent
+not folded**, were the board to run out with no more betting. It is a readout of the
+ranges this page describes, not a grade, and nothing is decided from it.
+
+- **Which ranges.** Preflop, `preflopRange` up to the step: a player who has only posted
+  holds anything, one who opened holds their seat's opening range. Postflop, `rangeAt` at
+  the step. An opponent's range is read as it stood then, not with what they did later.
+- **It is not the equity against the cards that were shown.** The table turns the hands
+  over at the result; the figure stops before that. Mixing the two would put a number
+  the hero could not have known beside ones they could.
+- **The hero's own action does not move it.** A figure belongs to a state: the board, who
+  is in, and what each of them has done. Steps in a row that share those share one
+  figure, so betting does not change the hero's equity, and being called does.
+- **It agrees with the mistake card.** A graded decision was priced in one of those
+  states, and the readout shows the grade's own equity there. For a postflop decision
+  that is the number it would have computed anyway (same ranges, same samples, same
+  seed); for a shove priced preflop it is taken over only when the grade priced the same
+  number of opponents, since a stack-off is priced against those in for the price, not
+  against everyone still holding cards.
+- **Nothing is shown** once the hero has folded, when nobody is left to beat, at the
+  result, or in a hand that was not graded.
+- **How it is computed.** Postflop as the grader does: one range enumerated, several
+  simulated, at the report's samples. Preflop five cards are to come and nothing can be
+  enumerated at a useful cost, so every figure is `sampleEquity` over 1000 deals, which
+  is two points either way at 95%. Each state has its own stream, the seed plus the
+  index of the next action, so a figure does not depend on what was computed before it.
+- **What it costs.** Analysis takes about 0.4s longer per hundred hands, most of it the
+  preflop simulations. `PREFLOP_DEALS` is the lever.
+
+Read it as the model's estimate. Every weakness of the opponent model listed in
+[accuracy.md](./accuracy.md) is in this number too, and it is shown at every step, graded
+or not, without a confidence beside it. The caption words it "about" and "an estimate"
+for that reason.
+
 ## Texture and sizing
 
 `textureOf` classes a board as dry or wet (paired, suits, connectedness) and suggests a

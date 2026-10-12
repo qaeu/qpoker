@@ -6,8 +6,9 @@
  */
 
 import type { HandReport } from '../coach/report';
+import type { StepEquity } from '../coach/stepEquity';
 import { MAX_PLAYERS, STREETS, type ActionKind, type Street } from '../history/hand';
-import { bbText } from './format';
+import { bbText, percent } from './format';
 
 export interface TableSeat {
 	/** Cents behind, after the step. */
@@ -321,4 +322,20 @@ export function stepFacts(hand: HandReport, step: TableStep): string {
 	}
 	const inHand = step.seats.filter((seat) => !seat.folded).length;
 	return `Pot ${bb(step.pot)} · ${inHand} ${inHand === 1 ? 'player' : 'players'} in`;
+}
+
+/**
+ * The hero's equity in the state a step shows, or null where there is none to
+ * give: once they have folded, at the result, or in a hand that was not graded.
+ */
+export function equityAt(hand: HandReport, step: TableStep): StepEquity | null {
+	if (step.kind === 'result') return null;
+	if (step.kind === 'deal') return hand.equity.deals[step.street] ?? null;
+	return step.lineIndex === null ? null : (hand.equity.actions[step.lineIndex] ?? null);
+}
+
+/** The figure as the caption gives it: rounded, and called the estimate it is. */
+export function equityText({ equity, opponents }: StepEquity): string {
+	const ranges = opponents === 1 ? '1 modelled range' : `${opponents} modelled ranges`;
+	return `Equity about ${percent(equity)} · an estimate against ${ranges}`;
 }

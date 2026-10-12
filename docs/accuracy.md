@@ -60,6 +60,22 @@ only.
   leak flagged against a typical figure at a table size other than five or six deserves
   less weight than one at six-max.
 
+### The equity readout, added in version 6
+
+The caption under the replay table shows an equity at every step. It was not audited:
+
+- It is the opponent model's number, so findings 1, 3, 9 and 10 below apply to it at
+  every step, and not only where a decision was graded. Where a check sheds too much
+  strength (finding 1) the equity shown after it is too high.
+- Preflop it treats a player who has not acted as holding any two cards. That is right
+  for what the hero knows and makes the figure at the deal low against a full table, as
+  it should be; it is not the equity against the ranges those players would continue
+  with.
+- A preflop figure is a simulation of 1000 deals: about two points either way. A
+  postflop figure against one range is as exact as the grader's.
+- No confidence is shown beside it. Treat a multiway figure with cards to come as the
+  least reliable, as the grader does.
+
 ## What was measured and how
 
 The "GTO baseline" is three things of different reliability, and each was tested against

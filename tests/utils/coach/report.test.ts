@@ -156,6 +156,15 @@ describe('the report', () => {
 		}
 	});
 
+	it('carries the hero’s equity at each step of a graded hand', () => {
+		const stackOff = report.hands.at(-1)!;
+		expect(stackOff.equity.deals.preflop).toMatchObject({ opponents: 4 });
+		const open = stackOff.lines.find((line) => line.hero && line.kind === 'raise')!;
+		expect(stackOff.equity.actions[open.stepIndex]).toBe(stackOff.equity.deals.preflop);
+		const other = analyzeLog(emailed, { hero: 'Brakeman1990' });
+		expect(other.hands.at(-1)!.equity).toEqual({ deals: {}, actions: {} });
+	});
+
 	it('is a pure function of the text and the seed', () => {
 		expect(analyzeLog(emailed, { seed: 5 })).toEqual(report);
 	});

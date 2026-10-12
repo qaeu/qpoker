@@ -6,6 +6,8 @@ import { replayHand, type Replay } from '#utils/history/replay';
 import {
 	decisionSteps,
 	defaultStep,
+	equityAt,
+	equityText,
 	resolveStep,
 	seatSlots,
 	stepFacts,
@@ -396,5 +398,35 @@ describe('stepFacts', () => {
 	it('counts one player in the singular', () => {
 		const fold = replayed(handText(TOUGH_FOLD));
 		expect(stepFacts(fold.hand, fold.steps.at(-1)!)).toBe('Pot 48.5 bb · 1 player in');
+	});
+});
+
+describe('the equity readout', () => {
+	const { hand, steps } = replayed(handText(RIVER_HERO_CALL));
+	const at = (text: string) => steps.find((step) => stepText(hand, step) === text)!;
+
+	it('gives a deal its street’s figure and an action its own', () => {
+		expect(equityAt(hand, steps[0])).toBe(hand.equity.deals.preflop);
+		expect(equityAt(hand, at('Flop dealt'))).toBe(hand.equity.deals.flop);
+		const call = at('hero calls 40 bb');
+		expect(equityAt(hand, call)).toBe(hand.equity.actions[call.lineIndex!]);
+		expect(equityAt(hand, call)).not.toBeNull();
+	});
+
+	it('gives none at the result, after a fold, or in a hand not graded', () => {
+		expect(equityAt(hand, steps.at(-1)!)).toBeNull();
+		const fold = replayed(handText(TOUGH_FOLD));
+		expect(equityAt(fold.hand, fold.steps.at(-2)!)).toBeNull();
+		const ungraded = { ...hand, equity: { deals: {}, actions: {} } };
+		expect(steps.every((step) => equityAt(ungraded, step) === null)).toBe(true);
+	});
+
+	it('words it as a rounded estimate against the ranges', () => {
+		expect(equityText({ equity: 0.6249, opponents: 2 })).toBe(
+			'Equity about 62% · an estimate against 2 modelled ranges'
+		);
+		expect(equityText({ equity: 0.3, opponents: 1 })).toBe(
+			'Equity about 30% · an estimate against 1 modelled range'
+		);
 	});
 });

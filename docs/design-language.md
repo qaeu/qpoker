@@ -260,6 +260,14 @@ the action was one of the hero's decisions. The mistake card and the baseline ch
 here from under their line in the list. Beside the table is where the eye is when the
 decision is on it, and the card is then read against the stacks and the board it is about.
 
+Under the pot line the caption gives the hero's equity at the step, in the same muted,
+tabular line: `Equity about 62% · an estimate against 2 modelled ranges`. It is whole
+percent and worded as an estimate because it is the model's, and it names how many ranges
+because that is what makes a preflop 30% and a heads-up 65% the same hand. It is a line
+of the caption and not a figure on the felt: the table shows what happened, and this did
+not happen. The line is absent, not dashed, where there is no figure, so a folded hand's
+caption is shorter rather than marked.
+
 The strip comes before the caption, though the caption describes the table, because the
 caption's height changes with every step (a line of text, or a card and a chart) and keys
 that moved under the pointer could not be pressed twice.

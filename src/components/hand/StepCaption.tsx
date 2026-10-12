@@ -1,7 +1,7 @@
 /**
  * What the step on the table was, in words: where in the hand it is, the
- * action in big blinds, what the actor faced, and the grade when the action was
- * one of the hero's decisions. The grade lives here and not in the list of
+ * action in big blinds, what the actor faced, the hero's equity there, and the
+ * grade when the action was one of the hero's decisions. The grade lives here and not in the list of
  * lines: see docs/design-language.md, "The replay table".
  */
 
@@ -12,7 +12,14 @@ import RangeGrid from '#c/ranges/RangeGrid';
 import { RangeKey } from '#c/ranges/RangesView';
 import type { HandReport } from '#utils/coach/report';
 import { chart, CHART_LABELS } from '#utils/ranges/charts';
-import { stepFacts, stepStreet, stepText, type TableStep } from '#utils/ui/tableReplay';
+import {
+	equityAt,
+	equityText,
+	stepFacts,
+	stepStreet,
+	stepText,
+	type TableStep,
+} from '#utils/ui/tableReplay';
 
 import '#styles/hand/StepCaption';
 
@@ -61,6 +68,9 @@ const StepCaption: Component<StepCaptionProps> = (props) => {
 					{stepText(props.hand, current())}
 				</p>
 				<p class="step-caption__facts">{stepFacts(props.hand, current())}</p>
+				<Show when={equityAt(props.hand, current())}>
+					{(figure) => <p class="step-caption__equity">{equityText(figure())}</p>}
+				</Show>
 				<Show when={baseline()}>
 					{(graded) => (
 						<Show when={graded().chosen !== graded().recommended}>

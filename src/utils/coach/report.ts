@@ -16,6 +16,7 @@ import { gradeDecision, type GradeOptions, type Grading } from './grade';
 import { MISTAKES, type MistakeType } from './mistakes';
 import { summariseOpenings, type OpeningSummary } from './openings';
 import { summariseSession, type SessionSummary } from './session';
+import { emptyEquity, handEquity, type HandEquity } from './stepEquity';
 
 export const REPORT_VERSION = 6;
 
@@ -76,6 +77,8 @@ export interface HandReport {
 	returned: Record<string, number>;
 	/** What each player took from the pot, or for cashing out, in cents. */
 	paid: Record<string, number>;
+	/** The hero's equity at each step of the replay. Empty when not graded. */
+	equity: HandEquity;
 }
 
 export interface LeakReport {
@@ -241,6 +244,7 @@ function reportHand(replay: Replay, hero: string, options: GradeOptions): HandRe
 		returned,
 		// As `replayHand` settles `net`: a cash-out replaces the pot's credit.
 		paid: { ...hand.won, ...hand.cashedOut },
+		equity: gradeable ? handEquity(replay, hero, gradings, options) : emptyEquity(),
 	};
 }
 
