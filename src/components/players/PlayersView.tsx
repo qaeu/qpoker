@@ -1,8 +1,8 @@
 /**
  * Everyone the hero has been dealt in with: a list by hands seen, and beside
- * it the one being read -- their frequencies against the charts for their own
- * spots, what a frequency clearly off its baseline invites, and the hands they
- * showed. A read to take to the table, not a grade: nothing here changes how
+ * it the one being read -- what they won and lost, their frequencies against
+ * the charts for their own spots, what a frequency clearly off its baseline
+ * invites, and the hands they showed. A read to take to the table, not a grade: nothing here changes how
  * the hero's own decisions are judged.
  */
 
@@ -11,7 +11,7 @@ import { createMemo, createSignal, For, Show, type Component } from 'solid-js';
 import { playerHref, reviewHref } from '#utils/app/hashRoute';
 import { profileOf } from '#utils/store/profile';
 import type { PlayerAggregate } from '#utils/store/types';
-import { percent, readingOf, shortTime } from '#utils/ui/format';
+import { moneyChange, percent, readingOf, shortTime, signClass } from '#utils/ui/format';
 
 import '#styles/players/PlayersView';
 
@@ -114,6 +114,40 @@ const PlayersView: Component<PlayersViewProps> = (props) => {
 							{profile.hands} {profile.hands === 1 ? 'hand' : 'hands'} ·{' '}
 							{shortTime(profile.firstSeen)} to {shortTime(profile.lastSeen)}
 						</p>
+
+						<Show when={profile.money.length > 0}>
+							<table class="players-view__table players-view__money">
+								<thead>
+									<tr>
+										<th scope="col">Money</th>
+										<th scope="col">Their result</th>
+										<th scope="col">You against them</th>
+										<th scope="col">Hands</th>
+									</tr>
+								</thead>
+								<tbody>
+									<For each={profile.money}>
+										{(row) => (
+											<tr>
+												<th scope="row">{row.currency || 'Chips'}</th>
+												<td class={signClass(row.net)}>
+													{moneyChange(row.net, row.currency)}
+												</td>
+												<td class={signClass(row.heroNet)}>
+													{moneyChange(row.heroNet, row.currency)}
+												</td>
+												<td>{row.hands}</td>
+											</tr>
+										)}
+									</For>
+								</tbody>
+							</table>
+							<p class="players-view__note">
+								Their result is over the hands you were dealt in with them. You against
+								them is what passed between the two of you: exact where a pot had one
+								winner or one loser, and a fair split of it otherwise.
+							</p>
+						</Show>
 
 						<Show
 							when={profile.reads.length > 0}

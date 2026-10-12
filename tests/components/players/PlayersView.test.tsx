@@ -6,7 +6,7 @@ import { ingestLog } from '#utils/store/ingest';
 import { createMemoryStore } from '#utils/store/memoryStore';
 
 import emailed from '../../fixtures/emailed.txt?raw';
-import { ringHand } from '../../utils/history/handText';
+import { handText, RIVER_HERO_CALL, ringHand } from '../../utils/history/handText';
 
 async function playersOf(log: string) {
 	const store = createMemoryStore();
@@ -78,6 +78,14 @@ describe('PlayersView', () => {
 			const reads = within(screen.getByRole('list', { name: 'Reads' }));
 			expect(reads.getByText(/Plays too many hands/)).toBeTruthy();
 			expect(reads.getByText(/^VPIP 100% against \d+%$/)).toBeTruthy();
+		});
+
+		it('says what they won and lost, and the hero against them', async () => {
+			const players = await playersOf(`${opens[0]}\n${handText(RIVER_HERO_CALL)}`);
+			render(() => <PlayersView players={players} heroes={['hero']} name="p2" />);
+			const row = within(screen.getByRole('row', { name: /^USD/ }));
+			expect(row.getByText('+$5.00').className).toBe('is-positive');
+			expect(row.getByText('−$5.00').className).toBe('is-negative');
 		});
 
 		it('links each hand they showed to its replay', async () => {

@@ -87,6 +87,18 @@ describe('the terminal’s library output', () => {
 			expect(profile).toContain('Nothing far enough from the baseline');
 		});
 
+		it('prints what a player won and lost, and the hero against them', async () => {
+			const store = createMemoryStore();
+			await ingestLog(
+				store,
+				[...run(1, 100, 'raise'), handText(RIVER_HERO_CALL)].join('\n')
+			);
+			const [p2] = await store.players(['p2']);
+			expect(formatProfile(profileOf(p2))).toContain(
+				'Their result +$5.00, you against them -$5.00 (2 hands, USD)'
+			);
+		});
+
 		it('prints the reads a larger sample bears', async () => {
 			const store = createMemoryStore();
 			await ingestLog(

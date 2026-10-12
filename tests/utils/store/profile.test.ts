@@ -3,9 +3,10 @@ import { describe, it, expect } from 'vitest';
 import { ingestLog } from '#utils/store/ingest';
 import { createMemoryStore } from '#utils/store/memoryStore';
 import { profileOf } from '#utils/store/profile';
+import type { PlayerAggregate } from '#utils/store/types';
 
 import emailed from '../../fixtures/emailed.txt?raw';
-import { ringHand } from '../history/handText';
+import { handText, RIVER_HERO_CALL, ringHand } from '../history/handText';
 
 async function profile(log: string, name: string) {
 	const store = createMemoryStore();
@@ -50,6 +51,23 @@ describe('a player’s profile', () => {
 				stat: { leak: 'low' },
 				note: expect.stringMatching(/few hands/),
 			});
+		});
+	});
+
+	describe('money', () => {
+		it('is their result and the hero’s against them', async () => {
+			const log = [ringHand(6, 'Ah Kd', 'raise', 6002), handText(RIVER_HERO_CALL)];
+			expect((await profile(log.join('\n'), 'p2')).money).toEqual([
+				{ currency: 'USD', hands: 2, net: 500, heroNet: -500 },
+			]);
+		});
+
+		it('is empty for a player summed before it was kept', async () => {
+			const store = createMemoryStore();
+			await ingestLog(store, hands(2, 'raise'));
+			const [p2] = await store.players(['p2']);
+			const older = { ...p2, money: undefined } as unknown as PlayerAggregate;
+			expect(profileOf(older).money).toEqual([]);
 		});
 	});
 

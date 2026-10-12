@@ -1,5 +1,6 @@
 /** Display formatting shared by the views. */
 
+import { moneyText } from '../coach/report';
 import { MIN_SAMPLE, type TableSize } from '../coach/session';
 
 /** `0.42` -> `42%`; null -> an em dash. */
@@ -12,6 +13,15 @@ export function signed(value: number, digits = 1): string {
 	const fixed = Math.abs(value).toFixed(digits);
 	if (Number(fixed) === 0) return fixed;
 	return `${value < 0 ? '−' : '+'}${fixed}`;
+}
+
+/** Cents won or lost, as money with its sign: `-125` -> `−$1.25`. */
+export function moneyChange(cents: number, currency: string): string {
+	const sign =
+		cents < 0 ? '−'
+		: cents > 0 ? '+'
+		: '';
+	return `${sign}${moneyText(Math.abs(cents), currency)}`;
 }
 
 /** Cents as big blinds, to a decimal place where one is needed: `25` at 10 -> `2.5`. */

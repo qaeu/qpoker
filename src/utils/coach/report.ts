@@ -45,7 +45,7 @@ export const REPORT_VERSION = 8;
  * summary field changes and no grading does. A stored hand is then summed
  * again from its text, which costs no simulation.
  */
-export const FACTS_VERSION = 1;
+export const FACTS_VERSION = 2;
 
 export interface AnalysisOptions {
 	/** Defaults to the player the log was dealt to. */
@@ -216,7 +216,8 @@ export interface AnalysisRun {
 
 const SYMBOLS: Record<string, string> = { USD: '$', EUR: '€', GBP: '£' };
 
-function moneyText(cents: number, currency: string): string {
+/** Cents as money: `125` -> `$1.25`, or the bare amount for a currency with no symbol. */
+export function moneyText(cents: number, currency: string): string {
 	const amount = (cents / 100).toFixed(2);
 	return currency in SYMBOLS ? `${SYMBOLS[currency]}${amount}` : amount;
 }

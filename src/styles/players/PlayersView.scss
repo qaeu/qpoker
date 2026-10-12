@@ -37,6 +37,11 @@
 			}
 		}
 
+		// Sits above the reads, which bring no top margin of their own.
+		&__money + &__note {
+			margin-bottom: 20px;
+		}
+
 		&__meta {
 			@include print(12px, 0.08em, $caps: false);
 			margin: -6px 0 14px;

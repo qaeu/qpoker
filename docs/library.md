@@ -145,6 +145,19 @@ read and not a scan. A replaced hand is taken back out with a `sign` of -1 befor
 one goes in, from the old text. When `FACTS_VERSION` moves, the players are emptied and
 summed again as each hand is.
 
+Beside the frequencies an aggregate keeps **money** (`MoneySeen`), in cents and by
+currency, since a dollar and a euro do not add up: the player's own result over the hands
+they were dealt into, and the hero's result against them. The second is `wonFrom`: in each
+hand, what a loser lost is split among the winners by what each won, the rake taking its
+share. So what the hero won is taken from each loser by what they lost, and what the hero
+lost goes to each winner by what they won, rounded to the cent. It is exact where a pot
+had one winner or one loser, which is nearly every pot; where a side pot went another way
+it is a fair split and not what the chips did. "The hero" here is whoever the hand was
+dealt to, read off the text, so the sum does not move when `--hero` names someone else; a
+hand that names no one adds to no one's. A hand that does not reconcile adds no money at
+all, and a currency's entry is dropped when its last hand is taken back out. An aggregate
+summed before the money was kept has none (`FACTS_VERSION` 2 sums it again).
+
 `store/profile.ts` reads an aggregate: see "Opponent profiles" in
 [accuracy.md](./accuracy.md) for what a read claims. **It is display only.** No grading
 reads a profile, so a hand's grade is still a function of its text, the seed and its

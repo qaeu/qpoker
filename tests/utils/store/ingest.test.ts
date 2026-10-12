@@ -284,6 +284,7 @@ describe('loading a log into the library', () => {
 				const session = sessionOf(player.tally);
 				const expected = sessionFor(log, player.name);
 				expect(session.hands).toBe(expected.hands);
+				expect(player.money.USD.hands).toBe(expected.hands);
 				expect(session.netBb).toBeCloseTo(expected.netBb);
 				expect(
 					session.stats.map((stat) => [stat.id, stat.count, stat.opportunities])
@@ -291,6 +292,14 @@ describe('loading a log into the library', () => {
 					expected.stats.map((stat) => [stat.id, stat.count, stat.opportunities])
 				);
 			}
+		});
+
+		it('keeps what each won and lost, and the hero against them', async () => {
+			const store = createMemoryStore();
+			await ingestLog(store, `${folded}\n${opened}`);
+			await ingestLog(store, called);
+			const [p2] = await store.players(['p2']);
+			expect(p2.money).toEqual({ USD: { hands: 3, net: 500, heroNet: -500 } });
 		});
 
 		it('keeps what a player showed', async () => {

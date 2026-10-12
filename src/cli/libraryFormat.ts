@@ -3,6 +3,7 @@
  * trend over time, the players. Pure, like `format.ts`: data in, text out.
  */
 
+import { moneyText } from '#utils/coach/report';
 import type { Trend } from '#utils/coach/trend';
 import type { PlayerProfile } from '#utils/store/profile';
 import type { ImportRecord, PlayerAggregate } from '#utils/store/types';
@@ -18,6 +19,13 @@ const signed = (value: number, digits = 1): string => {
 		: `+${fixed}`
 	);
 };
+
+const money = (cents: number, currency: string): string =>
+	`${
+		cents < 0 ? '-'
+		: cents > 0 ? '+'
+		: ''
+	}${moneyText(Math.abs(cents), currency)}`;
 
 const when = (timestamp: string): string => timestamp.replace('T', ' ').slice(0, 16);
 
@@ -99,6 +107,10 @@ export function formatPlayers(
 export function formatProfile(profile: PlayerProfile): string {
 	const out = [
 		`${profile.name} · ${count(profile.hands)} · ${when(profile.firstSeen)} to ${when(profile.lastSeen)}`,
+		...profile.money.map(
+			({ currency, hands, net, heroNet }) =>
+				`  Their result ${money(net, currency)}, you against them ${money(heroNet, currency)} (${count(hands)}${currency ? `, ${currency}` : ''})`
+		),
 		'',
 		`  ${'Stat'.padEnd(22)}${'Them'.padEnd(8)}${'Baseline'.padEnd(11)}Sample`,
 	];

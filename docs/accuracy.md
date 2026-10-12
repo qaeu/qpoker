@@ -107,6 +107,11 @@ and are as sound for a villain as for the hero. What is weaker for a villain:
 - **The note beside a read is a rule of thumb**, kept as data (`EXPLOITS`): "folds too
   often to a 3-bet, so 3-bet more as a bluff". It says what such a lean usually invites.
   It is not priced, and nothing checks it against the hands.
+- **The money is a record, not a read.** A player's result and the hero's against them
+  (`wonFrom` in [library.md](./library.md)) are sums of what the hands say was paid. Over
+  the hands seen they are mostly variance: nothing is flagged on them and no note is
+  drawn from them. The head-to-head figure is an even split of a pot with several
+  winners and several losers, not a trace of the chips.
 - **A name is not a person for ever.** Players change, and a screen name can be reused.
   The first and last hand seen are printed with the profile.
 

@@ -50,12 +50,24 @@ export interface Showdown {
 	cards: string;
 }
 
+/** What was won and lost with a player at the table in one currency, in cents. */
+export interface MoneySeen {
+	/** The reconciled hands it is summed over. */
+	hands: number;
+	/** Their own result. */
+	net: number;
+	/** What passed between them and the hero, the hero's way: see `wonFrom`. */
+	heroNet: number;
+}
+
 /** Everything seen of one player, summed as their hands came in. */
 export interface PlayerAggregate {
 	name: string;
 	firstSeen: string;
 	lastSeen: string;
 	tally: SessionTally;
+	/** By `Stakes.currency`: two currencies do not add up. */
+	money: Record<string, MoneySeen>;
 	/** The hands they showed, oldest first. */
 	showdowns: Showdown[];
 }

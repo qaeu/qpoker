@@ -6,12 +6,17 @@
  */
 
 import { sessionOf, type SessionSummary, type Stat, type StatId } from '../coach/session';
-import type { PlayerAggregate, Showdown } from './types';
+import type { MoneySeen, PlayerAggregate, Showdown } from './types';
 
 export interface ProfileRead {
 	stat: Stat;
 	/** What a frequency off its baseline that way usually invites. */
 	note: string;
+}
+
+export interface MoneyRow extends MoneySeen {
+	/** `USD`, `EUR`, ... or empty for a table that names none. */
+	currency: string;
 }
 
 export interface PlayerProfile {
@@ -22,6 +27,8 @@ export interface PlayerProfile {
 	session: SessionSummary;
 	/** The frequencies the sample can bear a read on: a leak by the session's rule. */
 	reads: ProfileRead[];
+	/** What they won and lost, and the hero against them: the currency seen most first. */
+	money: MoneyRow[];
 	/** The most recent first. */
 	showdowns: Showdown[];
 }
@@ -78,6 +85,10 @@ export function profileOf(player: PlayerAggregate): PlayerProfile {
 			const note = stat.leak && EXPLOITS[stat.id]?.[stat.leak];
 			return note ? [{ stat, note }] : [];
 		}),
+		// An aggregate summed by an older build has none until it is summed again.
+		money: Object.entries(player.money ?? {})
+			.map(([currency, seen]) => ({ currency, ...seen }))
+			.sort((a, b) => b.hands - a.hands),
 		showdowns: [...player.showdowns].reverse(),
 	};
 }

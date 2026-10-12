@@ -31,11 +31,12 @@ async function only(log: string): Promise<HandStore> {
 /** What is known of each player that a profile is read from, by name. */
 const seen = async (store: HandStore) =>
 	(await store.players())
-		.map(({ name, firstSeen, lastSeen, tally, showdowns }) => ({
+		.map(({ name, firstSeen, lastSeen, tally, money, showdowns }) => ({
 			name,
 			firstSeen,
 			lastSeen,
 			hands: tally.hands,
+			money,
 			showdowns,
 		}))
 		.sort((a, b) => (a.name < b.name ? -1 : 1));
