@@ -49,9 +49,10 @@ describe('PlayersView', () => {
 				<PlayersView players={players} heroes={['hero77']} name="Brakeman1990" />
 			));
 			expect(screen.getByRole('heading', { name: 'Brakeman1990' })).toBeTruthy();
-			expect(
-				screen.getByRole('link', { name: 'Brakeman1990' }).getAttribute('aria-current')
-			).toBe('true');
+			const link = screen.getByRole('link', { name: 'Brakeman1990' });
+			expect(link.getAttribute('aria-current')).toBe('true');
+			expect(link.closest('tr')!.className).toBe('is-current');
+			expect(document.querySelectorAll('tr.is-current')).toHaveLength(1);
 			const vpip = screen.getByRole('row', { name: /^VPIP/ });
 			expect(within(vpip).getByText(/\/4$/)).toBeTruthy();
 		});
@@ -94,7 +95,11 @@ describe('PlayersView', () => {
 			render(() => (
 				<PlayersView players={players} heroes={['hero77']} name={shower.name} />
 			));
-			expect(screen.getByRole('heading', { name: 'Shown down' })).toBeTruthy();
+			const summary = screen.getByText(`Shown down · ${shower.showdowns.length}`);
+			const shown = summary.closest('details')!;
+			expect(shown.open).toBe(false);
+			fireEvent.click(summary);
+			expect(shown.open).toBe(true);
 			const link = screen
 				.getAllByRole<HTMLAnchorElement>('link')
 				.find((candidate) => candidate.getAttribute('href')!.startsWith('#review'))!;

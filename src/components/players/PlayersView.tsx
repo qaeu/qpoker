@@ -26,6 +26,9 @@ interface PlayersViewProps {
 /** Players listed before the search has to be used. */
 const LISTED = 100;
 
+/** Hands shown down that are listed, latest first. */
+const SHOWN = 30;
+
 const PlayersView: Component<PlayersViewProps> = (props) => {
 	const [search, setSearch] = createSignal('');
 	const others = createMemo(() =>
@@ -209,23 +212,28 @@ const PlayersView: Component<PlayersViewProps> = (props) => {
 						</p>
 
 						<Show when={profile.showdowns.length > 0}>
-							<h2 class="players-view__title">Shown down</h2>
-							<table class="players-view__table">
-								<tbody>
-									<For each={profile.showdowns.slice(0, 30)}>
-										{(shown) => (
-											<tr>
-												<th scope="row">
-													<a href={reviewHref({ show: 'all', hand: shown.handId })}>
-														{shortTime(shown.timestamp)}
-													</a>
-												</th>
-												<td>{shown.cards}</td>
-											</tr>
-										)}
-									</For>
-								</tbody>
-							</table>
+							<details class="players-view__shown">
+								<summary>Shown down · {profile.showdowns.length}</summary>
+								<table class="players-view__table">
+									<tbody>
+										<For each={profile.showdowns.slice(0, SHOWN)}>
+											{(shown) => (
+												<tr>
+													<th scope="row">
+														<a href={reviewHref({ show: 'all', hand: shown.handId })}>
+															{shortTime(shown.timestamp)}
+														</a>
+													</th>
+													<td>{shown.cards}</td>
+												</tr>
+											)}
+										</For>
+									</tbody>
+								</table>
+								<Show when={profile.showdowns.length > SHOWN}>
+									<p class="players-view__note">The latest {SHOWN} are listed.</p>
+								</Show>
+							</details>
 						</Show>
 					</div>
 				)}

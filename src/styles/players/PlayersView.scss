@@ -30,10 +30,28 @@
 		&__table {
 			@include data-table;
 
-			// The player being read is the one in play.
-			tr.is-current th a {
-				color: $primary;
-				font-weight: 600;
+			// The player being read: the row is sunk, out to the panel's padding on
+			// the left, where a cell has none of its own.
+			tr.is-current {
+				background-color: $cut-trace;
+
+				th {
+					box-shadow: -8px 0 0 $cut-trace;
+				}
+			}
+		}
+
+		// Shut until asked for: the count is the read, the hands are the evidence.
+		&__shown {
+			margin-top: 20px;
+
+			summary {
+				@include panel-title;
+				cursor: pointer;
+			}
+
+			&[open] summary {
+				margin-bottom: 12px;
 			}
 		}
 

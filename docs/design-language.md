@@ -281,6 +281,10 @@ heads, mint and ruby on a signed figure, and a flagged row's own figure in ruby.
 Trends, Players and the library panel all use it, so a frequency reads the same whether
 it is the hero's or an opponent's.
 
+The row in play is sunk (`$cut-trace`), on Openings and in the Players list alike: the
+whole row, since a heavier name alone is easy to miss in a long list. A player's shown
+hands sit shut behind their count, as the evidence under a read rather than part of it.
+
 Trends leads with its verdict as a sentence, before any figure: "clearly better",
 "clearly worse" in mint or ruby, or in plain ink that there is no change the sample can
 bear, or too few hands to say. The words carry it; the colour only agrees.
