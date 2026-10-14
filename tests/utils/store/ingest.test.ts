@@ -129,6 +129,79 @@ describe('loading a log into the library', () => {
 		});
 	});
 
+	describe('the same file again', () => {
+		const added = ringHand(6, 'Kh Kd', 'raise', 6500);
+		const load = (store: HandStore, text: string, fileName: string, now: string) =>
+			ingestLog(store, text, { fileName, now });
+
+		it('takes the place of the earlier load in the list of imports', async () => {
+			const store = createMemoryStore();
+			await load(store, log, 'a.txt', 't1');
+			await load(store, log, 'a.txt', 't2');
+			expect(await store.imports()).toEqual([
+				{
+					importedAt: 't2',
+					fileName: 'a.txt',
+					hands: 3,
+					added: 3,
+					replaced: 0,
+					handIds: ['6001', '6002', '7001'],
+				},
+			]);
+		});
+
+		it('counts the hands a grown log has gained with the ones it brought before', async () => {
+			const store = createMemoryStore();
+			await load(store, log, 'a.txt', 't1');
+			const run = await load(store, `${log}\n${added}`, 'a.txt', 't2');
+			expect(run.imported).toMatchObject({ hands: 4, added: 1 });
+			expect(await store.imports()).toEqual([
+				expect.objectContaining({ importedAt: 't2', hands: 4, added: 4, replaced: 0 }),
+			]);
+		});
+
+		it('does not count a hand it finishes as one more', async () => {
+			const store = createMemoryStore();
+			const cut = log.slice(0, log.lastIndexOf('*** SUMMARY ***'));
+			await load(store, cut, 'a.txt', 't1');
+			await load(store, log, 'a.txt', 't2');
+			expect(await store.imports()).toEqual([
+				expect.objectContaining({ hands: 3, added: 3, replaced: 0 }),
+			]);
+		});
+
+		it('keeps apart a file of the same name that lacks hands the earlier one had', async () => {
+			const store = createMemoryStore();
+			await load(store, log, 'a.txt', 't1');
+			await load(store, added, 'a.txt', 't2');
+			expect((await store.imports()).map(({ importedAt }) => importedAt)).toEqual([
+				't1',
+				't2',
+			]);
+		});
+
+		it('keeps apart another file, and a log with no name', async () => {
+			const store = createMemoryStore();
+			await load(store, log, 'a.txt', 't1');
+			await load(store, log, 'b.txt', 't2');
+			await load(store, log, '', 't3');
+			await load(store, log, '', 't4');
+			expect(await store.imports()).toHaveLength(4);
+		});
+
+		it('records nothing until the run is done', async () => {
+			const store = createMemoryStore();
+			await load(store, log, 'a.txt', 't1');
+			const run = await startIngest(store, `${log}\n${added}`, {
+				fileName: 'a.txt',
+				now: 't2',
+			});
+			expect(run.reloads).toEqual(['t1']);
+			expect(await advanceIngest(run, 0)).toBe(false);
+			expect((await store.imports()).map(({ importedAt }) => importedAt)).toEqual(['t1']);
+		});
+	});
+
 	describe('settings', () => {
 		it('keeps the seed of the first import, and names no hero unless told one', async () => {
 			const store = createMemoryStore();

@@ -71,6 +71,13 @@ export interface IngestRun {
 	total: number;
 	/** Null for a run with no log: one that only brings the library up to date. */
 	imported: ImportRecord | null;
+	/**
+	 * The library's row for the log once the run is done: `imported`, or, for a
+	 * reload, it folded into the rows of the file's earlier loads.
+	 */
+	record: ImportRecord | null;
+	/** The earlier loads `record` takes the place of, by their time. */
+	reloads: string[];
 }
 
 const seesFlop = (hand: Hand): boolean => hand.board.length >= 3;
@@ -109,6 +116,40 @@ export function stalenessOf(
 }
 
 export const parseOne = (text: string): Replay => replayHand(parseHands(text)[0].hand);
+
+/**
+ * The earlier loads of the same file: by its name, each holding no hand the
+ * file does not, so a log grown since it was last loaded is still a reload.
+ */
+export function earlierLoads(
+	imports: readonly ImportRecord[],
+	{ fileName, handIds = [] }: ImportRecord
+): ImportRecord[] {
+	if (fileName === '') return [];
+	const held = new Set(handIds);
+	return imports.filter(
+		(other) =>
+			other.fileName === fileName && other.handIds?.every((id) => held.has(id)) === true
+	);
+}
+
+/** One row for a file loaded again: what it now holds, and what all its loads added. */
+export function foldReload(
+	imported: ImportRecord,
+	replacedIds: readonly string[],
+	earlier: readonly ImportRecord[]
+): ImportRecord {
+	const before = new Set(earlier.flatMap((other) => other.handIds ?? []));
+	return {
+		...imported,
+		added: earlier.reduce((sum, other) => sum + other.added, imported.added),
+		// A hand the file brought in and has now finished is not one more.
+		replaced: earlier.reduce(
+			(sum, other) => sum + other.replaced,
+			imported.replaced - replacedIds.filter((id) => before.has(id)).length
+		),
+	};
+}
 
 /** Reads the log and works out what there is to do. Nothing is graded or written yet. */
 export async function startIngest(
@@ -183,6 +224,19 @@ export async function startIngest(
 
 	if (rebuild) await store.commit({ resetPlayers: true, meta });
 
+	const imported: ImportRecord | null =
+		parsed.size > 0 ?
+			{
+				importedAt: options.now ?? '',
+				fileName: options.fileName ?? '',
+				hands: parsed.size,
+				added,
+				replaced,
+				handIds: [...parsed.keys()],
+			}
+		:	null;
+	const earlier = imported ? earlierLoads(await store.imports(), imported) : [];
+
 	return {
 		store,
 		meta,
@@ -191,17 +245,9 @@ export async function startIngest(
 		known,
 		done: 0,
 		total: jobs.length,
-		imported:
-			parsed.size > 0 ?
-				{
-					importedAt: options.now ?? '',
-					fileName: options.fileName ?? '',
-					hands: parsed.size,
-					added,
-					replaced,
-					handIds: [...parsed.keys()],
-				}
-			:	null,
+		imported,
+		record: imported && foldReload(imported, replacing, earlier),
+		reloads: earlier.map((other) => other.importedAt),
 	};
 }
 
@@ -272,11 +318,13 @@ export async function advanceIngest(run: IngestRun, count = Infinity): Promise<b
 
 	run.done += jobs.length;
 	const complete = run.done >= run.total;
+	const recorded = complete ? run.record : null;
 	await store.commit({
+		...(recorded && run.reloads.length > 0 ? { forget: { imports: run.reloads } } : {}),
 		hands,
 		players: [...players.values()],
 		meta,
-		...(complete && run.imported ? { imported: run.imported } : {}),
+		...(recorded ? { imported: recorded } : {}),
 	});
 	return complete;
 }

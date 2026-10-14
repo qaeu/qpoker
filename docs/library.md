@@ -100,6 +100,18 @@ Two things had to change for a hand's grade not to depend on which file it came 
    next run finds only what is left.
 4. Record the import with the last chunk.
 
+A log loaded again is one row of the library, not one more. PokerStars writes a table's
+hands to one file as they are played, so a file is reloaded as it grows. An earlier
+import is that file's when it has the same name and holds no hand the file does not now
+hold (`earlierLoads`): the new import takes its place, in the same commit that records
+it. The row's hands are the file's as it stands; its new hands are what every load of it
+brought in, and a hand the file had cut short and now finishes is not counted twice
+(`foldReload`). A file of the same name that lacks a hand the earlier one had is another
+log, and keeps a row of its own. So does an import with no name. Because the row holds
+every hand of the earlier one, forgetting it goes by the same hands as forgetting both
+rows would have. `IngestRun.imported` is still what this one load did, which is what
+the CLI prints.
+
 A run with no text is step 2 onwards: it is how the app brings a library up to date after
 a new build. In the browser the worker does the writing
 (`analysisWorkerProtocol.ts`) and posts progress and a completion, not a report; the page

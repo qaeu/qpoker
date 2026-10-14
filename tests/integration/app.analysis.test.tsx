@@ -446,10 +446,8 @@ describe('analysing a log in the app', () => {
 				const after = await graded();
 				expect(after.map(({ summary }) => summary.id)).toEqual(['5001', '5002', '7001']);
 				expect(after.slice(0, 2)).toEqual(before);
-				expect(await openIdbStore().imports()).toMatchObject([
-					{ hands: 2, added: 2 },
-					{ hands: 3, added: 1 },
-				]);
+				// Still one log, holding the hands of both loads.
+				expect(await openIdbStore().imports()).toMatchObject([{ hands: 3, added: 3 }]);
 			},
 			RUN_TIMEOUT_MS
 		);

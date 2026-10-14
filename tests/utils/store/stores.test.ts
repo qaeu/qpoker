@@ -97,6 +97,18 @@ describe.each([
 			expect(await store.detail(id)).toEqual(await reference.detail(id));
 	});
 
+	it('keeps one row for a file loaded again', async () => {
+		const store = create();
+		await fill(store);
+		await ingestLog(store, second, { fileName: 'b.txt', now: '2026-10-12T12:00:00Z' });
+		expect(
+			(await store.imports()).map(({ fileName, importedAt }) => [fileName, importedAt])
+		).toEqual([
+			['a.txt', '2026-10-12T10:00:00Z'],
+			['b.txt', '2026-10-12T12:00:00Z'],
+		]);
+	});
+
 	it('forgets everything when cleared', async () => {
 		const store = create();
 		await fill(store);
