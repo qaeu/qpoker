@@ -11,7 +11,12 @@ import MistakeCard from '#c/report/MistakeCard';
 import RangeGrid from '#c/ranges/RangeGrid';
 import { RangeKey } from '#c/ranges/RangesView';
 import type { HandReport } from '#utils/coach/report';
-import { baselineTable, TABLE_LABELS, tableStrategy } from '#utils/ui/rangeTables';
+import {
+	baselineTable,
+	TABLE_LABELS,
+	tableOf,
+	tableStrategy,
+} from '#utils/ui/rangeTables';
 import {
 	equityAt,
 	equityText,
@@ -99,8 +104,9 @@ const StepCaption: Component<StepCaptionProps> = (props) => {
 									<RangeGrid
 										strategy={tableStrategy(id(), graded().preflop!.depth)}
 										marked={graded().preflop!.hand}
+										rest={tableOf(id()).free ? 'checks' : 'folds'}
 									/>
-									<RangeKey />
+									<RangeKey rest={tableOf(id()).free ? 'Check' : 'Fold'} />
 								</details>
 							)}
 						</Show>

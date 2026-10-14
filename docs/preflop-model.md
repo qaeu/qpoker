@@ -74,6 +74,7 @@ Behind a limper, short of the blinds, the strategy is no single chart: the iso-r
 the seat before's first-in range, and `overLimp` holds only the hands that limp along
 where that range does not raise. The Ranges view shows the two together, one table per
 seat (`overLimpStrategy`), never `overLimp` on its own, which would fold every premium.
+UTG and the hijack both iso-raise with UTG's opens, so the hijack's table covers both.
 
 ## Fuller tables
 

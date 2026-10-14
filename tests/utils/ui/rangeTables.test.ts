@@ -89,7 +89,7 @@ describe('the range tables', () => {
 
 		it('takes the first chart from one with no seat', () => {
 			expect(stepGroup('vs4betWide', -1)).toBe('epVs3betIp');
-			expect(stepGroup('cold4bet', 1)).toBe('overLimpUtg');
+			expect(stepGroup('cold4bet', 1)).toBe('overLimpHj');
 		});
 
 		it('goes round from the first scenario to the last and back', () => {
@@ -116,7 +116,6 @@ describe('the range tables', () => {
 
 		it('has a table for each seat short of the blinds', () => {
 			expect(tablesIn('limped').map((table) => table.short)).toEqual([
-				'UTG',
 				'HJ',
 				'CO',
 				'BTN',
@@ -127,6 +126,9 @@ describe('the range tables', () => {
 			expect(tableOf('overLimpCo')).toMatchObject({ seat: 'CO' });
 			expect(tableOf('overLimpCo').note).toMatch(/Iso-raises/);
 			expect(tableOf('sbVsLimp').note).toBeNull();
+			expect(RANGE_TABLES.filter((table) => table.free).map((table) => table.id)).toEqual(
+				['bbVsLimp']
+			);
 		});
 
 		it('iso-raises with the first-in range of the seat before', () => {
@@ -137,7 +139,7 @@ describe('the range tables', () => {
 		});
 
 		it('limps along only with hands it does not raise', () => {
-			const { raise, call } = tableStrategy('overLimpUtg', 'deep');
+			const { raise, call } = tableStrategy('overLimpHj', 'deep');
 			expect(call[at('54s')]).toBeGreaterThan(0);
 			for (let cls = 0; cls < CLASS_COUNT; cls++)
 				expect(raise[cls] + call[cls]).toBeLessThanOrEqual(1 + 1e-9);
@@ -147,7 +149,8 @@ describe('the range tables', () => {
 			const facts = (scenario: Scenario, id: ChartId | null) =>
 				({ scenario, chart: id }) as PreflopFacts;
 			expect(baselineTable(facts('vsLimp', null), 'CO')).toBe('overLimpCo');
-			expect(baselineTable(facts('vsLimp', null), 'LJ')).toBe('overLimpUtg');
+			expect(baselineTable(facts('vsLimp', null), 'LJ')).toBe('overLimpHj');
+			expect(baselineTable(facts('vsLimp', null), 'HJ')).toBe('overLimpHj');
 			expect(baselineTable(facts('vsLimp', 'bbVsLimp'), 'BB')).toBe('bbVsLimp');
 			expect(baselineTable(facts('rfi', 'rfiBtn'), 'BTN')).toBe('rfiBtn');
 			expect(baselineTable(facts('vsOpen', null), 'CO')).toBeNull();

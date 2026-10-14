@@ -36,6 +36,9 @@ async function pick(name: string, of: Group): Promise<void> {
 	await Promise.resolve();
 }
 
+const part = (container: HTMLElement, name: string) =>
+	container.querySelector(`.ranges-view__${name}`)?.textContent?.trim();
+
 const heading = () => screen.getByRole('heading', { level: 2 }).textContent;
 
 describe('RangesView', () => {
@@ -65,18 +68,27 @@ describe('RangesView', () => {
 
 		it('shows each seat behind a limper its iso-raise as well as its limp', () => {
 			mount({ chart: 'overLimpBtn' });
-			expect(keys('Chart')).toEqual([
-				'UTG',
-				'HJ',
-				'CO',
-				'BTN',
-				'SB',
-				'BB',
-				'Limped, raised',
-			]);
+			expect(keys('Chart')).toEqual(['HJ', 'CO', 'BTN', 'SB', 'BB', 'Limped, raised']);
 			expect(heading()).toBe('BTN behind a limper');
 			expect(screen.getByText(/Iso-raises with the first-in range/)).toBeTruthy();
 			expect(screen.getByText(/Raises/).textContent).not.toMatch(/Raises 0(\.0)?%/);
+		});
+
+		it('checks, not folds, what the big blind does not raise over limpers', () => {
+			const { container } = mount({ chart: 'bbVsLimp' });
+			expect(part(container, 'figures')).toMatch(
+				/^Raises \S+ of hands, checks the rest\.$/
+			);
+			expect(container.querySelector('.range-key')!.textContent).toBe('RaiseCallCheck');
+			expect(screen.getByTitle(/^72o:/).title).toBe(
+				'72o: raises 0%, calls 0%, checks 100%'
+			);
+		});
+
+		it('folds what an opener does not raise or call', () => {
+			const { container } = mount({ chart: 'rfiBtn' });
+			expect(part(container, 'figures')).toMatch(/calls \S+\.$/);
+			expect(container.querySelector('.range-key')!.textContent).toBe('RaiseCallFold');
 		});
 
 		it('has no stack to pick where the charts are the same at every depth', () => {
@@ -167,9 +179,9 @@ describe('RangesView', () => {
 			press('ArrowRight');
 			expect(query().chart).toBe('rfiUtg');
 			press('ArrowUp');
-			expect(query().chart).toBe('overLimpUtg');
+			expect(query().chart).toBe('overLimpHj');
 			press('ArrowDown');
-			expect(query().chart).toBe('rfiUtg');
+			expect(query().chart).toBe('rfiHj');
 		});
 
 		it('has nowhere to step in a scenario of one chart', () => {

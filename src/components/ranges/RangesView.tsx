@@ -150,15 +150,17 @@ const RangesView: Component<RangesViewProps> = (props) => {
 
 				<h2 class="ranges-view__title">{TABLE_LABELS[id()]}</h2>
 				<p class="ranges-view__figures">
-					Raises {percent(rangeFraction(strategy().raise))} of hands, calls{' '}
-					{percent(rangeFraction(strategy().call))}.
+					Raises {percent(rangeFraction(strategy().raise))} of hands,{' '}
+					{tableOf(id()).free ?
+						'checks the rest.'
+					:	`calls ${percent(rangeFraction(strategy().call))}.`}
 					{hasOwnTable(id(), depth()) ?
 						''
 					:	' Same as the deep chart: this spot has none of its own at this depth.'}
 					{tableOf(id()).note ? ` ${tableOf(id()).note}` : ''}
 				</p>
-				<RangeGrid strategy={strategy()} />
-				<RangeKey />
+				<RangeGrid strategy={strategy()} rest={tableOf(id()).free ? 'checks' : 'folds'} />
+				<RangeKey rest={tableOf(id()).free ? 'Check' : 'Fold'} />
 				<p class="ranges-view__note">
 					These charts are hand-written approximations of published rake-adjusted 6-max
 					solver ranges for 2.5bb opens, not solver exports. Under 30bb the grader uses

@@ -47,16 +47,23 @@ export type RangeDepth = (typeof RANGE_DEPTHS)[number];
 /**
  * The seats behind a limper, short of the blinds. Their strategy is no one
  * chart: `overLimp` holds only the limping half, and the grader adds the
- * iso-raise, so each seat gets a table of the two together in its place.
+ * iso-raise, so each seat gets a table of the two together in its place. UTG
+ * and the hijack both iso-raise with UTG's opens, so they share the hijack's.
  */
 const OVER_LIMP = {
-	overLimpUtg: 'UTG',
 	overLimpHj: 'HJ',
 	overLimpCo: 'CO',
 	overLimpBtn: 'BTN',
 } as const satisfies Record<string, ChartSeat>;
 
 type OverLimpId = keyof typeof OVER_LIMP;
+
+const OVER_LIMP_OF: Partial<Record<ChartSeat, OverLimpId>> = {
+	UTG: 'overLimpHj',
+	HJ: 'overLimpHj',
+	CO: 'overLimpCo',
+	BTN: 'overLimpBtn',
+};
 
 /** A table the Ranges view can show: a chart, or one seat's play behind a limper. */
 export type TableId = Exclude<ChartId, 'overLimp'> | OverLimpId;
@@ -68,8 +75,7 @@ export const TABLE_IDS: readonly TableId[] = CHART_IDS.flatMap((id) =>
 
 export const TABLE_LABELS: Record<TableId, string> = {
 	...CHART_LABELS,
-	overLimpUtg: 'LJ or earlier, behind a limper',
-	overLimpHj: 'HJ behind a limper',
+	overLimpHj: 'HJ or earlier, behind a limper',
 	overLimpCo: 'CO behind a limper',
 	overLimpBtn: 'BTN behind a limper',
 };
@@ -91,6 +97,8 @@ export interface RangeTable {
 	seat: ChartSeat | null;
 	/** Where its ranges come from, when that is not one chart. */
 	note: string | null;
+	/** With nothing to call, a hand not raised checks rather than folds. */
+	free: boolean;
 }
 
 interface Placement {
@@ -98,6 +106,7 @@ interface Placement {
 	short: string;
 	seat?: ChartSeat;
 	note?: string;
+	free?: boolean;
 }
 
 const OVER_LIMP_NOTE =
@@ -131,12 +140,11 @@ const PLACES: Record<TableId, Placement> = {
 	vs4betTight: { group: 'vs4bet', short: 'Early opener' },
 	vs4betWide: { group: 'vs4bet', short: 'Late opener' },
 	cold4bet: { group: 'cold4bet', short: 'Open + 3-bet' },
-	overLimpUtg: { group: 'limped', short: 'UTG', seat: 'UTG', note: OVER_LIMP_NOTE },
 	overLimpHj: { group: 'limped', short: 'HJ', seat: 'HJ', note: OVER_LIMP_NOTE },
 	overLimpCo: { group: 'limped', short: 'CO', seat: 'CO', note: OVER_LIMP_NOTE },
 	overLimpBtn: { group: 'limped', short: 'BTN', seat: 'BTN', note: OVER_LIMP_NOTE },
 	sbVsLimp: { group: 'limped', short: 'SB', seat: 'SB' },
-	bbVsLimp: { group: 'limped', short: 'BB', seat: 'BB' },
+	bbVsLimp: { group: 'limped', short: 'BB', seat: 'BB', free: true },
 	limpedVsRaise: { group: 'limped', short: 'Limped, raised' },
 };
 
@@ -147,6 +155,7 @@ export const RANGE_TABLES: readonly RangeTable[] = TABLE_IDS.map((id) => ({
 	short: PLACES[id].short,
 	seat: PLACES[id].seat ?? null,
 	note: PLACES[id].note ?? null,
+	free: PLACES[id].free ?? false,
 }));
 
 const isOverLimp = (id: TableId): id is OverLimpId => Object.hasOwn(OVER_LIMP, id);
@@ -168,11 +177,7 @@ export function hasOwnTable(id: TableId, depth: Depth): boolean {
 export function baselineTable(facts: PreflopFacts, position: Position): TableId | null {
 	if (facts.chart) return facts.chart === 'overLimp' ? null : facts.chart;
 	if (facts.scenario !== 'vsLimp') return null;
-	const seat = CHART_SEAT[position];
-	const id = (Object.keys(OVER_LIMP) as OverLimpId[]).find(
-		(key) => OVER_LIMP[key] === seat
-	);
-	return id ?? null;
+	return OVER_LIMP_OF[CHART_SEAT[position]] ?? null;
 }
 
 export function tableOf(id: TableId): RangeTable {
