@@ -29,6 +29,16 @@ describe('RangeGrid', () => {
 		).toBe(true);
 	});
 
+	it('fills the share that checks apart from the share that folds', () => {
+		render(() => <RangeGrid strategy={strategy} rest="checks" />);
+		expect(screen.getByRole('grid').classList.contains('range-grid--checks')).toBe(true);
+	});
+
+	it('leaves the felt for the share that folds', () => {
+		render(() => <RangeGrid strategy={strategy} />);
+		expect(screen.getByRole('grid').classList.contains('range-grid--checks')).toBe(false);
+	});
+
 	it('outlines a second range and takes its faint cells and tooltips from the caller', () => {
 		render(() => (
 			<RangeGrid

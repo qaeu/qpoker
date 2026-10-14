@@ -50,7 +50,8 @@ const DEPTHS: SegmentOption<RangeDepth>[] = [
 	{ id: 'mid', label: '30 to 70bb' },
 ];
 
-export const RangeKey: Component<{ rest?: string }> = (props) => (
+/** `checks` where nothing is to call, so a hand not raised checks rather than folds. */
+export const RangeKey: Component<{ checks?: boolean }> = (props) => (
 	<ul class="range-key">
 		<li>
 			<span class="range-key__swatch range-key__swatch--raise" />
@@ -61,8 +62,14 @@ export const RangeKey: Component<{ rest?: string }> = (props) => (
 			Call
 		</li>
 		<li>
-			<span class="range-key__swatch range-key__swatch--fold" />
-			{props.rest ?? 'Fold'}
+			<span
+				class="range-key__swatch"
+				classList={{
+					'range-key__swatch--check': props.checks,
+					'range-key__swatch--fold': !props.checks,
+				}}
+			/>
+			{props.checks ? 'Check' : 'Fold'}
 		</li>
 	</ul>
 );
@@ -160,7 +167,7 @@ const RangesView: Component<RangesViewProps> = (props) => {
 					{tableOf(id()).note ? ` ${tableOf(id()).note}` : ''}
 				</p>
 				<RangeGrid strategy={strategy()} rest={tableOf(id()).free ? 'checks' : 'folds'} />
-				<RangeKey rest={tableOf(id()).free ? 'Check' : 'Fold'} />
+				<RangeKey checks={tableOf(id()).free} />
 				<p class="ranges-view__note">
 					These charts are hand-written approximations of published rake-adjusted 6-max
 					solver ranges for 2.5bb opens, not solver exports. Under 30bb the grader uses

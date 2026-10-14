@@ -80,6 +80,8 @@ describe('RangesView', () => {
 				/^Raises \S+ of hands, checks the rest\.$/
 			);
 			expect(container.querySelector('.range-key')!.textContent).toBe('RaiseCallCheck');
+			expect(container.querySelector('.range-key__swatch--check')).toBeTruthy();
+			expect(container.querySelector('.range-key__swatch--fold')).toBeNull();
 			expect(screen.getByTitle(/^72o:/).title).toBe(
 				'72o: raises 0%, calls 0%, checks 100%'
 			);

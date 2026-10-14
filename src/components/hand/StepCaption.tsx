@@ -106,7 +106,7 @@ const StepCaption: Component<StepCaptionProps> = (props) => {
 										marked={graded().preflop!.hand}
 										rest={tableOf(id()).free ? 'checks' : 'folds'}
 									/>
-									<RangeKey rest={tableOf(id()).free ? 'Check' : 'Fold'} />
+									<RangeKey checks={tableOf(id()).free} />
 								</details>
 							)}
 						</Show>

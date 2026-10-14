@@ -31,7 +31,12 @@ const CELLS = Array.from({ length: 169 }, (_, cls) => cls);
 const share = (value: number): string => `${Math.round(value * 100)}%`;
 
 const RangeGrid: Component<RangeGridProps> = (props) => (
-	<div class="range-grid" role="grid" aria-label="Starting-hand range">
+	<div
+		class="range-grid"
+		classList={{ 'range-grid--checks': props.rest === 'checks' }}
+		role="grid"
+		aria-label="Starting-hand range"
+	>
 		<For each={CELLS}>
 			{(cls) => {
 				const name = className(cls);
