@@ -4,6 +4,7 @@ import { CHART_IDS } from '#utils/ranges/charts';
 import {
 	chartIn,
 	GROUP_LABELS,
+	hasDepths,
 	RANGE_GROUPS,
 	RANGE_TABLES,
 	stepChart,
@@ -93,6 +94,12 @@ describe('the range tables', () => {
 		it('jumps scenarios, keeping the seat', () => {
 			expect(chartIn('limped', 'rfiSb')).toBe('sbVsLimp');
 			expect(chartIn('rfi', 'sbVsLimp')).toBe('rfiSb');
+		});
+	});
+
+	describe('hasDepths', () => {
+		it('holds for a scenario with a chart of its own for the shorter stack', () => {
+			expect(RANGE_GROUPS.filter(hasDepths)).toEqual(['vs3bet', 'vs4bet', 'cold4bet']);
 		});
 	});
 });

@@ -4,7 +4,7 @@
  * hero's seat where the next one has a chart for it.
  */
 
-import { CHART_IDS, type ChartId, type ChartSeat } from '../ranges/charts';
+import { CHART_IDS, hasOwnChart, type ChartId, type ChartSeat } from '../ranges/charts';
 
 export const RANGE_GROUPS = [
 	'rfi',
@@ -102,6 +102,11 @@ export function tableOf(id: ChartId): RangeTable {
 
 export function tablesIn(group: RangeGroup): RangeTable[] {
 	return RANGE_TABLES.filter((table) => table.group === group);
+}
+
+/** Whether any chart in `group` has one of its own for the shorter stack. */
+export function hasDepths(group: RangeGroup): boolean {
+	return tablesIn(group).some((table) => hasOwnChart(table.id, 'mid'));
 }
 
 /**

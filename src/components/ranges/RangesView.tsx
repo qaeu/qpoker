@@ -5,7 +5,7 @@
  * choice is the view's address.
  */
 
-import { createMemo, onCleanup, onMount, type Component } from 'solid-js';
+import { createMemo, onCleanup, onMount, Show, type Component } from 'solid-js';
 
 import Segmented, { type SegmentOption } from '#c/common/Segmented';
 
@@ -18,6 +18,7 @@ import { ARROWED, TYPING } from '#utils/ui/keys';
 import {
 	chartIn,
 	GROUP_LABELS,
+	hasDepths,
 	RANGE_GROUPS,
 	stepChart,
 	stepGroup,
@@ -66,8 +67,11 @@ export const RangeKey: Component<{ rest?: string }> = (props) => (
 
 const RangesView: Component<RangesViewProps> = (props) => {
 	const id = () => props.query.chart;
-	const depth = () => props.query.depth;
 	const group = createMemo(() => tableOf(id()).group);
+	// A scenario whose charts are the same at every depth has no stack to pick; the
+	// address keeps its depth for the next scenario that does.
+	const stacked = createMemo(() => hasDepths(group()));
+	const depth = (): RangeDepth => (stacked() ? props.query.depth : 'deep');
 	const charts = createMemo<SegmentOption<ChartId>[]>(() =>
 		tablesIn(group()).map((table) => ({ id: table.id, label: table.short }))
 	);
@@ -82,6 +86,7 @@ const RangesView: Component<RangesViewProps> = (props) => {
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		if (event.target instanceof Element && event.target.closest(TYPING)) return;
 		if (event.key.toLowerCase() === 'd') {
+			if (!stacked()) return;
 			event.preventDefault();
 			props.onQuery({ depth: depth() === 'deep' ? 'mid' : 'deep' }, { replace: true });
 			return;
@@ -122,18 +127,22 @@ const RangesView: Component<RangesViewProps> = (props) => {
 						value={id()}
 						onChange={(next) => props.onQuery({ chart: next })}
 					/>
-					<Segmented
-						label="Stack"
-						options={DEPTHS}
-						value={depth()}
-						onChange={(next) => props.onQuery({ depth: next })}
-					/>
+					<Show when={stacked()}>
+						<Segmented
+							label="Stack"
+							options={DEPTHS}
+							value={depth()}
+							onChange={(next) => props.onQuery({ depth: next })}
+						/>
+					</Show>
 					<p class="ranges-view__keys">
 						<kbd>←</kbd>
 						<kbd>→</kbd> chart
 						<kbd>↑</kbd>
 						<kbd>↓</kbd> scenario
-						<kbd>D</kbd> stack
+						<Show when={stacked()}>
+							<kbd>D</kbd> stack
+						</Show>
 					</p>
 				</div>
 

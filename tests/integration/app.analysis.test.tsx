@@ -524,15 +524,18 @@ describe('analysing a log in the app', () => {
 		// The arrows move the chart and the scenario, and the address follows.
 		fireEvent.keyDown(window, { key: 'ArrowRight' });
 		fireEvent.keyDown(window, { key: 'ArrowDown' });
+		fireEvent.keyDown(window, { key: 'ArrowDown' });
 		fireEvent.keyDown(window, { key: 'd' });
-		expect(window.location.hash).toBe('#ranges?chart=ipVsEp&depth=mid');
-		expect(screen.getByRole('heading', { name: 'HJ or CO vs UTG open' })).toBeTruthy();
+		expect(window.location.hash).toBe('#ranges?chart=coVs3betIp&depth=mid');
+		expect(screen.getByRole('heading', { name: 'CO open vs BTN 3-bet' })).toBeTruthy();
 	});
 
 	it('opens the chart a link names', async () => {
 		mountApp();
-		await goTo('#ranges?chart=bbVsSb&depth=mid');
-		expect(await screen.findByRole('heading', { name: 'BB vs SB open' })).toBeTruthy();
+		await goTo('#ranges?chart=btnVs3bet&depth=mid');
+		expect(
+			await screen.findByRole('heading', { name: 'BTN open vs 3-bet' })
+		).toBeTruthy();
 		expect(
 			screen.getByRole<HTMLInputElement>('radio', { name: '30 to 70bb' }).checked
 		).toBe(true);

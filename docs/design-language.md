@@ -240,11 +240,14 @@ than disabling the menu on its last choice, keeps the header from claiming Trend
 
 The Ranges view had one menu of all thirty charts, and going from one to its neighbour
 was a menu opened and thirty lines read. Thirty is too many for keys, so the list is cut
-in two: a **Scenario** row (first in, vs open, vs 3-bet, vs 4-bet, cold 4-bet, limped)
-and a **Chart** row of the charts in the scenario chosen, twelve at most. Each row is few
-enough to have in view, and the chart keys can be short (`BTN`, `BB vs CO`) because the
-scenario key above has said the rest; the full name is the heading over the grid. Stack
-depth is a third row, two keys. The grouping is `utils/ui/rangeTables.ts`.
+in two: a **Scenario** column down a sidebar (first in, vs open, vs 3-bet, vs 4-bet,
+cold 4-bet, limped) and a **Chart** row of the charts in the scenario chosen, twelve at
+most. Each is few enough to have in view, and the chart keys can be short (`BTN`,
+`BB vs CO`) because the scenario key beside them has said the rest; the full name is the
+heading over the grid. Stack depth is a third row, two keys, shown only for a scenario
+with a shorter-stack chart of its own (the 3-bet, 4-bet and cold 4-bet ones): elsewhere
+both keys would show the same grid. The address keeps the depth across a scenario
+without one. The grouping is `utils/ui/rangeTables.ts`.
 
 Changing scenario keeps the hero's seat where the next one has a chart for it (BTN first
 in, BTN vs an early open, BTN open vs a 3-bet), since that is the comparison most often
@@ -252,7 +255,7 @@ wanted, and takes the scenario's first chart otherwise. It goes by the seat of t
 on show, not one remembered, so the same address always moves the same way.
 
 The window takes the arrow keys while the view is up: left and right move the chart, up
-and down the scenario, and `D` flips the depth, printed as key caps under the rows (and
+and down the scenario, and `D` flips the depth where there is one to flip, printed as key caps under the rows (and
 hidden on touch, as every cap is). They go round: past the last chart is the first, and past the last scenario the first. As in Review,
 they stand down while a row of keys has the focus, because there Ark's radio group moves
 its own choice with the arrows. The choice is the view's address

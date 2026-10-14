@@ -41,7 +41,7 @@ const heading = () => screen.getByRole('heading', { level: 2 }).textContent;
 describe('RangesView', () => {
 	describe('the keys', () => {
 		it('sets out the scenarios, the charts of the one chosen and the depths', () => {
-			mount();
+			mount({ chart: 'btnVs3bet' });
 			expect(keys('Scenario')).toEqual([
 				'First in',
 				'Vs open',
@@ -50,10 +50,34 @@ describe('RangesView', () => {
 				'Cold 4-bet',
 				'Limped',
 			]);
-			expect(keys('Chart')).toEqual(['UTG', 'HJ', 'CO', 'BTN', 'SB']);
+			expect(keys('Chart')).toEqual([
+				'UTG/HJ, 3-bet IP',
+				'UTG/HJ, blinds',
+				'CO vs BTN',
+				'CO, blinds',
+				'BTN',
+				'SB',
+			]);
 			expect(keys('Stack')).toEqual(['70bb and deeper', '30 to 70bb']);
-			expect(radio('First in', 'Scenario').checked).toBe(true);
+			expect(radio('Vs 3-bet', 'Scenario').checked).toBe(true);
 			expect(radio('BTN', 'Chart').checked).toBe(true);
+		});
+
+		it('has no stack to pick where the charts are the same at every depth', () => {
+			const { container } = mount({ depth: 'mid' });
+			expect(keys('Chart')).toEqual(['UTG', 'HJ', 'CO', 'BTN', 'SB']);
+			expect(screen.queryByRole('radiogroup', { name: 'Stack' })).toBeNull();
+			expect(screen.queryByText(/Same as the deep chart/)).toBeNull();
+			expect(container.querySelector('.ranges-view__keys')!.textContent).not.toContain(
+				'stack'
+			);
+		});
+
+		it('keeps the depth for the next scenario that has one', async () => {
+			const { query } = mount({ depth: 'mid' });
+			await pick('Vs 3-bet', 'Scenario');
+			expect(query().depth).toBe('mid');
+			expect(radio('30 to 70bb', 'Stack').checked).toBe(true);
 		});
 
 		it('puts the scenarios down a sidebar, apart from the chart', () => {
@@ -87,11 +111,11 @@ describe('RangesView', () => {
 			expect(keys('Chart')).toHaveLength(6);
 		});
 
-		it('picks a depth, and says when it has no chart of its own', async () => {
-			const { onQuery } = mount();
+		it('picks a depth', async () => {
+			const { onQuery } = mount({ chart: 'btnVs3bet' });
 			await pick('30 to 70bb', 'Stack');
 			expect(onQuery).toHaveBeenLastCalledWith({ depth: 'mid' });
-			expect(screen.getByText(/Same as the deep chart/)).toBeTruthy();
+			expect(screen.queryByText(/Same as the deep chart/)).toBeNull();
 		});
 	});
 
@@ -140,11 +164,17 @@ describe('RangesView', () => {
 		});
 
 		it('flips the depth with D', () => {
-			const { onQuery, query } = mount();
+			const { onQuery, query } = mount({ chart: 'btnVs3bet' });
 			press('d');
 			expect(onQuery).toHaveBeenLastCalledWith({ depth: 'mid' }, { replace: true });
 			press('D');
 			expect(query().depth).toBe('deep');
+		});
+
+		it('leaves D alone where there is no stack to pick', () => {
+			const { onQuery } = mount();
+			press('d');
+			expect(onQuery).not.toHaveBeenCalled();
 		});
 
 		it('leaves the keys alone with a modifier', () => {
