@@ -56,6 +56,14 @@ describe('RangesView', () => {
 			expect(radio('BTN', 'Chart').checked).toBe(true);
 		});
 
+		it('puts the scenarios down a sidebar, apart from the chart', () => {
+			mount();
+			const aside = screen.getByRole('complementary');
+			expect(group('Scenario').closest('aside')).toBe(aside);
+			expect(group('Scenario').getAttribute('data-orientation')).toBe('vertical');
+			expect(group('Chart').closest('aside')).toBeNull();
+		});
+
 		it('names the chart in full over its grid', () => {
 			mount({ chart: 'bbVsSb' });
 			expect(heading()).toBe('BB vs SB open');

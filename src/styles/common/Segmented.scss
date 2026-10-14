@@ -44,6 +44,27 @@
 			opacity: 0.8;
 		}
 
+		// A sidebar's keys, one to a line under the label; on a compact screen they
+		// share the line again.
+		&[data-orientation='vertical'] {
+			flex-direction: column;
+			align-items: stretch;
+
+			.segmented__items {
+				flex-direction: column;
+			}
+
+			.segmented__item {
+				justify-content: flex-start;
+			}
+
+			@include compact {
+				.segmented__items {
+					flex-direction: row;
+				}
+			}
+		}
+
 		// On a phone the label goes over its keys and the keys share the line.
 		@include phone {
 			flex-direction: column;

@@ -104,49 +104,55 @@ const RangesView: Component<RangesViewProps> = (props) => {
 
 	return (
 		<section class="ranges-view">
-			<div class="ranges-view__controls">
+			<aside class="ranges-view__aside">
 				<Segmented
 					label="Scenario"
+					orientation="vertical"
 					options={GROUPS}
 					value={group()}
 					onChange={(next) => props.onQuery({ chart: chartIn(next, id()) })}
 				/>
-				<Segmented
-					label="Chart"
-					options={charts()}
-					value={id()}
-					onChange={(next) => props.onQuery({ chart: next })}
-				/>
-				<Segmented
-					label="Stack"
-					options={DEPTHS}
-					value={depth()}
-					onChange={(next) => props.onQuery({ depth: next })}
-				/>
-				<p class="ranges-view__keys">
-					<kbd>←</kbd>
-					<kbd>→</kbd> chart
-					<kbd>↑</kbd>
-					<kbd>↓</kbd> scenario
-					<kbd>D</kbd> stack
+			</aside>
+
+			<div class="ranges-view__chart">
+				<div class="ranges-view__controls">
+					<Segmented
+						label="Chart"
+						options={charts()}
+						value={id()}
+						onChange={(next) => props.onQuery({ chart: next })}
+					/>
+					<Segmented
+						label="Stack"
+						options={DEPTHS}
+						value={depth()}
+						onChange={(next) => props.onQuery({ depth: next })}
+					/>
+					<p class="ranges-view__keys">
+						<kbd>←</kbd>
+						<kbd>→</kbd> chart
+						<kbd>↑</kbd>
+						<kbd>↓</kbd> scenario
+						<kbd>D</kbd> stack
+					</p>
+				</div>
+
+				<h2 class="ranges-view__title">{CHART_LABELS[id()]}</h2>
+				<p class="ranges-view__figures">
+					Raises {percent(rangeFraction(strategy().raise))} of hands, calls{' '}
+					{percent(rangeFraction(strategy().call))}.
+					{hasOwnChart(id(), depth()) ?
+						''
+					:	' Same as the deep chart: this spot has none of its own at this depth.'}
+				</p>
+				<RangeGrid strategy={strategy()} />
+				<RangeKey />
+				<p class="ranges-view__note">
+					These charts are hand-written approximations of published rake-adjusted 6-max
+					solver ranges for 2.5bb opens, not solver exports. Under 30bb the grader uses
+					the 30 to 70bb charts and marks its findings low confidence.
 				</p>
 			</div>
-
-			<h2 class="ranges-view__title">{CHART_LABELS[id()]}</h2>
-			<p class="ranges-view__figures">
-				Raises {percent(rangeFraction(strategy().raise))} of hands, calls{' '}
-				{percent(rangeFraction(strategy().call))}.
-				{hasOwnChart(id(), depth()) ?
-					''
-				:	' Same as the deep chart: this spot has none of its own at this depth.'}
-			</p>
-			<RangeGrid strategy={strategy()} />
-			<RangeKey />
-			<p class="ranges-view__note">
-				These charts are hand-written approximations of published rake-adjusted 6-max
-				solver ranges for 2.5bb opens, not solver exports. Under 30bb the grader uses the
-				30 to 70bb charts and marks its findings low confidence.
-			</p>
 		</section>
 	);
 };

@@ -1,9 +1,39 @@
 @use '../base' as *;
 
 @layer screen {
+	// The scenarios down a sidebar, and the chart beside them; the sidebar goes
+	// over the chart where there is not the width for both.
 	.ranges-view {
-		@include card;
-		max-width: 640px;
+		display: flex;
+		align-items: flex-start;
+		gap: 20px;
+
+		&__aside {
+			@include card;
+			flex: none;
+			width: 200px;
+		}
+
+		&__chart {
+			@include card;
+			flex: 0 1 640px;
+			min-width: 0;
+		}
+
+		@include compact {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0;
+
+			&__aside {
+				width: auto;
+			}
+
+			&__chart {
+				flex-basis: auto;
+				max-width: 640px;
+			}
+		}
 
 		&__controls {
 			display: flex;

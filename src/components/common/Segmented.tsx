@@ -22,6 +22,8 @@ interface SegmentedProps<T extends string> {
 	options: readonly SegmentOption<T>[];
 	value: T;
 	onChange: (value: T) => void;
+	/** `vertical` stacks the keys under the label, as a sidebar does. */
+	orientation?: 'horizontal' | 'vertical';
 }
 
 // A generic function rather than a `Component<Props>`, which cannot carry `T`.
@@ -29,7 +31,7 @@ function Segmented<T extends string>(props: SegmentedProps<T>): JSX.Element {
 	return (
 		<SegmentGroup.Root
 			class="segmented"
-			orientation="horizontal"
+			orientation={props.orientation ?? 'horizontal'}
 			value={props.value}
 			onValueChange={(details) => {
 				if (details.value !== null) props.onChange(details.value as T);
