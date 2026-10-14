@@ -6,10 +6,33 @@ import { analyzeLog, type HandReport } from '#utils/coach/report';
 import { stepOfLine, tableSteps } from '#utils/ui/tableReplay';
 
 import { TWO_HAND_LOG } from '../../integration/appHarness';
-import { handText, RIVER_HERO_CALL } from '../../utils/history/handText';
+import { BLINDS_HERO_BTN, handText, RIVER_HERO_CALL } from '../../utils/history/handText';
 
 const [folded, opened] = analyzeLog(TWO_HAND_LOG).hands;
 const called = analyzeLog(handText(RIVER_HERO_CALL)).hands[0];
+const limpedFold = analyzeLog(
+	handText({
+		heroCards: 'Ah As',
+		button: 1,
+		lines: [
+			...BLINDS_HERO_BTN,
+			'*** HOLE CARDS ***',
+			'p4: calls $0.10',
+			'p5: folds',
+			'p6: folds',
+			'hero: folds',
+			'p2: folds',
+			'p3: checks',
+			'*** FLOP *** [Kd 7s 2c]',
+			'p3: bets $0.10',
+			'p4: folds',
+			'Uncalled bet ($0.10) returned to p3',
+			'p3 collected $0.25 from pot',
+		],
+		pot: '0.25',
+		winner: 'p3',
+	})
+).hands[0];
 
 function mount(hand: HandReport, step: number) {
 	const steps = tableSteps(hand);
@@ -124,6 +147,14 @@ describe('StepCaption', () => {
 				true
 			);
 			expect(screen.queryByText('on baseline')).toBeNull();
+		});
+
+		it('gives a mistake behind a limper the seat’s table, iso-raise and all', () => {
+			mount(limpedFold, stepAt(limpedFold, 'hero (BTN) folds'));
+			expect(screen.getByText('Baseline range: BTN behind a limper')).toBeTruthy();
+			expect(screen.getByTitle(/^AA: raises 100%/).classList.contains('is-marked')).toBe(
+				true
+			);
 		});
 
 		it('gives a postflop mistake its card, with no chart to show', () => {

@@ -11,7 +11,7 @@ import MistakeCard from '#c/report/MistakeCard';
 import RangeGrid from '#c/ranges/RangeGrid';
 import { RangeKey } from '#c/ranges/RangesView';
 import type { HandReport } from '#utils/coach/report';
-import { chart, CHART_LABELS } from '#utils/ranges/charts';
+import { baselineTable, TABLE_LABELS, tableStrategy } from '#utils/ui/rangeTables';
 import {
 	equityAt,
 	equityText,
@@ -41,6 +41,13 @@ const StepCaption: Component<StepCaptionProps> = (props) => {
 		return graded && (graded.mistake || graded.goodPlay) ? graded : undefined;
 	};
 	const baseline = () => (grading() && !finding() ? grading() : undefined);
+	const table = () => {
+		const facts = finding()?.preflop;
+		const { actor } = current();
+		return facts && actor !== null ?
+				baselineTable(facts, props.hand.seats[actor].position)
+			:	null;
+	};
 	const byHero = () => {
 		const { actor } = current();
 		return actor !== null && props.hand.seats[actor].hero;
@@ -85,12 +92,12 @@ const StepCaption: Component<StepCaptionProps> = (props) => {
 				{(graded) => (
 					<>
 						<MistakeCard grading={graded()} />
-						<Show when={graded().preflop?.chart}>
-							{(chartId) => (
+						<Show when={table()}>
+							{(id) => (
 								<details class="step-caption__chart">
-									<summary>Baseline range: {CHART_LABELS[chartId()]}</summary>
+									<summary>Baseline range: {TABLE_LABELS[id()]}</summary>
 									<RangeGrid
-										strategy={chart(chartId(), graded().preflop!.depth)}
+										strategy={tableStrategy(id(), graded().preflop!.depth)}
 										marked={graded().preflop!.hand}
 									/>
 									<RangeKey />

@@ -4,9 +4,12 @@
  * hero's seat where the next one has a chart for it.
  */
 
+import type { PreflopFacts } from '../coach/grade';
+import type { Position } from '../history/replay';
 import {
 	chart,
 	CHART_IDS,
+	CHART_SEAT,
 	CHART_LABELS,
 	hasOwnChart,
 	type ChartId,
@@ -156,6 +159,20 @@ export function tableStrategy(id: TableId, depth: Depth): Strategy {
 /** True when `depth` has ranges of its own for the table, not the deep ones. */
 export function hasOwnTable(id: TableId, depth: Depth): boolean {
 	return isOverLimp(id) ? depth === 'deep' : hasOwnChart(id, depth);
+}
+
+/**
+ * The table a preflop decision was graded against: its chart, or, behind a
+ * limper short of the blinds, the seat's table, which no one chart is.
+ */
+export function baselineTable(facts: PreflopFacts, position: Position): TableId | null {
+	if (facts.chart) return facts.chart === 'overLimp' ? null : facts.chart;
+	if (facts.scenario !== 'vsLimp') return null;
+	const seat = CHART_SEAT[position];
+	const id = (Object.keys(OVER_LIMP) as OverLimpId[]).find(
+		(key) => OVER_LIMP[key] === seat
+	);
+	return id ?? null;
 }
 
 export function tableOf(id: TableId): RangeTable {

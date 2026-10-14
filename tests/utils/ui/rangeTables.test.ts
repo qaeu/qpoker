@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { CLASS_COUNT, classFromName } from '#utils/cards/combos';
-import { chart, CHART_IDS } from '#utils/ranges/charts';
+import type { PreflopFacts } from '#utils/coach/grade';
+import { chart, CHART_IDS, type ChartId } from '#utils/ranges/charts';
+import type { Scenario } from '#utils/ranges/preflopSpot';
 import {
+	baselineTable,
 	chartIn,
 	GROUP_LABELS,
 	hasDepths,
@@ -138,6 +141,16 @@ describe('the range tables', () => {
 			expect(call[at('54s')]).toBeGreaterThan(0);
 			for (let cls = 0; cls < CLASS_COUNT; cls++)
 				expect(raise[cls] + call[cls]).toBeLessThanOrEqual(1 + 1e-9);
+		});
+
+		it('is the baseline of a limped spot short of the blinds', () => {
+			const facts = (scenario: Scenario, id: ChartId | null) =>
+				({ scenario, chart: id }) as PreflopFacts;
+			expect(baselineTable(facts('vsLimp', null), 'CO')).toBe('overLimpCo');
+			expect(baselineTable(facts('vsLimp', null), 'LJ')).toBe('overLimpUtg');
+			expect(baselineTable(facts('vsLimp', 'bbVsLimp'), 'BB')).toBe('bbVsLimp');
+			expect(baselineTable(facts('rfi', 'rfiBtn'), 'BTN')).toBe('rfiBtn');
+			expect(baselineTable(facts('vsOpen', null), 'CO')).toBeNull();
 		});
 
 		it('is the same at every depth', () => {
