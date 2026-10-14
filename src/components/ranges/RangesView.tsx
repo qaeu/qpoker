@@ -10,8 +10,6 @@ import { createMemo, onCleanup, onMount, Show, type Component } from 'solid-js';
 import Segmented, { type SegmentOption } from '#c/common/Segmented';
 
 import type { NavigateOptions } from '#utils/app/hashRoute';
-import { chart, CHART_LABELS, hasOwnChart } from '#utils/ranges/charts';
-import type { ChartId } from '#utils/ranges/charts';
 import { rangeFraction } from '#utils/ranges/range';
 import { percent } from '#utils/ui/format';
 import { ARROWED, TYPING } from '#utils/ui/keys';
@@ -19,14 +17,18 @@ import {
 	chartIn,
 	GROUP_LABELS,
 	hasDepths,
+	hasOwnTable,
 	RANGE_GROUPS,
 	stepChart,
 	stepGroup,
+	TABLE_LABELS,
 	tableOf,
 	tablesIn,
+	tableStrategy,
 	type RangeDepth,
 	type RangeGroup,
 	type RangesQuery,
+	type TableId,
 } from '#utils/ui/rangeTables';
 
 import RangeGrid from './RangeGrid';
@@ -72,13 +74,13 @@ const RangesView: Component<RangesViewProps> = (props) => {
 	// address keeps its depth for the next scenario that does.
 	const stacked = createMemo(() => hasDepths(group()));
 	const depth = (): RangeDepth => (stacked() ? props.query.depth : 'deep');
-	const charts = createMemo<SegmentOption<ChartId>[]>(() =>
+	const charts = createMemo<SegmentOption<TableId>[]>(() =>
 		tablesIn(group()).map((table) => ({ id: table.id, label: table.short }))
 	);
-	const strategy = createMemo(() => chart(id(), depth()));
+	const strategy = createMemo(() => tableStrategy(id(), depth()));
 
 	// A step with the keys rewrites the entry: holding one is not twenty pages back.
-	const step = (to: ChartId) => {
+	const step = (to: TableId) => {
 		if (to !== id()) props.onQuery({ chart: to }, { replace: true });
 	};
 
@@ -146,13 +148,14 @@ const RangesView: Component<RangesViewProps> = (props) => {
 					</p>
 				</div>
 
-				<h2 class="ranges-view__title">{CHART_LABELS[id()]}</h2>
+				<h2 class="ranges-view__title">{TABLE_LABELS[id()]}</h2>
 				<p class="ranges-view__figures">
 					Raises {percent(rangeFraction(strategy().raise))} of hands, calls{' '}
 					{percent(rangeFraction(strategy().call))}.
-					{hasOwnChart(id(), depth()) ?
+					{hasOwnTable(id(), depth()) ?
 						''
 					:	' Same as the deep chart: this spot has none of its own at this depth.'}
+					{tableOf(id()).note ? ` ${tableOf(id()).note}` : ''}
 				</p>
 				<RangeGrid strategy={strategy()} />
 				<RangeKey />

@@ -24,9 +24,13 @@ import { createSignal, onCleanup, onMount } from 'solid-js';
 import { MISTAKES, type MistakeType } from '../coach/mistakes';
 import { DEFAULT_SCOPE, isTimestamp, SCOPE_PRESETS, type Scope } from '../coach/sessions';
 import { POSITIONS } from '../history/replay';
-import { CHART_IDS } from '../ranges/charts';
 import { SCENARIOS } from '../ranges/preflopSpot';
-import { DEFAULT_RANGES, RANGE_DEPTHS, type RangesQuery } from '../ui/rangeTables';
+import {
+	DEFAULT_RANGES,
+	RANGE_DEPTHS,
+	TABLE_IDS,
+	type RangesQuery,
+} from '../ui/rangeTables';
 import {
 	DEFAULT_REVIEW,
 	REVIEW_FLOORS,
@@ -120,7 +124,7 @@ export function parseRoute(hash: string): Route {
 			tab,
 			review: DEFAULT_REVIEW,
 			ranges: {
-				chart: oneOf(CHART_IDS, params.get('chart')) ?? DEFAULT_RANGES.chart,
+				chart: oneOf(TABLE_IDS, params.get('chart')) ?? DEFAULT_RANGES.chart,
 				depth: oneOf(RANGE_DEPTHS, params.get('depth')) ?? DEFAULT_RANGES.depth,
 			},
 		};

@@ -63,6 +63,22 @@ describe('RangesView', () => {
 			expect(radio('BTN', 'Chart').checked).toBe(true);
 		});
 
+		it('shows each seat behind a limper its iso-raise as well as its limp', () => {
+			mount({ chart: 'overLimpBtn' });
+			expect(keys('Chart')).toEqual([
+				'UTG',
+				'HJ',
+				'CO',
+				'BTN',
+				'SB',
+				'BB',
+				'Limped, raised',
+			]);
+			expect(heading()).toBe('BTN behind a limper');
+			expect(screen.getByText(/Iso-raises with the first-in range/)).toBeTruthy();
+			expect(screen.getByText(/Raises/).textContent).not.toMatch(/Raises 0(\.0)?%/);
+		});
+
 		it('has no stack to pick where the charts are the same at every depth', () => {
 			const { container } = mount({ depth: 'mid' });
 			expect(keys('Chart')).toEqual(['UTG', 'HJ', 'CO', 'BTN', 'SB']);
@@ -151,7 +167,7 @@ describe('RangesView', () => {
 			press('ArrowRight');
 			expect(query().chart).toBe('rfiUtg');
 			press('ArrowUp');
-			expect(query().chart).toBe('overLimp');
+			expect(query().chart).toBe('overLimpUtg');
 			press('ArrowDown');
 			expect(query().chart).toBe('rfiUtg');
 		});

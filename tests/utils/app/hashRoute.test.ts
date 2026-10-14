@@ -111,11 +111,13 @@ describe('the hash route', () => {
 					chart: 'bbVsSb',
 					depth: 'deep',
 				});
+				expect(rangesOf('#ranges?chart=overLimpCo').chart).toBe('overLimpCo');
 			});
 
 			it('falls back to the default on a value it does not know', () => {
 				expect(rangesOf('#ranges')).toEqual(DEFAULT_RANGES);
 				expect(rangesOf('#ranges?chart=toString&depth=short')).toEqual(DEFAULT_RANGES);
+				expect(rangesOf('#ranges?chart=overLimp')).toEqual(DEFAULT_RANGES);
 			});
 
 			it('is not read on another view', () => {

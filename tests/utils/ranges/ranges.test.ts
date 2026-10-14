@@ -3,9 +3,20 @@ import { describe, it, expect } from 'vitest';
 import { classFromName } from '#utils/cards/combos';
 import { parseHistory } from '#utils/history/parse';
 import { decisionsOf, replayHand } from '#utils/history/replay';
-import { chart, CHART_IDS, depthOf, jamRange, limpRange } from '#utils/ranges/charts';
+import {
+	chart,
+	CHART_IDS,
+	CHART_SEAT,
+	depthOf,
+	jamRange,
+	limpRange,
+} from '#utils/ranges/charts';
 import { formatRange, parseRange, parseStrategy } from '#utils/ranges/notation';
-import { classifyPreflop, preflopRange } from '#utils/ranges/preflopSpot';
+import {
+	classifyPreflop,
+	overLimpStrategy,
+	preflopRange,
+} from '#utils/ranges/preflopSpot';
 import {
 	continueRange,
 	rangeCombos,
@@ -255,6 +266,7 @@ describe('classifying a preflop spot', () => {
 			'p3'
 		);
 		expect(limped).toMatchObject({ scenario: 'vsLimp', limpers: 1, chart: null });
+		expect(limped.strategy).toEqual(overLimpStrategy(CHART_SEAT[limped.position]));
 		expect(limped.raiseToBb).toBe(3.5);
 	});
 });

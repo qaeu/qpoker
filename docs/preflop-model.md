@@ -70,6 +70,11 @@ marked low.
 The same classifier serves the hero's grade and every opponent's range, so the two can
 never disagree about what a spot was.
 
+Behind a limper, short of the blinds, the strategy is no single chart: the iso-raise is
+the seat before's first-in range, and `overLimp` holds only the hands that limp along
+where that range does not raise. The Ranges view shows the two together, one table per
+seat (`overLimpStrategy`), never `overLimp` on its own, which would fold every premium.
+
 ## Fuller tables
 
 The charts are six-handed, and what a chart is really written for is the number of

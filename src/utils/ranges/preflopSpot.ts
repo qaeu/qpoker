@@ -122,9 +122,12 @@ function vs3betChart(heroSeat: Position, threeBettor: Position): ChartId {
 	return blinds ? 'epVs3betOop' : 'epVs3betIp';
 }
 
-/** Iso-raise like the seat before, or limp along with hands that play well multiway. */
-function vsLimpStrategy(position: Position): Strategy {
-	const raise = chart(RFI_CHART[EARLIER[CHART_SEAT[position]]]).raise;
+/**
+ * Behind limpers, short of the blinds: iso-raise like the seat before, or limp
+ * along with hands that play well multiway.
+ */
+export function overLimpStrategy(seat: ChartSeat): Strategy {
+	const raise = chart(RFI_CHART[EARLIER[seat]]).raise;
 	const call = emptyRange();
 	const along = chart('overLimp').call;
 	for (let cls = 0; cls < CLASS_COUNT; cls++)
@@ -185,7 +188,7 @@ export function classifyPreflop(replay: Replay, step: Step): PreflopSpot {
 			chartId = position === 'SB' ? 'sbVsLimp' : 'bbVsLimp';
 			strategy = chart(chartId, depth);
 		} else {
-			strategy = vsLimpStrategy(position);
+			strategy = overLimpStrategy(CHART_SEAT[position]);
 		}
 	} else if (raises === 1 && ownRaises === 0) {
 		if (ownLimp) {
