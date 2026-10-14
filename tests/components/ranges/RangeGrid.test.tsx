@@ -18,13 +18,13 @@ describe('RangeGrid', () => {
 	});
 
 	it('describes each hand and marks the one asked for', () => {
-		render(() => <RangeGrid strategy={strategy} marked="AKs" rest="checks" />);
-		const mixed = screen.getByTitle('AKs: raises 50%, calls 50%, checks 0%');
+		render(() => <RangeGrid strategy={strategy} marked="AKs" />);
+		const mixed = screen.getByTitle('AKs: raises 50%, calls 50%, folds 0%');
 		expect(mixed.classList.contains('is-marked')).toBe(true);
 		expect(mixed.classList.contains('is-empty')).toBe(false);
 		expect(
 			screen
-				.getByTitle('72o: raises 0%, calls 0%, checks 100%')
+				.getByTitle('72o: raises 0%, calls 0%, folds 100%')
 				.classList.contains('is-empty')
 		).toBe(true);
 	});
@@ -32,6 +32,8 @@ describe('RangeGrid', () => {
 	it('fills the share that checks apart from the share that folds', () => {
 		render(() => <RangeGrid strategy={strategy} rest="checks" />);
 		expect(screen.getByRole('grid').classList.contains('range-grid--checks')).toBe(true);
+		const checked = screen.getByTitle('72o: raises 0%, calls 0%, checks 100%');
+		expect(checked.classList.contains('is-empty')).toBe(false);
 	});
 
 	it('leaves the felt for the share that folds', () => {

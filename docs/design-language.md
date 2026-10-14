@@ -113,9 +113,8 @@ The two ways of continuing have fixed hues, in the range grid and wherever else 
 drawn: **raise gold** (`$primaries`), **call mint** (`$successes`). Folding has no colour;
 it is the felt showing through. A mixed hand is a split cell, raise first, so frequency is
 read as width rather than as a tint that has to be decoded. Where there is nothing to call
-(the big blind over limpers) the rest is a check, not a fold, and is a faint cream veil
-(`$check-veil`) instead of the felt: still no hue, but not the same as giving the hand up.
-There is no grey in the palette to use, and a veil of the ink reads as one on the baize.
+(the big blind over limpers) the rest is a check, not a fold: it continues for free, so it
+takes the call's mint, and the key there reads Raise and Check with no Call or Fold.
 
 Where a second range is laid over the fill (the Openings view: what was played, over
 what the chart opens) it is a hairline printed round its cells, not another fill: two

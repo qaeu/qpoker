@@ -50,27 +50,33 @@ const DEPTHS: SegmentOption<RangeDepth>[] = [
 	{ id: 'mid', label: '30 to 70bb' },
 ];
 
-/** `checks` where nothing is to call, so a hand not raised checks rather than folds. */
+/** `checks` where nothing is to call: the rest checks, in the mint a call would be. */
 export const RangeKey: Component<{ checks?: boolean }> = (props) => (
 	<ul class="range-key">
 		<li>
 			<span class="range-key__swatch range-key__swatch--raise" />
 			Raise
 		</li>
-		<li>
-			<span class="range-key__swatch range-key__swatch--call" />
-			Call
-		</li>
-		<li>
-			<span
-				class="range-key__swatch"
-				classList={{
-					'range-key__swatch--check': props.checks,
-					'range-key__swatch--fold': !props.checks,
-				}}
-			/>
-			{props.checks ? 'Check' : 'Fold'}
-		</li>
+		<Show
+			when={props.checks}
+			fallback={
+				<>
+					<li>
+						<span class="range-key__swatch range-key__swatch--call" />
+						Call
+					</li>
+					<li>
+						<span class="range-key__swatch range-key__swatch--fold" />
+						Fold
+					</li>
+				</>
+			}
+		>
+			<li>
+				<span class="range-key__swatch range-key__swatch--call" />
+				Check
+			</li>
+		</Show>
 	</ul>
 );
 

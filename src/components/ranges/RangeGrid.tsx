@@ -47,7 +47,9 @@ const RangeGrid: Component<RangeGridProps> = (props) => (
 						class="range-grid__cell"
 						classList={{
 							'is-marked': props.marked === name,
-							'is-empty': props.faint?.(cls) ?? raise() + call() === 0,
+							// A hand that checks is still played.
+							'is-empty':
+								props.faint?.(cls) ?? (props.rest !== 'checks' && raise() + call() === 0),
 							'is-outlined': (props.outline?.[cls] ?? 0) >= 0.5,
 						}}
 						role="gridcell"

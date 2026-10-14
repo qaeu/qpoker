@@ -50,9 +50,6 @@ $ink: $foreground;
 $ink-muted: oklch(from $foreground l c h / 0.8);
 $ink-faint: oklch(from $foreground l c h / 0.7);
 
-// Not ink: the faint cream a range-grid cell takes for the share that checks.
-$check-veil: oklch(from $foreground l c h / 0.16);
-
 // Greys - container surfaces, borders and separators
 $greys: $neutrals;
 

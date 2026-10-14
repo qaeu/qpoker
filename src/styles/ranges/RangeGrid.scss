@@ -13,10 +13,9 @@
 		container-type: inline-size;
 		--rest: #{$cut-trace};
 
-		// Where nothing is to call, the rest checks: a faint cream veil, apart from the
-		// sunk felt of a fold.
+		// Where nothing is to call, the rest checks: a passive continue, in call mint.
 		&--checks {
-			--rest: #{$check-veil};
+			--rest: #{get($successes, 'sep-light')};
 		}
 
 		&__cell {
@@ -27,7 +26,7 @@
 			justify-content: center;
 			aspect-ratio: 1;
 			// Raise from the left in gold, call after it in mint, and the felt for the
-			// share that folds (or the veil, where it checks): a mixed hand reads as a
+			// share that folds (mint again, where it checks): a mixed hand reads as a
 			// split cell.
 			background-image: linear-gradient(
 				90deg,
@@ -85,11 +84,6 @@
 
 			&--fold {
 				background-color: $cut-deep;
-				border: 1px solid $rule;
-			}
-
-			&--check {
-				background-color: $check-veil;
 				border: 1px solid $rule;
 			}
 
