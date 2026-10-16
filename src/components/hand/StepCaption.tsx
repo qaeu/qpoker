@@ -6,6 +6,7 @@
  */
 
 import {
+	batch,
 	createEffect,
 	createMemo,
 	createSignal,
@@ -14,7 +15,7 @@ import {
 	type Component,
 } from 'solid-js';
 
-import { Calculator } from 'lucide-solid';
+import { Calculator, SlidersHorizontal } from 'lucide-solid';
 
 import MistakeCard from '#c/report/MistakeCard';
 import RangeGrid from '#c/ranges/RangeGrid';
@@ -37,7 +38,8 @@ import {
 	type TableStep,
 } from '#utils/ui/tableReplay';
 
-import SolvePanel from './SolvePanel';
+import SolvePanel, { type SolveRequest } from './SolvePanel';
+import { createSolveSettings, presetName } from './solveSettings';
 import { useSolver } from './solverContext';
 
 import '#styles/hand/StepCaption';
@@ -68,10 +70,26 @@ const StepCaption: Component<StepCaptionProps> = (props) => {
 			:	null;
 	};
 	const solver = useSolver();
+	const settings = createSolveSettings();
 	// The decision whose solve is open, by hand and step: stepping away closes it.
 	const [solving, setSolving] = createSignal<string | null>(null);
+	const [request, setRequest] = createSignal<SolveRequest>({ kind: 'run', n: 0 });
+	const [editing, setEditing] = createSignal(false);
 	const solveKey = () => `${props.hand.id}:${current().lineIndex}`;
-	createEffect(on(solveKey, () => setSolving(null), { defer: true }));
+	const open = () => solving() === solveKey();
+	const close = () => {
+		setSolving(null);
+		setEditing(false);
+	};
+	createEffect(on(solveKey, close, { defer: true }));
+	/** Solve runs at once over the tree it names; the sliders show the settings first. */
+	const ask = (kind: SolveRequest['kind']) => {
+		// Together, so an open panel's answer (which may be to close) comes last.
+		batch(() => {
+			setSolving(solveKey());
+			setRequest({ kind, n: request().n + 1 });
+		});
+	};
 	/** Set only on a hero's postflop action: the one place a solve is offered. */
 	const solvable = createMemo(() => {
 		const { actor, lineIndex, street } = current();
@@ -110,16 +128,35 @@ const StepCaption: Component<StepCaptionProps> = (props) => {
 					</p>
 					<Show when={solvable()}>
 						{(spot) => (
-							<button
-								type="button"
+							<div
 								class="step-caption__solve"
-								disabled={!spot().eligibility.ok}
-								aria-expanded={solving() === solveKey()}
-								onClick={() => setSolving(solving() === solveKey() ? null : solveKey())}
+								role="group"
+								aria-label="Solve this decision"
 							>
-								<Calculator aria-hidden="true" />
-								Solve
-							</button>
+								<button
+									type="button"
+									class="step-caption__solve-run highlight"
+									disabled={!spot().eligibility.ok}
+									onClick={() => ask('run')}
+								>
+									<Calculator aria-hidden="true" />
+									Solve{' '}
+									<span class="step-caption__solve-tree">
+										· {presetName(settings.preference().preset)}
+									</span>
+								</button>
+								<button
+									type="button"
+									class="step-caption__solve-settings"
+									classList={{ active: open() && editing() }}
+									aria-label="Solver settings"
+									aria-expanded={open() && editing()}
+									disabled={!spot().eligibility.ok}
+									onClick={() => ask('settings')}
+								>
+									<SlidersHorizontal aria-hidden="true" />
+								</button>
+							</div>
 						)}
 					</Show>
 					<Show when={baseline()}>
@@ -159,12 +196,16 @@ const StepCaption: Component<StepCaptionProps> = (props) => {
 					)}
 				</Show>
 			</div>
-			<Show when={solving() === solveKey() && solvable()}>
+			<Show when={open() && solvable()}>
 				{(spot) => (
 					<SolvePanel
 						hand={props.hand}
 						stepIndex={spot().stepIndex}
 						street={spot().street}
+						settings={settings}
+						request={request()}
+						onEditing={setEditing}
+						onClose={close}
 					/>
 				)}
 			</Show>

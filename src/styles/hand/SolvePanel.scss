@@ -5,16 +5,15 @@
 	.solve-panel {
 		display: grid;
 		gap: 12px;
-		padding: 12px 16px;
+		padding: 12px 16px 16px;
 		border: 1px solid $rule;
 		border-radius: 3px;
 		background-color: $panel;
 
 		&__head {
 			display: flex;
-			flex-wrap: wrap;
-			align-items: baseline;
-			gap: 4px 12px;
+			align-items: center;
+			gap: 10px;
 		}
 
 		&__title {
@@ -23,7 +22,67 @@
 			color: $ink-muted;
 		}
 
+		&__where {
+			flex: 1;
+			margin: 0;
+			font-size: 13px;
+			color: $ink-faint;
+		}
+
+		&__close {
+			@include icon-button(28px);
+
+			svg {
+				width: 15px;
+				height: 15px;
+			}
+		}
+
+		&__button {
+			@include button;
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			min-height: 0;
+			height: 30px;
+			padding: 0 12px;
+			font-size: 11px;
+
+			svg {
+				width: 13px;
+				height: 13px;
+			}
+
+			// Leaving the settings: no frame until it is pointed at.
+			&--quiet {
+				border-color: transparent;
+				background-color: transparent;
+				box-shadow: none;
+			}
+
+			@include touch {
+				height: $control-height-touch;
+			}
+		}
+
+		&__run {
+			height: $control-height;
+			padding: 0 16px;
+			font-size: 12px;
+		}
+
+		&__running {
+			display: grid;
+			gap: 8px;
+		}
+
 		&__progress {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+		}
+
+		&__progress-text {
 			flex: 1;
 			margin: 0;
 			font-size: 13px;
@@ -31,12 +90,27 @@
 			font-variant-numeric: tabular-nums;
 		}
 
-		&__cancel,
-		&__run {
-			@include button;
-			min-height: 0;
-			padding: 3px 10px;
-			font-size: 11px;
+		// A thin channel cut into the panel. The solve fills it in gold; the memory
+		// in mint, gold near the limit and ruby over it.
+		&__bar {
+			height: 6px;
+			overflow: hidden;
+			border-radius: 3px;
+			background-color: $cut;
+		}
+
+		&__bar-fill {
+			height: 100%;
+			background-color: $primary;
+			transition: width $dur-slow $ease;
+
+			&.is-ok {
+				background-color: get($successes, 'base');
+			}
+
+			&.is-over {
+				background-color: get($errors, 'base');
+			}
 		}
 
 		&__error,
@@ -97,7 +171,6 @@
 		}
 
 		&__facts,
-		&__estimate,
 		&__hint,
 		&__note,
 		&__trim {
@@ -108,39 +181,140 @@
 			font-variant-numeric: tabular-nums;
 		}
 
+		&__hint {
+			font-size: 12px;
+			color: $ink-faint;
+		}
+
 		&__range-title {
 			@include print(10px, 0.16em);
 			margin: 4px 0 0;
 			color: $ink-muted;
 		}
 
-		&__tree,
-		&__more {
+		// What the answer above was solved over, and the way back to the settings.
+		&__summary {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 8px 12px;
+			padding: 8px 10px;
+			border: 1px solid $rule;
+			border-radius: 2px;
+			background-color: $cut-trace;
+		}
+
+		&__summary-text {
+			flex: 1;
+			margin: 0;
+			font-size: 13px;
+			color: $ink-muted;
+		}
+
+		&__settings {
 			display: grid;
-			gap: 10px;
+			gap: 14px;
+		}
 
-			summary {
-				@include print(11px, 0.14em);
-				color: $ink-muted;
-				cursor: pointer;
-			}
+		// One part of the settings, ruled off from the one above it.
+		&__group {
+			display: grid;
+			gap: 8px;
 
-			&[open] > summary {
-				margin-bottom: 4px;
+			& + & {
+				padding-top: 14px;
+				border-top: 1px solid $rule;
 			}
 		}
 
+		&__group-title {
+			@include print(10px, 0.16em);
+			margin: 0;
+			color: $ink-muted;
+		}
+
+		// The streets down, the two kinds of size across: each label printed once.
 		&__sizes {
-			display: grid;
-			grid-template-columns: 4rem repeat(2, minmax(0, 1fr));
-			align-items: end;
-			gap: 8px;
+			width: 100%;
+			border-collapse: collapse;
+			table-layout: fixed;
+
+			th,
+			td {
+				padding: 6px 8px 6px 0;
+				border-bottom: 1px solid $rule;
+				text-align: left;
+				font-weight: 400;
+			}
+
+			thead th {
+				@include print(10px, 0.16em);
+				border-bottom-color: $rule-strong;
+				color: $ink-muted;
+			}
+		}
+
+		&__street-head {
+			width: 4rem;
+		}
+
+		&__raise-head {
+			width: 38%;
 		}
 
 		&__street {
 			@include print(11px, 0.14em);
-			padding-bottom: 8px;
 			color: $ink;
+		}
+
+		&__unit {
+			font-size: 12px;
+			color: $ink-faint;
+
+			thead & {
+				text-transform: none;
+				letter-spacing: 0;
+			}
+		}
+
+		&__disclosure {
+			@include print(13px, 0, $caps: false);
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			justify-self: start;
+			padding: 4px 6px 4px 0;
+			border: none;
+			background: none;
+			color: $ink-muted;
+			text-align: left;
+			cursor: pointer;
+
+			&:hover {
+				color: $ink;
+			}
+
+			svg {
+				flex: none;
+				width: 14px;
+				height: 14px;
+				transition: transform $dur-base $ease;
+			}
+
+			&[aria-expanded='true'] svg {
+				transform: rotate(90deg);
+			}
+		}
+
+		&__advanced {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			align-items: end;
+			gap: 12px;
+			padding: 10px 12px;
+			border: 1px solid $rule;
+			border-radius: 2px;
+			background-color: $cut-trace;
 		}
 
 		&__field {
@@ -156,24 +330,61 @@
 
 		&__input {
 			@include form-control;
+
+			&--short {
+				width: 5.5rem;
+			}
 		}
 
 		&__check {
 			display: flex;
 			align-items: center;
 			gap: 8px;
+			min-height: $control-height;
 			font-size: 13px;
 			color: $ink-muted;
 		}
 
-		@include phone {
-			&__sizes {
-				grid-template-columns: 1fr 1fr;
+		&__target {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 8px 10px;
+			font-size: 14px;
+		}
 
-				.solve-panel__street {
-					grid-column: 1 / -1;
-					padding-bottom: 0;
-				}
+		&__memory {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 4px 12px;
+		}
+
+		&__memory-text {
+			margin: 0;
+			font-size: 12px;
+			color: $ink-muted;
+			font-variant-numeric: tabular-nums;
+
+			&.is-over {
+				color: get($errors, 'fg-light');
+			}
+		}
+
+		&__actions {
+			display: flex;
+			justify-content: flex-end;
+			gap: 8px;
+		}
+
+		@include phone {
+			&__advanced {
+				grid-template-columns: 1fr;
+			}
+
+			&__street-head {
+				width: 3.5rem;
 			}
 		}
 	}

@@ -158,6 +158,15 @@ back without a worker. Whether the panel is open is local to `StepCaption`, not 
 state; the tree settings are a per-viewer preference in `localStorage`
 (`qpoker:solverTree`, schema version 1, in `utils/app/storage.ts`).
 
+The caption's control is two keys joined. **Solve** runs at once and names the tree it
+would run over (`Solve · Standard`), so a solve is never over a tree the viewer has not
+seen named; the **sliders** open the settings without solving, so the tree can be set
+before the first run rather than only after it. The settings show the memory estimate
+against the budget as they are edited, and a tree over it, or with a problem, cannot be
+run: pressing Solve then shows the settings with the reason. Once a solve has finished,
+the settings and the answer take turns in the panel (Adjust & re-solve, Back to the
+result), so the answer stays one press away while a tree is changed.
+
 ### The WASM
 
 `solver/` is a Rust crate, a vendored and trimmed copy of
