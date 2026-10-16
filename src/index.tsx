@@ -1,6 +1,7 @@
 /* @refresh reload */
 import { render } from 'solid-js/web';
 import App from './App';
+import { browserIsolation, registerIsolation } from './utils/app/isolation';
 
 const root = document.getElementById('root');
 
@@ -11,3 +12,7 @@ if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
 }
 
 render(() => <App />, root!);
+
+// The solver's threads need the page to be cross-origin isolated; a host that
+// cannot send the headers gets them from a service worker.
+void registerIsolation(browserIsolation());

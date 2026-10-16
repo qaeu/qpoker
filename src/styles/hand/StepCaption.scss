@@ -41,6 +41,22 @@
 			white-space: nowrap;
 		}
 
+		// Beside the grade: the one control on the caption, small as its tags.
+		&__solve {
+			@include button;
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			min-height: 0;
+			padding: 3px 10px;
+			font-size: 11px;
+
+			svg {
+				width: 13px;
+				height: 13px;
+			}
+		}
+
 		&__text {
 			margin: 0;
 			font-size: 18px;

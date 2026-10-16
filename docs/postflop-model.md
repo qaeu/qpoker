@@ -14,6 +14,11 @@ can do is answer, with stated assumptions, the questions a solver's answer rests
 2. If I bet, what folds, and what is my equity against what calls?
 3. Where is this hand in my own range, and how much of that range has to continue?
 
+The grading therefore never runs a solver: it would cost minutes a spot against two
+seconds a log. A solver is offered instead as a readout of one decision the user asks
+for, a **Solve** button in Review that runs it from this model's ranges. It does not
+touch a grade; see [solver.md](./solver.md).
+
 ## The opponent's range
 
 `villainRange.ts` starts each opponent with the range of their preflop line and reweights

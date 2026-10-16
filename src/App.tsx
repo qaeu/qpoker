@@ -19,6 +19,7 @@ import {
 
 import AppHeader from '#c/common/AppHeader';
 import type { SelectOption } from '#c/common/Select';
+import { SolverContext } from '#c/hand/solverContext';
 import LibraryPanel from '#c/library/LibraryPanel';
 import PlayersView from '#c/players/PlayersView';
 import OpeningsView from '#c/ranges/OpeningsView';
@@ -39,6 +40,7 @@ import type {
 } from '#utils/analysisWorkerProtocol';
 import { createDetailCache } from '#utils/app/details';
 import { createHashRoute, type AppTab } from '#utils/app/hashRoute';
+import { createSolveClient } from '#utils/app/solveClient';
 import { clearLegacyReport } from '#utils/app/storage';
 import type { HandsReport } from '#utils/coach/report';
 import {
@@ -70,6 +72,7 @@ const App: Component = () => {
 	const setTab = (next: AppTab) => navigate({ tab: next });
 	const store = openIdbStore();
 	const details = createDetailCache(store);
+	const solver = createSolveClient(store);
 	// Null until the library has been read: an empty page is not yet an empty library.
 	const [library, setLibrary] = createSignal<Library | null>(null);
 	const [progress, setProgress] = createSignal<Progress | null>(null);
@@ -332,12 +335,14 @@ const App: Component = () => {
 									/>
 								</Match>
 								<Match when={tab() === 'review'}>
-									<ReviewView
-										report={loaded}
-										detailOf={details.detailOf}
-										query={route().review}
-										onQuery={(change, options) => navigate({ review: change }, options)}
-									/>
+									<SolverContext.Provider value={solver}>
+										<ReviewView
+											report={loaded}
+											detailOf={details.detailOf}
+											query={route().review}
+											onQuery={(change, options) => navigate({ review: change }, options)}
+										/>
+									</SolverContext.Provider>
 								</Match>
 								<Match when={tab() === 'openings'}>
 									<OpeningsView report={loaded} onOpenHand={openHand} />

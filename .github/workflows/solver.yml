@@ -1,0 +1,69 @@
+name: Solver
+
+# Rebuilds the WASM solver from solver/ and fails if the checked-in build differs.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'solver/**'
+      - 'scripts/build-solver.sh'
+      - 'src/utils/solver/wasm/**'
+      - '.github/workflows/solver.yml'
+  push:
+    branches: ['main']
+    paths:
+      - 'solver/**'
+      - 'scripts/build-solver.sh'
+      - 'src/utils/solver/wasm/**'
+      - '.github/workflows/solver.yml'
+
+jobs:
+  solver:
+    runs-on: ubuntu-latest
+    env:
+      WASM_BINDGEN_VERSION: '0.2.129'
+      BINARYEN_VERSION: '133'
+    steps:
+      - uses: actions/checkout@v7
+
+      # The toolchain is solver/rust-toolchain.toml's; rustup installs it on first use.
+      - name: Install the pinned toolchain
+        working-directory: solver
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/wasm-bindgen
+            solver/target
+          key: solver-${{ hashFiles('solver/Cargo.toml', 'solver/Cargo.lock', 'solver/rust-toolchain.toml') }}
+
+      - name: Install wasm-bindgen-cli and wasm-opt
+        run: |
+          if ! wasm-bindgen --version 2>/dev/null | grep -q " $WASM_BINDGEN_VERSION$"; then
+            cargo +stable install wasm-bindgen-cli --version "$WASM_BINDGEN_VERSION" --locked --force
+          fi
+          curl -sL "https://github.com/WebAssembly/binaryen/releases/download/version_$BINARYEN_VERSION/binaryen-version_$BINARYEN_VERSION-x86_64-linux.tar.gz" | tar xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/binaryen-version_$BINARYEN_VERSION/bin" >> "$GITHUB_PATH"
+
+      - name: Test
+        working-directory: solver
+        run: cargo test --locked
+
+      - name: Build
+        run: ./scripts/build-solver.sh
+
+      # The CLI's native solver is built where it runs, not checked in; this keeps it building.
+      - name: Build the native solver
+        working-directory: solver
+        run: cargo build --locked --release --bin qpoker-solver --target-dir target/native
+
+      - name: The checked-in build is this source's
+        run: |
+          git status --porcelain src/utils/solver/wasm
+          git diff --exit-code src/utils/solver/wasm
+          test -z "$(git status --porcelain --untracked-files=all src/utils/solver/wasm)"

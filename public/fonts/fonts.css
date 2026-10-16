@@ -1,0 +1,57 @@
+/* Archivo and Archivo Narrow, Latin subset (SIL OFL 1.1; see the LICENSE files). Self-hosted so the page loads nothing cross-origin: see docs/solver.md. */
+@font-face {
+	font-family: 'Archivo';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('./archivo-400.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Archivo';
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url('./archivo-500.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Archivo';
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url('./archivo-600.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Archivo';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('./archivo-700.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Archivo Narrow';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('./archivo-narrow-400.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Archivo Narrow';
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url('./archivo-narrow-500.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Archivo Narrow';
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url('./archivo-narrow-600.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Archivo Narrow';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('./archivo-narrow-700.woff2') format('woff2');
+}

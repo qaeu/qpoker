@@ -76,8 +76,17 @@ integration test what follows a load or a navigation is awaited (`findBy…`), n
 the same tick. `follow` and `goTo` wait for a `hashchange`; straight after `switchTo`
 they can hear the tab's own, so there click and `waitFor` the address instead.
 
+The stub routes by the worker's URL: the solver's (`solver.worker`) runs
+`solverWorkerProtocol.ts`'s `handleSolverMessage` over `solverStub.load`, exported from
+`setupTests.ts`, which a test sets to a fake `SolverModule`
+(`tests/utils/solver/fakeSolver.ts`); unset, a solve fails with a message. The real WASM is
+only in `tests/utils/solver/wasm.test.ts` and the CLI's cases, which skip until
+`npm run build:solver` has been run; the same file runs its cases again on the native
+process, and compares the two, once `npm run build:solver:native` has.
+
 The protocol can also be tested without a Worker at all, as
-`tests/utils/analysisWorkerProtocol.test.ts` does.
+`tests/utils/analysisWorkerProtocol.test.ts` and `tests/utils/solverWorkerProtocol.test.ts`
+do.
 
 ## What to assert
 

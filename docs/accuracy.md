@@ -655,9 +655,12 @@ unless stated, the run time (about 1.9s and 2.4s for the two logs).
   differs from the result.
 - **A table of preflop all-in equities.** 28,000 numbers in the bundle for a path that
   never flipped in 20 seeds.
-- **Bundling a solver.** A postflop solve needs both ranges and a bet-size tree the tool
-  does not have, takes minutes a spot against two seconds a log, and would not run in the
-  worker. The errors found here are in the inputs a solver would also need.
+- **Bundling a solver to grade with.** A postflop solve needs both ranges and a bet-size
+  tree the tool does not have, takes minutes a spot against two seconds a log, and the
+  errors found here are in the inputs a solver would also need. (A solver run on demand
+  for one decision, which never enters a grade, is a different trade: it is paid once,
+  when asked for. It was built after this audit; see [solver.md](./solver.md), which also
+  says what it inherits from the ranges above.)
 - **Replacing the charts with these published ranges.** The sources disagree by more than
   the engine differs from them. It becomes worth doing when a rake-adjusted solution for
   the stake is in hand; `charts/data.ts` is built for that swap.

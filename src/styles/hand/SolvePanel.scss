@@ -1,0 +1,180 @@
+@use '../base' as *;
+
+@layer screen {
+	// Opaque, like the caption it sits under: read over felt that varies.
+	.solve-panel {
+		display: grid;
+		gap: 12px;
+		padding: 12px 16px;
+		border: 1px solid $rule;
+		border-radius: 3px;
+		background-color: $panel;
+
+		&__head {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: baseline;
+			gap: 4px 12px;
+		}
+
+		&__title {
+			@include print(11px, 0.16em);
+			margin: 0;
+			color: $ink-muted;
+		}
+
+		&__progress {
+			flex: 1;
+			margin: 0;
+			font-size: 13px;
+			color: $ink-muted;
+			font-variant-numeric: tabular-nums;
+		}
+
+		&__cancel,
+		&__run {
+			@include button;
+			min-height: 0;
+			padding: 3px 10px;
+			font-size: 11px;
+		}
+
+		&__error,
+		&__problems {
+			margin: 0;
+			font-size: 13px;
+			color: get($errors, 'fg-light');
+		}
+
+		&__problems {
+			padding-left: 18px;
+		}
+
+		&__verdict {
+			margin: 0;
+			font-size: 15px;
+			font-weight: 600;
+			color: $ink;
+		}
+
+		&__result {
+			display: grid;
+			gap: 10px;
+		}
+
+		&__table {
+			@include data-table;
+
+			// The row played is gold, as the line it came from; the best is mint.
+			.is-chosen th {
+				color: get($primaries, 'fg');
+			}
+
+			.is-best td:first-of-type {
+				color: get($successes, 'fg-light');
+			}
+		}
+
+		&__caption {
+			@include print(10px, 0.16em);
+			padding-bottom: 6px;
+			color: $ink-muted;
+			text-align: left;
+		}
+
+		&__tag {
+			@include print(9px, 0.12em);
+			margin-left: 8px;
+			padding: 1px 5px;
+			border: 1px solid $rule-strong;
+			border-radius: 2px;
+			color: $ink-muted;
+
+			&--best {
+				border-color: get($successes, 'sep');
+				color: get($successes, 'fg-light');
+			}
+		}
+
+		&__facts,
+		&__estimate,
+		&__hint,
+		&__note,
+		&__trim {
+			margin: 0;
+			font-size: 13px;
+			line-height: 1.45;
+			color: $ink-muted;
+			font-variant-numeric: tabular-nums;
+		}
+
+		&__range-title {
+			@include print(10px, 0.16em);
+			margin: 4px 0 0;
+			color: $ink-muted;
+		}
+
+		&__tree,
+		&__more {
+			display: grid;
+			gap: 10px;
+
+			summary {
+				@include print(11px, 0.14em);
+				color: $ink-muted;
+				cursor: pointer;
+			}
+
+			&[open] > summary {
+				margin-bottom: 4px;
+			}
+		}
+
+		&__sizes {
+			display: grid;
+			grid-template-columns: 4rem repeat(2, minmax(0, 1fr));
+			align-items: end;
+			gap: 8px;
+		}
+
+		&__street {
+			@include print(11px, 0.14em);
+			padding-bottom: 8px;
+			color: $ink;
+		}
+
+		&__field {
+			display: grid;
+			gap: 4px;
+			min-width: 0;
+		}
+
+		&__field-label {
+			@include print(10px, 0.12em);
+			color: $ink-muted;
+		}
+
+		&__input {
+			@include form-control;
+		}
+
+		&__check {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			font-size: 13px;
+			color: $ink-muted;
+		}
+
+		@include phone {
+			&__sizes {
+				grid-template-columns: 1fr 1fr;
+
+				.solve-panel__street {
+					grid-column: 1 / -1;
+					padding-bottom: 0;
+				}
+			}
+		}
+	}
+}

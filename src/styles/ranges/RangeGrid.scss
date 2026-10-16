@@ -39,7 +39,9 @@
 			font-weight: 600;
 			color: get($neutrals, 'fg');
 
+			// Out of the range: bare felt, even where the rest of a played hand checks.
 			&.is-empty {
+				--rest: #{$cut-trace};
 				color: $ink-faint;
 				font-weight: 400;
 			}

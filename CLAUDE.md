@@ -17,7 +17,7 @@ Prettier.
 src/
 ├── cli/                   # main.ts (args, commands), format.ts + libraryFormat.ts (text),
 │                          # fileStore.ts (the library on disk)
-├── App.tsx, index.tsx     # Shell and bootstrap
+├── App.tsx, index.tsx     # Shell and bootstrap (index registers the isolation service worker)
 ├── components/<view>/     # common, upload, report, review, hand, ranges, trends, players,
 │                          # library
 ├── styles/                # _palette, _theme, _base; <view>/ mirrors components/
@@ -30,9 +30,13 @@ src/
     │                      # sessions (sittings, scope), trend
     ├── store/             # The hand library: types (HandStore), ingest, library, players,
     │                      # profile, backup; memoryStore and idbStore
-    ├── app/ ui/           # Hash route, detail cache, rng; display helpers, Review list, table replay
+    ├── solver/            # The on-demand solve: spot, tree, cards, result; wasm/ is built
+    ├── app/ ui/           # Hash route, detail cache, solve client, rng; display helpers, Review list, table replay
     ├── analysis.worker.ts
-    └── analysisWorkerProtocol.ts   # Worker protocol, shared with the test stub
+    ├── analysisWorkerProtocol.ts   # Worker protocol, shared with the test stub
+    ├── solver.worker.ts
+    └── solverWorkerProtocol.ts     # Likewise, taking the WASM module as a parameter
+solver/                    # The Rust crate (vendored postflop-solver) built to src/utils/solver/wasm
 tests/                     # Mirrors src/ by folder; tests/integration/ drives <App />
 docs/                      # Model and design reasoning (see below)
 ```
@@ -45,6 +49,9 @@ docs/                      # Model and design reasoning (see below)
   truth), a light `HandSummary` and a heavy `HandDetail`. **Everything a report says of
   its hands together is summed from summaries** (`summariseHands`), so the app holds
   summaries only and reads one hand's detail when it is opened.
+- **A solver, on demand.** A Solve button on a hero's postflop decision, and the CLI's
+  `solve`, run a WASM solver (`solver/`) over the model's ranges for that spot. It is a
+  readout and never enters a grade; see [docs/solver.md](./docs/solver.md).
 - **Three stores, one contract**: `memoryStore` (tests), `idbStore` (browser),
   `cli/fileStore`. A new one joins `tests/utils/store/stores.test.ts`.
 - **Only `src/cli/` may import `node:*`.** Everything under `src/utils/` also runs in the
@@ -64,7 +71,9 @@ docs/                      # Model and design reasoning (see below)
 ## Commands
 
 `npm run analyze -- <log.txt>` (add `--help`; `import`, `report`, `trend`, `players` and
-`library` are the library's commands), `npm run dev`, `npm test` (or
+`library` are the library's commands; `solve <hand id> --step N` runs the solver),
+`npm run build:solver` (the WASM, checked in), `npm run build:solver:native` (the
+CLI's solver, not checked in), `npm run dev`, `npm test` (or
 `npm test -- file.test.ts`), `npm run typecheck`, `npm run lint`, `npm run format`,
 `npm run build`. Run lint and format before committing.
 
@@ -103,4 +112,5 @@ docs/                      # Model and design reasoning (see below)
 - `src/utils/postflop/`: [docs/postflop-model.md](./docs/postflop-model.md)
 - `src/utils/coach/`: [docs/coach-model.md](./docs/coach-model.md)
 - `src/utils/store/`, `src/cli/fileStore.ts`: [docs/library.md](./docs/library.md)
+- `src/utils/solver/`, `solver/`: [docs/solver.md](./docs/solver.md)
 - Any grade, weight or confidence: [docs/accuracy.md](./docs/accuracy.md)

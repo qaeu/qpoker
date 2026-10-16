@@ -5,7 +5,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, totalmem } from 'node:os';
 import { basename, join } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -14,13 +14,31 @@ import { analyzeLog, type AnalysisReport } from '#utils/coach/report';
 import { sessionsOf, type PlaySession, type Scope } from '#utils/coach/sessions';
 import { trendOf } from '#utils/coach/trend';
 import { backupOf, logTextOf } from '#utils/store/backup';
+import { parseHistory } from '#utils/history/parse';
+import { replayHand } from '#utils/history/replay';
+import { DEFAULT_RAKE, solverSpot } from '#utils/solver/spot';
+import {
+	DEFAULT_PRESET,
+	presetOf,
+	TREE_PRESETS,
+	validateTree,
+	type SolveStreet,
+	type TreePreset,
+	type TreeSettings,
+} from '#utils/solver/tree';
+import {
+	handleSolverMessage,
+	type SolverWorkerResponse,
+} from '#utils/solverWorkerProtocol';
 import { advanceIngest, startIngest } from '#utils/store/ingest';
 import { libraryAnalysis, loadLibrary } from '#utils/store/library';
 import { profileOf } from '#utils/store/profile';
 import type { HandStore } from '#utils/store/types';
 import { createFileStore } from './fileStore';
-import { formatReport } from './format';
+import { formatReport, formatSolve } from './format';
 import { formatImport, formatPlayers, formatProfile, formatTrend } from './libraryFormat';
+import { nativeSolver, nativeSolverBuilt } from './solverNative';
+import { loadNodeSolver } from './solverNode';
 
 const USAGE = `Usage: qpoker <hand-history.txt> [options]
        qpoker <command> [options]
@@ -34,12 +52,27 @@ hands in a library, so a report can be made over all of them:
   trend                  Results and mistakes, sitting by sitting
   players [name]         Everyone met, or one player's profile
   library                What the library holds (--export <file>, --clear --yes)
+  solve <hand id>        Solve one of the hero's postflop decisions, heads-up
+                         (--step <n>; without it, the steps that can be solved)
 
 Library options:
   --library <dir>        Where the library is kept (default: ~/.qpoker,
                          or $QPOKER_LIBRARY)
   --scope <s>            all | latest | week | month, or a sitting's start as
                          trend prints it (default: all)
+
+Solve options:
+  --step <n>             The decision: an index into the hand's actions
+  --preset <p>           simple | standard | detailed (default: standard)
+  --sizes <bets/raises>  Bet sizes, % of pot, and raise sizes, x the bet, on that
+                         street, e.g. 33,75/2.5
+  --dev <pct>            Stop once exploitable by under this % of the pot
+                         (default: 0.5; lower is deeper and slower)
+  --budget <mb>          Memory the solve may take; over it, 16-bit storage and
+                         then trimmed ranges (default: 3/4 of the machine's
+                         memory natively, 3000 on the WASM)
+  --wasm                 Use the WASM solver even when the native one is built
+                         (npm run build:solver:native)
 
 Options:
   --hero <name>          Player to coach (default: the player the log was dealt to)
@@ -53,8 +86,12 @@ Options:
   --no-color             Plain text
   -h, --help             This message`;
 
-const COMMANDS = ['import', 'report', 'trend', 'players', 'library'] as const;
+const COMMANDS = ['import', 'report', 'trend', 'players', 'library', 'solve'] as const;
 type Command = (typeof COMMANDS)[number];
+
+const MB = 1024 * 1024;
+/** Under wasm32's 4 GB, with room for the rest of the process. */
+const WASM_BUDGET_MB = 3000;
 
 /** Hands graded between two commits: what a run cut short has to do again. */
 const IMPORT_CHUNK = 200;
@@ -74,6 +111,12 @@ const OPTIONS = {
 	export: { type: 'string' },
 	clear: { type: 'boolean' },
 	yes: { type: 'boolean' },
+	step: { type: 'string' },
+	budget: { type: 'string' },
+	dev: { type: 'string' },
+	preset: { type: 'string' },
+	sizes: { type: 'string' },
+	wasm: { type: 'boolean' },
 	help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -155,11 +198,114 @@ async function importLogs(store: HandStore, files: string[], values: Values) {
 	}
 }
 
+/** The tree the options ask for: a preset, with one street's sizes replaced. */
+function treeOf(values: Values, street: SolveStreet): TreeSettings {
+	const preset = (values.preset ?? DEFAULT_PRESET) as TreePreset;
+	if (!(preset in TREE_PRESETS)) fail('--preset must be simple, standard or detailed.');
+	const tree = presetOf(preset);
+	if (values.sizes) {
+		const [bets, raises = ''] = values.sizes.split('/');
+		const numbers = (text: string) =>
+			text
+				.split(',')
+				.filter((part) => part.trim() !== '')
+				.map(Number);
+		tree[street] = {
+			bet: numbers(bets).map((size) => size / 100),
+			raise: numbers(raises),
+		};
+	}
+	const problems = validateTree(tree);
+	if (problems.length > 0) fail(problems.join('\n'));
+	return tree;
+}
+
+async function solveHand(store: HandStore, rest: string[], values: Values) {
+	const handId = rest[0]?.replace(/^#/, '');
+	if (!handId) fail('Give the id of the hand to solve.');
+	const library = await loadLibrary(store);
+	const summary = library.hands.find((hand) => hand.id === handId);
+	const raw = (await store.raw([handId])).get(handId);
+	if (!summary || !raw) stop(`No hand #${handId} in the library.`);
+	const hand = parseHistory(raw).find((candidate) => candidate.hero);
+	if (!hand) stop(`Hand #${handId} has no hero to solve for.`);
+	const replay = replayHand(hand);
+	const rake = numberOption('rake', values.rake) ?? summary.rake ?? DEFAULT_RAKE;
+
+	const steps = numberOption('step', values.step);
+	if (steps === undefined) {
+		const options = replay.steps.filter(
+			(step) => solverSpot(replay, step.index, presetOf(DEFAULT_PRESET), rake).ok
+		);
+		if (options.length === 0) stop(`Nothing in hand #${handId} can be solved.`);
+		const lines = options.map(
+			(step) =>
+				`  --step ${step.index}  ${step.street}: ${step.action.kind}${step.action.amount > 0 ? ` ${(step.action.amount / hand.stakes.bigBlind).toFixed(1)} bb` : ''}`
+		);
+		return stop(`Choose a decision with --step:\n${lines.join('\n')}`);
+	}
+	const street = replay.steps.find((step) => step.index === steps)?.street;
+	if (!street || street === 'preflop') {
+		stop(`Step ${steps} is not a postflop action of hand #${handId}.`);
+	}
+	const tree = treeOf(values, street);
+	const found = solverSpot(replay, steps, tree, rake);
+	if (!found.ok) stop(found.message);
+
+	const native = !values.wasm && nativeSolverBuilt();
+	const live = process.stderr.isTTY === true;
+	const response = await new Promise<SolverWorkerResponse>((resolve) => {
+		handleSolverMessage(
+			{
+				type: 'solve',
+				requestId: 1,
+				raw,
+				stepIndex: steps,
+				tree,
+				rake,
+				budgetMb:
+					numberOption('budget', values.budget)
+					?? (native ? Math.floor((totalmem() * 0.75) / MB) : WASM_BUDGET_MB),
+				targetPct: numberOption('dev', values.dev),
+			},
+			(message) => {
+				if (message.type === 'progress' && live) {
+					process.stderr.write(
+						`\rIteration ${message.iteration}: exploitable by ${message.exploitabilityPct.toFixed(2)}% of the pot`
+					);
+				}
+				if (message.type === 'complete' || message.type === 'error') {
+					if (live) process.stderr.write('\r\x1b[K');
+					resolve(message);
+				}
+			},
+			native ? async () => nativeSolver() : loadNodeSolver
+		);
+	});
+	if (response.type === 'error') {
+		stop(
+			response.reason === 'budget' && !native ?
+				`${response.message}\nThe native solver has no 4 GB cap: npm run build:solver:native`
+			:	response.message
+		);
+	}
+	if (response.type !== 'complete') return;
+	if (values.json) return print(JSON.stringify(response.result, null, '\t'));
+	print(
+		formatSolve(response.result, {
+			color: !values['no-color'] && process.stdout.isTTY === true,
+			handId,
+			hero: hand.hero ?? '',
+		})
+	);
+}
+
 async function runCommand(command: Command, rest: string[], values: Values) {
 	const directory =
 		values.library ?? process.env.QPOKER_LIBRARY ?? join(homedir(), '.qpoker');
 	const store = createFileStore(directory);
 	if (command === 'import') return importLogs(store, rest, values);
+	if (command === 'solve') return solveHand(store, rest, values);
 
 	const library = await loadLibrary(store);
 	const held = library.hands.length + library.stale;

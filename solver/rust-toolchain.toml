@@ -1,0 +1,7 @@
+# Nightly for the threaded build (`-Z build-std`, atomics). Dated, so a rebuild is
+# byte-for-byte the same as the checked-in output; see scripts/build-solver.sh.
+[toolchain]
+channel = "nightly-2026-10-01"
+components = ["rust-src", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

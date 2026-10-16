@@ -11,6 +11,7 @@ import type { OpeningSummary } from '#utils/coach/openings';
 import { tableSizesText } from '#utils/ui/format';
 import { STREETS } from '#utils/history/hand';
 import type { PreflopChoice } from '#utils/ranges/range';
+import { trimNote, type SolveResult } from '#utils/solver/result';
 
 export interface FormatOptions {
 	/** How many mistakes, and how many good plays, to print in full. */
@@ -310,6 +311,78 @@ export function formatReport(report: AnalysisReport, options: FormatOptions): st
 		paint(
 			'dim',
 			'EV figures are estimates against a baseline model, not solver output. See docs/coach-model.md.'
+		)
+	);
+	return out.join('\n');
+}
+
+export interface SolveFormatOptions {
+	color: boolean;
+	/** Where the solve was run: the hand, for the heading. */
+	handId: string;
+	hero: string;
+}
+
+/** Renders one solve for a terminal: the table of actions, the gap, the run. */
+export function formatSolve(result: SolveResult, options: SolveFormatOptions): string {
+	const paint = painter(options.color);
+	const share = (value: number) => `${Math.round(value * 100)}%`;
+	const out: string[] = [
+		paint(
+			'bold',
+			`Hand #${options.handId} · ${options.hero} with ${result.hand} · ${result.street} · pot ${result.potBb} bb`
+		),
+		'',
+	];
+	out.push(`  ${'Action'.padEnd(24)}${'Freq'.padEnd(8)}EV (bb)`);
+	result.actions.forEach((row, index) => {
+		const tags = [
+			result.chosen === index ? 'played' : '',
+			result.best === index ? 'best' : '',
+		]
+			.filter(Boolean)
+			.join(', ');
+		out.push(
+			`  ${row.label.padEnd(24)}${share(row.frequency).padEnd(8)}${signed(row.evBb, 2).padEnd(8)}${tags ? paint('dim', tags) : ''}`
+		);
+	});
+	out.push('');
+	if (!result.reached) {
+		out.push(
+			paint(
+				'yellow',
+				`The solver never plays ${result.hand} to this node (it would have bet, or folded, earlier); the rows are what it would do had it got here.`
+			)
+		);
+	}
+	if (result.evGapBb === null) {
+		out.push('No action in the tree matches the one played.');
+	} else if (result.evGapBb > -0.005) {
+		out.push(`The play is as good as the best action.`);
+	} else {
+		out.push(
+			paint(
+				'yellow',
+				`The play gives up ${(-result.evGapBb).toFixed(2)} bb against the best action.`
+			)
+		);
+	}
+	{
+		out.push(
+			`Equity ${share(result.equity)}${
+				result.eqr === null ? '' : ` · realises ${share(result.eqr)} of it`
+			}`
+		);
+	}
+	out.push(
+		paint(
+			'dim',
+			`${result.iterations} iterations · exploitable by ${result.exploitabilityPct.toFixed(2)}% of the pot · ${result.nodes.toLocaleString()} nodes · ${Math.max(1, Math.round(result.bytes / 1048576))} MB${result.compressed ? ' (16-bit)' : ''}`
+		),
+		...[trimNote(result.trim)].flatMap((note) => (note ? [paint('yellow', note)] : [])),
+		paint(
+			'dim',
+			'Solved from the start of the street with the coach’s modelled ranges: an estimate of the ranges, not of the solve. See docs/solver.md.'
 		)
 	);
 	return out.join('\n');

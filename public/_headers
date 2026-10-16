@@ -1,0 +1,5 @@
+# Cross-origin isolation for Netlify and Cloudflare Pages: the solver's threads
+# need SharedArrayBuffer. Hosts that cannot set headers use coi-sw.js instead.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

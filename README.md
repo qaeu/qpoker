@@ -93,12 +93,16 @@ graded.
 - **Postflop** decisions are judged by a model of the opponent's range, not by a solver.
   It asks the questions a solver's answer rests on (is the price right, does worse call,
   must this part of my range defend) and marks each finding with a confidence.
+- A **Solve** button on a heads-up postflop decision runs a real solver (a WASM build of
+  postflop-solver) from that model's ranges, for one spot at a time; it never enters a
+  grade. The CLI's `solve` runs the same solver natively once
+  `npm run build:solver:native` has built it, with no 4 GB cap and on every core. See [docs/solver.md](./docs/solver.md).
 - EV figures are estimates in big blinds. They rank mistakes well; they are not a
   measurement.
 
 The reasoning is in [docs/](./docs): [preflop](./docs/preflop-model.md),
 [postflop](./docs/postflop-model.md), [the coach](./docs/coach-model.md), and
-[the log format](./docs/history-format.md).
+[the log format](./docs/history-format.md), and [the solver](./docs/solver.md).
 
 ## Development
 
