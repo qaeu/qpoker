@@ -82,7 +82,8 @@ The stub routes by the worker's URL: the solver's (`solver.worker`) runs
 (`tests/utils/solver/fakeSolver.ts`); unset, a solve fails with a message. The real WASM is
 only in `tests/utils/solver/wasm.test.ts` and the CLI's cases, which skip until
 `npm run build:solver` has been run; the same file runs its cases again on the native
-process, and compares the two, once `npm run build:solver:native` has.
+process, and compares the two, when there is a native build (the checked-in
+`solver/bin/linux-x64` one, or `npm run build:solver:native`'s).
 
 The protocol can also be tested without a Worker at all, as
 `tests/utils/analysisWorkerProtocol.test.ts` and `tests/utils/solverWorkerProtocol.test.ts`

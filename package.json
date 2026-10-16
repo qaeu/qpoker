@@ -11,6 +11,7 @@
 		"dev": "vite",
 		"build": "vite build",
 		"build:solver": "scripts/build-solver.sh",
+		"build:solver:portable": "scripts/build-solver-portable.sh",
 		"build:solver:native": "cd solver && RUSTFLAGS='-C target-cpu=native' cargo build --locked --release --bin qpoker-solver --target-dir target/native",
 		"serve": "vite preview",
 		"analyze": "tsx src/cli/main.ts",

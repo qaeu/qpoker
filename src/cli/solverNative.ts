@@ -1,8 +1,10 @@
 /**
  * The solver as a native process (`solver/src/bin/qpoker-solver.rs`), for the
  * `solve` command: the same crate as the WASM, without wasm32's 4 GB cap and on
- * every core. One process a game, spoken to a JSON line at a time; built by
- * `npm run build:solver:native`, and the CLI falls back to the WASM without it.
+ * every core. One process a game, spoken to a JSON line at a time. This
+ * machine's own build (`npm run build:solver:native`) is used if there is one,
+ * else the portable build checked in for the platform; without either the CLI
+ * falls back to the WASM.
  */
 
 import { spawn } from 'node:child_process';
@@ -13,13 +15,15 @@ import { fileURLToPath } from 'node:url';
 
 import type { SolverHandle, SolverModule } from '#utils/solver/wasmApi';
 
-export const NATIVE_SOLVER = join(
-	dirname(fileURLToPath(import.meta.url)),
-	'../../solver/target/native/release',
-	process.platform === 'win32' ? 'qpoker-solver.exe' : 'qpoker-solver'
-);
+const SOLVER_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../solver');
+const EXE = process.platform === 'win32' ? 'qpoker-solver.exe' : 'qpoker-solver';
+const OWN_BUILD = join(SOLVER_DIR, 'target/native/release', EXE);
+const PORTABLE = join(SOLVER_DIR, 'bin', `${process.platform}-${process.arch}`, EXE);
 
-/** Whether `npm run build:solver:native` has been run. */
+export const NATIVE_SOLVER =
+	existsSync(OWN_BUILD) || !existsSync(PORTABLE) ? OWN_BUILD : PORTABLE;
+
+/** Whether there is a native build to run, this machine's own or the checked-in one. */
 export const nativeSolverBuilt = (path = NATIVE_SOLVER): boolean => existsSync(path);
 
 interface Reply {

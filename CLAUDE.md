@@ -36,7 +36,8 @@ src/
     ├── analysisWorkerProtocol.ts   # Worker protocol, shared with the test stub
     ├── solver.worker.ts
     └── solverWorkerProtocol.ts     # Likewise, taking the WASM module as a parameter
-solver/                    # The Rust crate (vendored postflop-solver) built to src/utils/solver/wasm
+solver/                    # The Rust crate (vendored postflop-solver) built to src/utils/solver/wasm,
+                           # and to solver/bin/<platform> (the CLI's native solver)
 scripts/accuracy/          # The accuracy harness (findings, diff, solverCompare): run with
                            # tsx on local logs, outside the bundle and npm test
 tests/                     # Mirrors src/ by folder; tests/integration/ drives <App />
@@ -74,8 +75,9 @@ docs/                      # Model and design reasoning (see below)
 
 `npm run analyze -- <log.txt>` (add `--help`; `import`, `report`, `trend`, `players` and
 `library` are the library's commands; `solve <hand id> --step N` runs the solver),
-`npm run build:solver` (the WASM, checked in), `npm run build:solver:native` (the
-CLI's solver, not checked in), `npm run dev`, `npm test` (or
+`npm run build:solver` (the WASM, checked in), `npm run build:solver:portable` (the
+CLI's native solver for this platform, checked in to `solver/bin/`),
+`npm run build:solver:native` (a faster one for this machine only, not checked in), `npm run dev`, `npm test` (or
 `npm test -- file.test.ts`), `npm run typecheck`, `npm run lint`, `npm run format`,
 `npm run build`. Run lint and format before committing.
 

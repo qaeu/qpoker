@@ -183,9 +183,20 @@ loads `mt` when `self.crossOriginIsolated`, else `st`. Node loads `st` with `ini
 
 ### The native solver (CLI)
 
-The CLI's `solve` runs the same crate as a native process when it is built
-(`npm run build:solver:native`, to `solver/target/native`; not checked in, since it is
-the machine's own: `-C target-cpu=native`). `solver/src/bin/qpoker-solver.rs` holds one
+The CLI's `solve` runs the same crate as a native process. Two builds are looked for, in
+order:
+
+- **This machine's own**, `npm run build:solver:native`, to `solver/target/native`. Not
+  checked in: `-C target-cpu=native` uses every instruction the CPU has, so it may not
+  run on another.
+- **The portable one**, `npm run build:solver:portable`, to
+  `solver/bin/<platform>-<arch>` (named as Node names them), and checked in, so the CLI
+  has a native solver with no Rust. It targets a baseline CPU (`x86-64-v2` on x86, SSE4.2
+  from 2009 on), is stripped and has its paths remapped as the WASM's are. Only
+  `linux-x64` is checked in; it needs glibc 2.34 or later. Rebuild it when `solver/`
+  changes, as the WASM is.
+
+`solver/src/bin/qpoker-solver.rs` holds one
 game a process and speaks a JSON line at a time on stdin and stdout, the same calls as
 the WASM handle; `cli/solverNative.ts` spawns it and is a `SolverModule` like the WASM.
 `--wasm` forces the WASM.
@@ -199,7 +210,8 @@ checks it; a floating-point library function may differ in its last bit between 
 so a solve is a pure function of its input on one engine.
 
 Tests of the real WASM (`tests/utils/solver/wasm.test.ts`, the CLI's end-to-end cases)
-skip until the build is there, and run again on the native process once it is built. They include the toy river game: a polar range against
+skip until the build is there, and run again on the native process when there is one
+(either build above). They include the toy river game: a polar range against
 bluff-catchers must bluff `s / (1 + 2s)` of its bets and be called `1 / (1 + s)`, within
 1%.
 
