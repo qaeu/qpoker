@@ -242,6 +242,11 @@ export function sizeOf(step: Step): number {
  * A player's range just before the action at `beforeIndex`: their preflop
  * range, narrowed by each postflop action they have taken since. `known` are
  * cards the range cannot hold -- the board is removed as it comes.
+ *
+ * A check to the last aggressor, still to act, says nothing: checking to the
+ * raiser is what every part of a range does. A raise after the same player's
+ * check on a street, with nothing of theirs between, is read from the range
+ * before that check, so that a check-raise keeps its strength.
  */
 export function rangeAt(
 	replay: Replay,
@@ -250,13 +255,22 @@ export function rangeAt(
 	known: readonly Card[] = []
 ): ComboRange {
 	let range = removeDead(toComboRange(preflopRange(replay, player)), known);
+	// The range before this street's check, while the street lasts.
+	let beforeCheck: { street: Step['street']; range: ComboRange } | null = null;
 	for (const step of replay.steps) {
 		if (step.index >= beforeIndex) break;
 		if (step.street === 'preflop' || step.action.player !== player) continue;
 		const { kind } = step.action;
 		if (kind !== 'bet' && kind !== 'raise' && kind !== 'call' && kind !== 'check')
 			continue;
+		if (kind === 'check') {
+			beforeCheck = { street: step.street, range };
+			if (step.aggressorToAct) continue;
+		}
+		if (kind === 'raise' && beforeCheck?.street === step.street)
+			range = beforeCheck.range;
 		range = applyAction(removeDead(range, step.board), step.board, kind, sizeOf(step));
+		if (kind !== 'check') beforeCheck = null;
 	}
 	return range;
 }

@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 
 import { gradeDecision, type Grading } from '#utils/coach/grade';
 import { goodPlayOf } from '#utils/coach/goodPlays';
+import { priceCall } from '#utils/coach/preflopPrice';
 import { severityOf } from '#utils/coach/mistakes';
 import { parseHistory } from '#utils/history/parse';
 import { decisionsOf, replayHand } from '#utils/history/replay';
+import { classifyPreflop } from '#utils/ranges/preflopSpot';
 
 import emailed from '../../fixtures/emailed.txt?raw';
 import {
@@ -131,6 +133,36 @@ describe('grading first in', () => {
 		expect(near.evLostBb).toBeGreaterThan(trash.evLostBb);
 	});
 
+	describe('folding a hand the chart opens every time', () => {
+		it('is a finding for the middle of the range, not only the top', () => {
+			for (const hand of ['9c 9d', 'As Ts', 'Ac Jd', 'Kc Qd']) {
+				const fold = firstIn(hand, 'fold');
+				expect(fold, hand).toMatchObject({
+					mistake: 'open-tight',
+					recommended: 'raise',
+				});
+				expect(fold.evLostBb, hand).toBeLessThanOrEqual(-0.15);
+			}
+		});
+
+		it('costs more the further the hand is from the bottom of the range', () => {
+			const nines = firstIn('9c 9d', 'fold').evLostBb;
+			const ajo = firstIn('Ac Jd', 'fold').evLostBb;
+			const kqo = firstIn('Kc Qd', 'fold').evLostBb;
+			expect(nines).toBeLessThan(ajo);
+			expect(ajo).toBeLessThan(kqo);
+			expect(firstIn('Qc Qd', 'fold').evLostBb).toBeLessThan(nines);
+		});
+
+		it('leaves the last hands of the range alone', () => {
+			// Suited connectors are the range's own margin: raised by the chart, but barely.
+			const margin = firstIn('6c 5c', 'fold');
+			expect(margin.preflop!.raise).toBe(1);
+			expect(margin.evLostBb).toBeGreaterThan(-0.15);
+			expect(margin.mistake).toBeNull();
+		});
+	});
+
 	it('lets a mixed hand go either way', () => {
 		// ATo opens half the time from under the gun.
 		expect(firstIn('Ac Td', 'raise').mistake).toBeNull();
@@ -210,7 +242,75 @@ describe('grading against a raise', () => {
 			recommended: 'fold',
 			mistake: 'cold-call-loose',
 		});
-		expect(call.evLostBb).toBeLessThan(-0.5);
+		// Priced from equity against the opener: well under the 60% cap of 1.5bb.
+		expect(call.evLostBb).toBeLessThan(-0.15);
+		expect(call.evLostBb).toBeGreaterThan(-1.5);
+	});
+
+	describe('priced from equity', () => {
+		it('costs a loose call what it loses against the opener, not a share of the call', () => {
+			const call = versusOpen('Jc 2c', 'hero: calls $0.25', seesFlop, '0.65');
+			const { priced } = call.preflop!;
+			expect(priced!.equity).toBeGreaterThan(0.3);
+			expect(priced!.equity).toBeLessThan(0.45);
+			expect(priced!.realisation).toBeCloseTo(0.95);
+			expect(priced!.evBb).toBeLessThan(0);
+			expect(call.evLostBb).toBeCloseTo(priced!.evBb, 5);
+			expect(call.explanation).toMatch(
+				/Against the raiser's range it has about \d+% equity/
+			);
+		});
+
+		it('is a price and not a lookup, so confidence is medium at best', () => {
+			const call = versusOpen('Jc 2c', 'hero: calls $0.25', seesFlop, '0.65');
+			expect(call.confidence).toBe('medium');
+		});
+
+		it('drops a loose call the equity says is fine', () => {
+			// Suited and connected in position against a late open has the price.
+			const call = versusOpen('Ac 8d', 'hero: calls $0.25', seesFlop, '0.65');
+			expect(call.preflop).toMatchObject({ call: 0, raise: 0 });
+			expect(call.preflop!.priced!.evBb).toBeGreaterThan(0.2);
+			expect(call).toMatchObject({ mistake: null, evLostBb: 0 });
+		});
+
+		it('costs a fold what the call was worth, and nothing for a hand it was not', () => {
+			const fold = versusOpen('9c 9d', 'hero: folds', takesIt, '0.25');
+			expect(fold).toMatchObject({ mistake: 'fold-vs-open', confidence: 'medium' });
+			expect(fold.preflop!.priced!.evBb).toBeGreaterThan(0.5);
+			expect(fold.evLostBb).toBeCloseTo(-fold.preflop!.priced!.evBb, 5);
+			expect(versusOpen('Jc 2c', 'hero: folds', takesIt, '0.25').evLostBb).toBe(0);
+		});
+
+		it('is low confidence against a min-raise, which the charts do not price', () => {
+			const [call] = grade({
+				heroCards: 'Jc 2c',
+				button: 1,
+				lines: [
+					...BLINDS_HERO_BTN,
+					'*** HOLE CARDS ***',
+					...folds('p4', 'p5'),
+					'p6: raises $0.10 to $0.20',
+					'hero: calls $0.20',
+					...folds('p2', 'p3'),
+					'*** FLOP *** [Kd 7s 2c]',
+					'p6: bets $0.30',
+					'hero: folds',
+					'Uncalled bet ($0.30) returned to p6',
+					'p6 collected $0.55 from pot',
+				],
+				pot: '0.55',
+				winner: 'p6',
+			});
+			expect(call.confidence).toBe('low');
+			expect(call.preflop!.priced).toBeDefined();
+		});
+
+		it('is the same every time, for the same seed', () => {
+			const again = () =>
+				versusOpen('Jc 2c', 'hero: calls $0.25', seesFlop, '0.65').evLostBb;
+			expect(again()).toBe(again());
+		});
 	});
 
 	it('accepts a standard call and a standard fold', () => {
@@ -711,5 +811,96 @@ describe('what a preflop grade records', () => {
 			expect(six.preflop!.standIn).toBeUndefined();
 			expect(six.explanation).not.toContain('stands in');
 		});
+	});
+});
+
+describe('the share of equity a priced call realises', () => {
+	/** Hero's last decision in a hand that stops once it is made. */
+	const realisedAt = (button: number, lines: string[]): number => {
+		const replay = replayHand(
+			parseHistory(
+				handText({ heroCards: 'Ah Qd', button, lines, pot: '1.00', winner: 'hero' })
+			)[0]
+		);
+		const step = decisionsOf(replay, 'hero').at(-1)!;
+		const spot = classifyPreflop(replay, step);
+		return priceCall(replay, step, spot, { rake: 0.05, seed: 1 })!.realisation;
+	};
+
+	describe('heads-up', () => {
+		it('is fuller in position: the button against the cutoff', () => {
+			expect(
+				realisedAt(1, [
+					...BLINDS_HERO_BTN,
+					'*** HOLE CARDS ***',
+					'p4: folds',
+					'p5: folds',
+					'p6: raises $0.15 to $0.25',
+					'hero: calls $0.25',
+				])
+			).toBeCloseTo(0.95);
+		});
+
+		it('is smaller out of position: the big blind against the cutoff', () => {
+			expect(
+				realisedAt(5, [
+					'p6: posts small blind $0.05',
+					'hero: posts big blind $0.10',
+					'*** HOLE CARDS ***',
+					'p2: folds',
+					'p3: folds',
+					'p4: raises $0.15 to $0.25',
+					'p5: folds',
+					'p6: folds',
+					'hero: calls $0.15',
+				])
+			).toBeCloseTo(0.8);
+		});
+
+		it('puts the big blind in position against the small blind', () => {
+			expect(
+				realisedAt(5, [
+					'p6: posts small blind $0.05',
+					'hero: posts big blind $0.10',
+					'*** HOLE CARDS ***',
+					'p2: folds',
+					'p3: folds',
+					'p4: folds',
+					'p5: folds',
+					'p6: raises $0.20 to $0.30',
+					'hero: calls $0.20',
+				])
+			).toBeCloseTo(0.95);
+		});
+
+		it('is fuller in a 3-bet pot, where the stacks are short against it', () => {
+			// Hero opens under the gun and calls the button's 3-bet out of position.
+			expect(
+				realisedAt(4, [
+					...BLINDS_HERO_UTG,
+					'*** HOLE CARDS ***',
+					'hero: raises $0.15 to $0.25',
+					'p2: folds',
+					'p3: folds',
+					'p4: raises $0.55 to $0.80',
+					'p5: folds',
+					'p6: folds',
+					'hero: calls $0.55',
+				])
+			).toBeCloseTo(0.9);
+		});
+	});
+
+	it('shrinks for each player who has called already', () => {
+		expect(
+			realisedAt(1, [
+				...BLINDS_HERO_BTN,
+				'*** HOLE CARDS ***',
+				'p4: raises $0.15 to $0.25',
+				'p5: calls $0.25',
+				'p6: folds',
+				'hero: calls $0.25',
+			])
+		).toBeCloseTo(0.95 * 0.9);
 	});
 });

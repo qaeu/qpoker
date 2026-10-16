@@ -78,6 +78,33 @@ const EARLIER: Record<ChartSeat, ChartSeat> = {
 	BB: 'CO',
 };
 
+/** An open this small or smaller is a min-raise: the price is better than the charts assume. */
+export const MIN_RAISE_BB = 2.2;
+
+/**
+ * Who opens a min-raise, taken to be one seat looser than the chart seat that
+ * made it. An unsourced rule; see "Min-raises" in docs/preflop-model.md.
+ */
+const LOOSER: Record<ChartSeat, ChartSeat> = {
+	UTG: 'HJ',
+	HJ: 'CO',
+	CO: 'BTN',
+	BTN: 'BTN',
+	SB: 'SB',
+	BB: 'BB',
+};
+
+const SEAT_ORDER: readonly ChartSeat[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+
+/** The seat a min-raise is read as: one looser, but never as late as the player facing it. */
+function looserOpener(opener: Position, hero: Position): Position {
+	const seat = CHART_SEAT[opener];
+	const looser = LOOSER[seat];
+	return SEAT_ORDER.indexOf(looser) < SEAT_ORDER.indexOf(CHART_SEAT[hero]) ?
+			looser
+		:	opener;
+}
+
 const RFI_CHART: Record<ChartSeat, ChartId> = {
 	UTG: 'rfiUtg',
 	HJ: 'rfiHj',
@@ -147,6 +174,7 @@ export function classifyPreflop(replay: Replay, step: Step): PreflopSpot {
 
 	const raisers: string[] = [];
 	let limpers = 0;
+	let limper: string | null = null;
 	let callers = 0;
 	let ownLimp = false;
 	for (const { action } of before) {
@@ -156,6 +184,7 @@ export function classifyPreflop(replay: Replay, step: Step): PreflopSpot {
 		} else if (action.kind === 'call') {
 			if (raisers.length === 0) {
 				limpers++;
+				limper = action.player;
 				if (action.player === player) ownLimp = true;
 			} else callers++;
 		}
@@ -186,6 +215,14 @@ export function classifyPreflop(replay: Replay, step: Step): PreflopSpot {
 		soften('medium');
 		if (position === 'SB' || position === 'BB') {
 			chartId = position === 'SB' ? 'sbVsLimp' : 'bbVsLimp';
+			// One chart serves five limpers and a lone small blind's: a raise over the
+			// second is no more than a guess.
+			// Heads-up the button posts it: the small blind is whoever did.
+			const smallBlind = before.find(({ action }) => action.kind === 'post-sb');
+			const sbLimp = limpers === 1 && limper === smallBlind?.action.player;
+			if (position === 'BB' && sbLimp && step.action.kind === 'raise') {
+				soften('low');
+			}
 			strategy = chart(chartId, depth);
 		} else {
 			strategy = overLimpStrategy(CHART_SEAT[position]);
@@ -197,7 +234,12 @@ export function classifyPreflop(replay: Replay, step: Step): PreflopSpot {
 			soften('low');
 		} else {
 			scenario = callers > 0 ? 'squeeze' : 'vsOpen';
-			chartId = vsOpenChart(position, villainPosition ?? 'UTG');
+			const minRaise = limpers === 0 && step.streetBet / bb <= MIN_RAISE_BB;
+			const opener = villainPosition ?? 'UTG';
+			chartId = vsOpenChart(position, minRaise ? looserOpener(opener, position) : opener);
+			// The price is better than the charts' 2.5bb open, and the opener's range
+			// is a guess: a call or a 3-bet is not graded with confidence.
+			if (minRaise && step.action.kind !== 'fold') soften('low');
 			if (callers > 0 || limpers > 0) soften('medium');
 		}
 		strategy = chart(chartId, depth);
@@ -296,6 +338,12 @@ function isJam(step: Step): boolean {
 	);
 }
 
+/** A first-in raise of `MIN_RAISE_BB` or less. */
+function isMinRaise(step: Step, replay: Replay): boolean {
+	const to = step.action.to;
+	return to !== undefined && to / replay.hand.stakes.bigBlind <= MIN_RAISE_BB;
+}
+
 /** The range one preflop action implies on its own, before any earlier ones. */
 function rangeOfAction(replay: Replay, step: Step): Range | null {
 	const spot = classifyPreflop(replay, step);
@@ -303,6 +351,10 @@ function rangeOfAction(replay: Replay, step: Step): Range | null {
 	if (kind === 'raise') {
 		if (isJam(step) && (spot.raises > 0 || spot.effectiveBb <= 25)) {
 			return jamRange(jamRangeId(spot.raises, spot.effectiveBb));
+		}
+		if (spot.raises === 0 && spot.limpers === 0 && isMinRaise(step, replay)) {
+			const seat = CHART_SEAT[spot.position];
+			return chart(RFI_CHART[LOOSER[seat]], spot.depth).raise;
 		}
 		return spot.strategy.raise;
 	}

@@ -81,6 +81,18 @@ export interface Step {
 	 * opponent: stacks as they stood at the start of the street.
 	 */
 	effectiveStack: number;
+	/**
+	 * The last player to bet or raise before this action, on this street or an
+	 * earlier one: the preflop raiser carries into the flop. Null when nobody
+	 * has, once that player has checked since (the initiative is given up), or
+	 * when they have folded. Blinds are not aggression.
+	 */
+	aggressor: string | null;
+	/**
+	 * The aggressor is someone else who has not acted on this street yet and
+	 * still can: the actor acts in front of them.
+	 */
+	aggressorToAct: boolean;
 }
 
 export interface Replay {
@@ -167,6 +179,8 @@ export function replayHand(hand: Hand): Replay {
 	let pot = 0;
 	let streetPot = 0;
 	let raises = 0;
+	let aggressor: string | null = null;
+	let acted = new Set<string>();
 
 	// Postflop the blinds act first, then everyone else as they did preflop.
 	const isBlind = (name: string) =>
@@ -186,12 +200,15 @@ export function replayHand(hand: Hand): Replay {
 			streetStart = new Map(stack);
 			streetPot = pot;
 			raises = 0;
+			acted = new Set();
 		}
 		const { player } = action;
 		const own = committed.get(player) ?? 0;
 		const streetBet = Math.max(0, ...committed.values());
 		const live = order.filter((name) => !folded.has(name));
 		const others = live.filter((name) => name !== player);
+		const canAct = live.filter((name) => (stack.get(name) ?? 0) > 0);
+		const lastAggressor = aggressor && !folded.has(aggressor) ? aggressor : null;
 
 		steps.push({
 			index,
@@ -206,11 +223,17 @@ export function replayHand(hand: Hand): Replay {
 			stackBefore: stack.get(player) ?? 0,
 			raisesBefore: raises,
 			live,
-			canAct: live.filter((name) => (stack.get(name) ?? 0) > 0),
+			canAct,
 			effectiveStack: Math.min(
 				streetStart.get(player) ?? 0,
 				Math.max(0, ...others.map((name) => streetStart.get(name) ?? 0))
 			),
+			aggressor: lastAggressor,
+			aggressorToAct:
+				lastAggressor !== null
+				&& lastAggressor !== player
+				&& !acted.has(lastAggressor)
+				&& canAct.includes(lastAggressor),
 		});
 
 		pot += action.amount;
@@ -218,7 +241,12 @@ export function replayHand(hand: Hand): Replay {
 		invested[player] = (invested[player] ?? 0) + action.amount;
 		if (action.kind !== 'post-dead') committed.set(player, own + action.amount);
 		if (action.kind === 'fold') folded.add(player);
-		if (action.kind === 'bet' || action.kind === 'raise') raises++;
+		if (action.kind === 'bet' || action.kind === 'raise') {
+			raises++;
+			aggressor = player;
+		}
+		if (action.kind === 'check' && player === aggressor) aggressor = null;
+		if (!action.kind.startsWith('post-')) acted.add(player);
 	});
 
 	for (const { player, amount } of hand.uncalled) {
@@ -237,6 +265,11 @@ export function replayHand(hand: Hand): Replay {
 	}
 
 	return { hand, layout, steps, invested, reconciled, net };
+}
+
+/** Who bet or raised last before `street` began: the preflop raiser, for the flop. */
+export function aggressorInto(replay: Replay, street: Street): string | null {
+	return replay.steps.find((step) => step.street === street)?.aggressor ?? null;
 }
 
 /** The steps at which `player` chose something: no blinds, no forced posts. */

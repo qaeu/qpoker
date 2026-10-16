@@ -38,14 +38,14 @@ import {
 import { emptyEquity, handEquity, type HandEquity } from './stepEquity';
 
 /** The coach: bump it when a grading could come out differently, or its shape does. */
-export const REPORT_VERSION = 8;
+export const REPORT_VERSION = 9;
 
 /**
  * The summary's own figures: bump it when a tally, an opening spot or another
  * summary field changes and no grading does. A stored hand is then summed
  * again from its text, which costs no simulation.
  */
-export const FACTS_VERSION = 2;
+export const FACTS_VERSION = 3;
 
 export interface AnalysisOptions {
 	/** Defaults to the player the log was dealt to. */

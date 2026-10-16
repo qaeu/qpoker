@@ -26,20 +26,26 @@ so the cost is modelled.
 The charts are approximations and a solver mixes at the edges; this keeps the coach from
 penalising one side of a coin flip.
 
-**Too tight** (folded a hand that continues). The cost is what the hand was worth in the
-pot: the gap on the tier scale between the hand and where the range ends
-(`TIER_VALUE_BB`), times the spot's weight. Folding aces first in costs 7.1bb. Folding any
-hand in the range's own last tier costs nothing, and that is far more than the worst hand:
-67% of the combos the UTG chart always opens, 31% of the button's, and 56% of what the
-button always continues with against a 3-bet. Folding 99 or AJo under the gun is graded
-"ok". A player who folds too much is mostly not told so; see finding 7 in
-[accuracy.md](./accuracy.md).
+**Too tight** (folded a hand that continues). Against a raiser the cost is what calling
+was worth: `realised equity × (pot + call) × (1 − rake) − call`, from the equity against
+the raiser's range (see "Pricing from equity" below), or nothing when that is not
+positive. With no raiser to price against (first in, or over limpers) it is the hand's
+value on the tier scale (`TIER_VALUE_BB`) times how far inside the range it sits, times
+the spot's weight. "How far inside" is the share of the range's combos, weighted by how
+often they continue, that are weaker against a random hand: 0 for the last hand of the
+range, 1 for its best. Folding aces first in costs about 7.8bb, 99 under the gun 0.8bb,
+AJo 0.4bb, and the suited connectors that end the range nothing. A hand is only a
+mistake to fold when the chart folds it less than 20% of the time ("Mixed hands"), and a
+loss under 0.15bb is dropped, so margin hands make no noise. This replaced a tier gap
+that was zero for every hand in the range's own last tier, and so for most of it; see
+finding 7 in [accuracy.md](./accuracy.md).
 
-**Too loose** (played a hand that folds). `0.07bb × steps^1.5 × weight`, where steps is
-how many tiers outside the range the hand is, capped at 60% of what the action put in.
-One tier out is noise. Seven-deuce under the gun is not. For a call the cap is usually
-the cost: 6 of the 9 loose calls in the sample logs were priced at exactly 60% of the
-call, which by a rough equity estimate is two to eight times too much.
+**Too loose** (played a hand that folds). A loose call against a raiser is priced from
+equity, as above: what it loses against the raiser's range, capped at 60% of what the
+call put in. A call the equity says is fine is not named. Every other loose play (an
+open, a 3-bet) costs `0.07bb × steps^1.5 × weight`, where steps is how many tiers outside
+the range the hand is, capped at 60% of what the action put in. One tier out is noise.
+Seven-deuce under the gun is not.
 
 **Right hand, wrong action** (called where the chart raises, or the reverse).
 `max(0.2, 0.12 × weight)` bb: small, because the hand was right to play.
@@ -53,13 +59,55 @@ is a shove over a raise at under 70bb, which is standard. Where the standard rai
 itself a shove (past a third of the stack there is nothing left to play), a raise of 60%
 of the stack or more is one in effect and is not flagged as too small.
 
-These constants are tuned by eye against known magnitudes (aces first in are worth around
-8 to 10bb; opening a hand one notch too wide costs hundredths of a blind). They are not
-measurements, and no published figure was found to check them against. Of the 37 preflop
-mistakes in the sample logs, 22 were judged right, 12 defensible and 3 wrong, so the
-direction can be trusted more than the price. The order is not always right either:
-calling 54o in the big blind (1.2bb) is priced above opening 94o under the gun (1.03bb),
-and folding KQs under the gun (0.7bb) above folding 99 there (nothing).
+The tier constants are tuned by eye against known magnitudes (aces first in are worth
+around 8 to 10bb; opening a hand one notch too wide costs hundredths of a blind). They are
+not measurements, and no published figure was found to check them against. Of the 37
+preflop mistakes in the sample logs at version 3, 22 were judged right, 12 defensible and
+3 wrong, so the direction can be trusted more than the price. The priced costs below rest
+on equity, which is measured, and on a realisation factor, which is not.
+
+## Preflop: pricing from equity
+
+A cold call, a big-blind call, a call of a 3-bet or a 4-bet, and a fold of any of them,
+are priced as `priceCall` in `coach/preflopPrice.ts` does it: the hero's equity against
+the last raiser's range (`preflopRange`, the chart range their line implies), from 2,000
+seeded deals, and then
+
+`callEv = realisation × equity × (pot + call) × (1 − rake) − call`
+
+where `pot` includes the hero's own chips already in, which are sunk. Folding is worth
+nothing, so `callEv` is the cost of a loose call when negative and of a fold when
+positive. It is about 2ms a spot.
+
+**The realisation factor is an assumption, not a measurement.** Raw equity is more than a
+hand gets: the player out of position folds to bets it could have called, and a weak
+hand is outplayed. The audit (finding 4) suggested 0.7 to 1.0, lower out of position. The
+values used, with the reasoning:
+
+| Situation                                 | Realisation |
+| ----------------------------------------- | ----------- |
+| In position against the raiser            | 0.95        |
+| Out of position (the blinds, or earlier)  | 0.80        |
+| A 3-bet or bigger pot, added to the above | +0.10       |
+| Each player who has already called        | × 0.9       |
+
+In position a hand loses a little to being bluffed off the pot and gains the last
+decision; 0.95 says the two nearly cancel. Out of position it is the audit's lower end.
+A 3-bet pot is played at a stack-to-pot ratio under 6 and a 4-bet pot under 2, so there
+is less room to be outplayed and the shortfall shrinks. A caller behind makes the pot
+multiway, where equity against one range is overstated and each player has less to win
+from the rest. Two hands of the same equity do not realise it equally either, a suited
+connector more than an offsuit one; no hand-by-hand factor is used.
+
+A change of 0.1 in the factor moves the price by roughly 4% of the pot: 0.3bb in a
+single-raised pot and 1bb in a 4-bet pot. That is the uncertainty in these costs, and why
+a priced finding is **medium confidence at best**, and a low-confidence spot stays low.
+
+The price takes the raiser alone, so a squeeze behind or a 3-bet from the blinds that
+the call exposes the hero to is not counted: a priced call is a little kinder than the
+truth for the button and cutoff, which have the blinds behind them. The 60% cap stays as
+the upper bound of a loose call's cost. What cannot be priced this way, a raise (a 3-bet
+or an open), keeps the tier formula.
 
 ## Preflop: stacks going in
 
@@ -129,10 +177,13 @@ Left out, on purpose:
 - **A total.** Costs avoided do not add up to anything: every decision has another
   action that would have been worse.
 
-On the two sample logs (300 hands, 193 postflop decisions) this names three plays. That is
+On the two sample logs (300 hands, 193 postflop decisions) this named three plays. That is
 the intended order of magnitude: a highlight, not a second grade for every decision. All
-three were judged right as actions. The numbers are weaker: one "tough" call rests on an
-equity the opponent model gets wrong. See [accuracy.md](./accuracy.md).
+three were judged right as actions. The numbers were weaker: one "tough" call rested on
+an equity the opponent model got wrong, and since version 9, which reads a check-raise as
+strong, the model finds that call close (22% equity against 21% needed), not a play to
+name; two plays are named. See
+[accuracy.md](./accuracy.md).
 
 ## Rake
 

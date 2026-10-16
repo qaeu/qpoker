@@ -135,6 +135,17 @@ export function describeHand(hole: readonly Card[], board: readonly Card[]): str
 	}
 }
 
+/** A pair or better that the hole cards make, not the board's own. */
+export function pairOrBetter(hole: readonly Card[], board: readonly Card[]): boolean {
+	const [a, b] = hole.map(rankOf);
+	if (a === b || board.some((card) => rankOf(card) === a || rankOf(card) === b))
+		return true;
+	// A straight or a flush that uses a hole card.
+	const score = evaluate([...hole, ...board]);
+	if (categoryOf(score) < 4) return false;
+	return board.length < 5 || score > evaluate(board);
+}
+
 /** `a flush draw`, `an open-ended straight draw`, ... or an empty string. */
 export function describeDraws(hole: readonly Card[], board: readonly Card[]): string {
 	const draws = drawsOf(hole, board);

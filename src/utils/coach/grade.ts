@@ -23,6 +23,7 @@ import { continueRange, frequencyOf, toComboRange } from '../ranges/range';
 import type { PreflopChoice } from '../ranges/range';
 import { handTier, isPremium, marginTier, TIER_VALUE_BB } from '../ranges/tiers';
 import { explain } from './explain';
+import { priceCall, rangeDepth, type CallPrice } from './preflopPrice';
 import { goodPlayOf, type GoodPlay } from './goodPlays';
 import { severityOf, type MistakeType, type Severity } from './mistakes';
 
@@ -58,6 +59,12 @@ export interface PreflopFacts {
 	opponents?: number;
 	potOdds?: number;
 	callEvBb?: number;
+	/**
+	 * A fold or a loose call priced from equity against the raiser's range, in
+	 * place of the chart's tier gap: the raw equity, the share of it realised,
+	 * and what calling is worth in big blinds.
+	 */
+	priced?: CallPrice;
 }
 
 export interface Grading {
@@ -338,10 +345,26 @@ function gradePreflop(replay: Replay, step: Step, options: GradeOptions): Gradin
 		return finish(base, null, 0);
 	}
 
+	// Against a raiser, a call is priced from its equity; elsewhere from the chart.
+	const priced = priceCall(replay, step, spot, options);
+	// The realised share of equity is assumed, so a price is never a certainty.
+	const unsure = () => {
+		if (base.confidence === 'high') base.confidence = 'medium';
+	};
+
 	if (choice === 'fold') {
-		// The hand belonged in the pot: folding gives up what it was worth there.
-		const worth = Math.max(0, TIER_VALUE_BB[tier] - TIER_VALUE_BB[margin]);
-		return finish(base, tightMistake(spot), Math.min(cap, worth * weight));
+		// The hand belonged in the pot: folding gives up what it was worth there,
+		// which is what the call was worth against the raiser's range, or, with
+		// none, the hand's value scaled by how far inside the range it sits.
+		if (priced) {
+			facts.priced = priced;
+			unsure();
+		}
+		const worth =
+			priced ?
+				Math.max(0, priced.evBb)
+			:	TIER_VALUE_BB[tier] * rangeDepth(continueRange(strategy), cls) * weight;
+		return finish(base, tightMistake(spot), Math.min(cap, worth));
 	}
 	if (free && choice === 'call') {
 		return finish(base, 'missed-iso', wrongLineBb(weight));
@@ -349,7 +372,16 @@ function gradePreflop(replay: Replay, step: Step, options: GradeOptions): Gradin
 	if (continues < MIX_FLOOR) {
 		const steps = Math.max(1, tier - margin);
 		const put = step.action.amount / bb;
-		const lost = Math.min(put * 0.6, LOOSE_BB_PER_STEP * steps ** 1.5 * weight);
+		if (priced && choice === 'call') {
+			facts.priced = priced;
+			unsure();
+		}
+		const lost = Math.min(
+			put * 0.6,
+			priced && choice === 'call' ?
+				Math.max(0, -priced.evBb)
+			:	LOOSE_BB_PER_STEP * steps ** 1.5 * weight
+		);
 		return finish(base, looseMistake(spot, choice), lost);
 	}
 	return finish(base, lineMistake(spot, choice), wrongLineBb(weight));

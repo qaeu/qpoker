@@ -131,7 +131,12 @@ function preflopText(grading: Grading, facts: PreflopFacts): string {
 		grading.mistake === 'preflop-sizing' && facts.raiseToBb && facts.suggestedRaiseToBb ?
 			` You made it ${bbText(facts.raiseToBb)}; about ${bbText(facts.suggestedRaiseToBb)} is standard.`
 		:	'';
-	return `${lead} ${chart} ${ADVICE[grading.mistake]}${size}`;
+	const { priced } = facts;
+	const price =
+		priced ?
+			` Against the raiser's range it has about ${pct(priced.equity)} equity, ${pct(priced.realisation)} of it realised: calling is worth ${bbText(priced.evBb)}.`
+		:	'';
+	return `${lead} ${chart}${price} ${ADVICE[grading.mistake]}${size}`;
 }
 
 function postflopText(grading: Grading, facts: PostflopFacts): string {

@@ -157,6 +157,22 @@ describe('equity', () => {
 		expect(nuts.equity).toBe(1);
 	});
 
+	describe('on the flop', () => {
+		const hero = parseCards('Jh Td');
+		const board = parseCards('9s 8c 2d');
+		const range = rangeOf('AA', 'KK', 'QJs');
+		const exact = equityVsRange(hero, board, range, { samples: 1081 }).equity;
+
+		it('draws its runouts without replacement', () => {
+			// All but one of the 1,081 runouts: within a hair of the exact figure,
+			// where draws with replacement would repeat about a third of them.
+			for (const seed of [1, 2, 3]) {
+				const nearly = equityVsRange(hero, board, range, { samples: 1080, seed });
+				expect(Math.abs(nearly.equity - exact)).toBeLessThan(0.002);
+			}
+		});
+	});
+
 	it('is reproducible from its seed', () => {
 		const run = () =>
 			equityVsRange(

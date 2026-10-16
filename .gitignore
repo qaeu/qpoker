@@ -29,3 +29,6 @@ Thumbs.db
 tmp
 # Hand histories carry other players' screen names
 /*.txt
+
+# The accuracy harness verdicts name the sample logs hands
+/scripts/accuracy/verdicts.json

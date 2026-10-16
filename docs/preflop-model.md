@@ -19,8 +19,9 @@ plainly:
   solve for small stakes, and they disagree with one another by several points, so "about
   right" is as much as can be said.
 - The 2.5bb open is an assumption that often fails: 29% of the opponents' opens in the
-  sample logs were 2.0bb. The charts do not widen for the better price, and 7 of the 37
-  preflop mistakes found there were calls or 3-bets against a min-raise.
+  sample logs were 2.0bb. A min-raise is handled by a rule that is not sourced (see
+  "Min-raises" below), and 7 of the 37 preflop mistakes found at version 3 were calls or
+  3-bets against one.
 - At the edge of a range they are an opinion. A solver mixes many borderline hands at
   frequencies these charts round to 0, 0.5 or 1.
 - So the grader is forgiving at the edge (see "Mixed hands" in
@@ -60,7 +61,7 @@ and carve the raises out of it.
 | `vs3bet`        | the player opened and was re-raised             | by seat and where the 3-bettor sits      |
 | `vs4bet`        | the player 3-bet and was re-raised              | by how early the opener was              |
 | `vs5bet`        | the player 4-bet and was re-raised              | the tight `vs4bet` chart, low confidence |
-| `cold4bet`      | an open and a 3-bet before the player has acted | one chart                                |
+| `cold4bet`      | an open and a 3-bet before the player has acted | one chart, with a call range of 9%       |
 | `limpedVsRaise` | the player limped and was raised                | one chart, low confidence                |
 
 No chart is written for a 5-bet. At 100bb it is nearly always a shove, which is priced
@@ -75,6 +76,42 @@ the seat before's first-in range, and `overLimp` holds only the hands that limp 
 where that range does not raise. The Ranges view shows the two together, one table per
 seat (`overLimpStrategy`), never `overLimp` on its own, which would fold every premium.
 UTG and the hijack both iso-raise with UTG's opens, so the hijack's table covers both.
+
+`bbVsLimp` is one chart for the big blind over any number of limpers. It is written
+for several, and the big blind's raise over a lone small blind is made with a wider
+range, so a raise there (one limper, the small blind) is graded at low confidence. No chart was
+written for it: no published range was found.
+
+## Min-raises
+
+The charts price a 2.5bb open. An open of **2.2bb or less** (`MIN_RAISE_BB`) is a
+min-raise, and two things change:
+
+1. **Confidence is low** for a call or a 3-bet against it. A fold is not lowered for the
+   min-raise, but like any fold against a raiser it is priced from equity, and so is
+   medium at best (see "Preflop: pricing from equity" in
+   [coach-model.md](./coach-model.md)).
+   The charts do not say what the better price is worth, and the finding is a guess.
+2. **The opener is read as one seat looser.** The hero's chart is the one for an opener a
+   seat later (UTG as the hijack, the hijack as the cutoff, the cutoff as the button), so
+   the big blind defends wider against a min-raise from UTG and a cold caller has the
+   cutoff's range to beat. The same widening gives an opponent who min-raised first in the
+   range of the looser seat's opens in `preflopRange`. It stops short of the hero's own
+   seat (the button against a cutoff min-raise reads the cutoff's chart) and does not apply
+   to a min-raise over limpers or to the button's and the blinds' own opens. That limit is
+   the chart lookup's alone: an opener's range in `preflopRange` does not depend on who
+   faces it, so the button above is graded on the cutoff's chart while a call is priced
+   against the button's opens. The two halves disagree there by design; the price is the
+   wider guess.
+
+**This rule is unsourced.** No published range for a min-raise was found; "one seat
+looser" is a judgement. The reasoning is that a min-raise is chosen by players who open
+more hands and size them smaller, and that it gives the callers a better price: the big
+blind needs 22% equity to call 2bb and 27% to call 2.5bb, a fifth less, which is of the
+order of what an opener one seat later is worth to its defence. The match is not
+measured. It is a guess at the direction and the order of magnitude, nothing more, which
+is why confidence is low rather than medium. The `LOOSER` table and `MIN_RAISE_BB` in
+`preflopSpot.ts` retune it.
 
 ## Fuller tables
 
@@ -136,11 +173,21 @@ action's range alone, then to `LIMP_RANGE`, a deliberately wide, capped range. T
 where a real opponent at small stakes departs furthest from the baseline, and the
 fallback keeps the postflop model from reasoning about a range of three hands.
 
-On the sample logs 24 of 239 opponent lines that reached a flop fell back. Thirteen were
+On the sample logs, of 239 opponent lines that reached a flop, 24 fell back at version 3
+(32 by a stricter count that includes every line ending on the limp range). Thirteen were
 a small blind calling an open, where a wide range is fair. Nine were a cold call of an
-open and a 3-bet, where a quarter of all hands is far too wide. One was a 3-bettor calling
-a 4-bet, whose charted range of 11.6 combos misses the threshold by 0.4. See finding 9 in
+open and a 3-bet, where a quarter of all hands was far too wide. One was a 3-bettor calling
+a 4-bet, whose charted range of 11.6 combos missed the threshold by 0.4. See finding 9 in
 [accuracy.md](./accuracy.md).
+
+Two charts have since been given a call range so that those lines stay on the charts.
+`cold4bet` calls 8.9% of hands (117 combos: pairs down to 55, the suited and offsuit
+broadways and ace-x suited), against 3.6 combos before. `vs4betTight` calls 19.6 combos
+(`QQ`, `JJ`, some `TT`, `AKo`, `AQs`) where it called 11.6. Both are guesses at what a
+small-stakes player calls with; at NL5 the real range may be wider, as finding 9 warned.
+On the sample logs 10 of the 32 lines stop falling back (6 big blinds and 3 other callers
+of an open and a 3-bet, and the 3-bettor calling a 4-bet), leaving 22: the small blind
+calling an open, and the open-limp.
 
 ## Tiers
 

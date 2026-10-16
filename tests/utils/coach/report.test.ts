@@ -468,6 +468,39 @@ describe('a hand’s tally', () => {
 		expect(Object.keys(tally.stats).sort()).toEqual(['pfr', 'rfi', 'vpip']);
 	});
 
+	it('expects the big blind to defend more against a min-raise', () => {
+		const defence = (openTo: string) => {
+			const pot = '0.25';
+			const replay = replayHand(
+				parseHistory(
+					handText({
+						heroCards: '9h 8h',
+						button: 5,
+						lines: [
+							'p6: posts small blind $0.05',
+							'hero: posts big blind $0.10',
+							'*** HOLE CARDS ***',
+							`p2: raises $${(Number(openTo) - 0.1).toFixed(2)} to $${openTo}`,
+							'p3: folds',
+							'p4: folds',
+							'p5: folds',
+							'p6: folds',
+							'hero: folds',
+							`Uncalled bet ($${(Number(openTo) - 0.1).toFixed(2)}) returned to p2`,
+							`p2 collected $${pot} from pot`,
+						],
+						pot,
+						winner: 'p2',
+					})
+				)[0]
+			);
+			expect(replay.reconciled).toBe(true);
+			return tallyHand(replay, 'hero')!.stats.bbDefend!.expected;
+		};
+		// The charts' defence against a looser opener: the rule is in the tally too.
+		expect(defence('0.20')).toBeGreaterThan(defence('0.25'));
+	});
+
 	it('profiles any player, with no cards of theirs to go on', () => {
 		const villain = summariseSession(replays, 'Brakeman1990');
 		expect(villain.hands).toBe(4);

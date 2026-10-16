@@ -19,11 +19,11 @@
 		},
 
 		// Type Checking & Safety
-		// `node` is here for src/cli/ alone; nothing under src/utils/ may import
+		// `node` is here for src/cli/ and scripts/ alone; nothing under src/utils/ may import
 		// `node:*`, since the same modules run in the browser worker.
 		"skipLibCheck": true,
 		"strict": true,
 		"types": ["vite/client", "vitest/globals", "node"]
 	},
-	"include": ["src", "tests", "*.ts"]
+	"include": ["src", "tests", "scripts", "*.ts"]
 }

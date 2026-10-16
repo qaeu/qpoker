@@ -361,3 +361,308 @@ describe('spots at a fuller table', () => {
 		});
 	});
 });
+
+describe('the ranges behind a 3-bet and a 4-bet', () => {
+	it('gives the cold 4-bet spot a real calling range of about a tenth of hands', () => {
+		const call = chart('cold4bet').call;
+		expect(rangeFraction(call)).toBeGreaterThan(0.08);
+		expect(rangeFraction(call)).toBeLessThan(0.12);
+		expect(call[cls('AA')]).toBe(0);
+		expect(call[cls('72o')]).toBe(0);
+		// A call is narrower than the range that opened, and holds the pairs.
+		expect(rangeFraction(call)).toBeLessThan(rangeFraction(chart('rfiUtg').raise));
+		expect(call[cls('TT')]).toBe(1);
+	});
+
+	it('keeps a 3-bettor’s call of a 4-bet from an early opener above the combo threshold', () => {
+		expect(rangeCombos(chart('vs4betTight').call)).toBeGreaterThan(15);
+		// Still the top of the range: nothing a 4-bet should fold to is called.
+		expect(chart('vs4betTight').call[cls('72o')]).toBe(0);
+		expect(chart('vs4betTight').call[cls('KK')]).toBe(0);
+	});
+
+	it('never lets a range someone is read to hold fall below the threshold', () => {
+		for (const depth of ['deep', 'mid'] as const) {
+			expect(rangeCombos(chart('cold4bet', depth).call)).toBeGreaterThan(12);
+			expect(rangeCombos(chart('vs4betTight', depth).raise)).toBeGreaterThan(12);
+		}
+	});
+
+	describe('an opponent’s line through them', () => {
+		it('is no longer the limping range when a player calls an open and a 3-bet cold', () => {
+			const replay = replayHand(
+				parseHistory(
+					handText({
+						heroCards: '7c 2d',
+						button: 1,
+						lines: [
+							...BLINDS_HERO_BTN,
+							'*** HOLE CARDS ***',
+							'p4: raises $0.15 to $0.25',
+							'p5: raises $0.55 to $0.80',
+							'p6: calls $0.80',
+							'hero: folds',
+							'p2: folds',
+							'p3: folds',
+							'p4: folds',
+							'*** FLOP *** [Kd 7s 2c]',
+							'p5: bets $0.50',
+							'p6: folds',
+							'Uncalled bet ($0.50) returned to p5',
+							'p5 collected $2.00 from pot',
+						],
+						pot: '2.00',
+						winner: 'p5',
+					})
+				)[0]
+			);
+			expect(replay.reconciled).toBe(true);
+			const range = preflopRange(replay, 'p6');
+			const combos = rangeCombos(range);
+			expect(combos).toBeGreaterThan(80);
+			expect(combos).toBeLessThan(160);
+			expect(range).not.toEqual(limpRange());
+			expect(range[cls('JJ')]).toBeGreaterThan(0);
+			expect(range[cls('72o')]).toBe(0);
+		});
+	});
+});
+
+describe('a min-raise', () => {
+	const BLINDS_HERO_BB = ['p6: posts small blind $0.05', 'hero: posts big blind $0.10'];
+	/** Hero, in the big blind, faces an open by the first to act. Only the call is played out. */
+	const defend = (openTo: string, heroLine: string) => {
+		const pot = (Number(openTo) * 2 + 0.05).toFixed(2);
+		const replay = replayHand(
+			parseHistory(
+				handText({
+					heroCards: 'Ah Kd',
+					button: 5,
+					lines: [
+						...BLINDS_HERO_BB,
+						'*** HOLE CARDS ***',
+						`p2: raises $${(Number(openTo) - 0.1).toFixed(2)} to $${openTo}`,
+						...['p3', 'p4', 'p5', 'p6'].map((name) => `${name}: folds`),
+						heroLine,
+						'*** FLOP *** [Kd 7s 2c]',
+						'hero: checks',
+						'p2: bets $0.20',
+						'hero: folds',
+						'Uncalled bet ($0.20) returned to p2',
+						`p2 collected $${pot} from pot`,
+					],
+					pot,
+					winner: 'p2',
+				})
+			)[0]
+		);
+		const [step] = decisionsOf(replay, 'hero');
+		return { replay, spot: classifyPreflop(replay, step) };
+	};
+
+	it('reads the 2.5bb open as the charts do', () => {
+		const { spot } = defend('0.25', 'hero: calls $0.15');
+		expect(spot).toMatchObject({ chart: 'bbVsUtg', confidence: 'high' });
+	});
+
+	it('reads a 2bb open one seat looser, and calling it as low confidence', () => {
+		const { spot } = defend('0.20', 'hero: calls $0.10');
+		expect(spot).toMatchObject({ chart: 'bbVsHj', confidence: 'low' });
+		expect(spot.villainPosition).toBe('UTG');
+		// The wider defence is the looser seat’s.
+		expect(rangeFraction(continueRange(spot.strategy))).toBeGreaterThan(
+			rangeFraction(continueRange(chart('bbVsUtg')))
+		);
+	});
+
+	it('is as low a confidence for a 3-bet, and not changed for a fold', () => {
+		expect(defend('0.20', 'hero: raises $0.50 to $0.60').spot.confidence).toBe('low');
+		expect(defend('0.20', 'hero: folds').spot.confidence).toBe('high');
+	});
+
+	it('widens the range an opponent is given for it, and only for the min-raise', () => {
+		const min = defend('0.20', 'hero: calls $0.10').replay;
+		const normal = defend('0.25', 'hero: calls $0.15').replay;
+		expect(rangeCombos(preflopRange(normal, 'p2'))).toBeCloseTo(
+			rangeCombos(chart('rfiUtg').raise),
+			5
+		);
+		expect(rangeCombos(preflopRange(min, 'p2'))).toBeCloseTo(
+			rangeCombos(chart('rfiHj').raise),
+			5
+		);
+	});
+
+	it('is not widened past the seat of the player facing it', () => {
+		// The button against a cutoff min-raise: one seat looser would be itself.
+		const replay = replayHand(
+			parseHistory(
+				handText({
+					heroCards: 'Ah Kd',
+					button: 1,
+					lines: [
+						...BLINDS_HERO_BTN,
+						'*** HOLE CARDS ***',
+						'p4: folds',
+						'p5: folds',
+						'p6: raises $0.10 to $0.20',
+						'hero: folds',
+						'p2: folds',
+						'p3: folds',
+						'Uncalled bet ($0.10) returned to p6',
+						'p6 collected $0.20 from pot',
+					],
+					pot: '0.20',
+					winner: 'p6',
+				})
+			)[0]
+		);
+		const spot = classifyPreflop(replay, decisionsOf(replay, 'hero')[0]);
+		expect(spot.chart).toBe('btnVsCo');
+	});
+
+	describe('over a limper', () => {
+		// p5 limps and p6 isolates; hero on the button faces it.
+		const iso = (raiseTo: string) => {
+			const pot = '0.35';
+			const replay = replayHand(
+				parseHistory(
+					handText({
+						heroCards: 'Ah Kd',
+						button: 1,
+						lines: [
+							...BLINDS_HERO_BTN,
+							'*** HOLE CARDS ***',
+							'p4: folds',
+							'p5: calls $0.10',
+							`p6: raises $${(Number(raiseTo) - 0.1).toFixed(2)} to $${raiseTo}`,
+							'hero: folds',
+							'p2: folds',
+							'p3: folds',
+							'p5: folds',
+							`Uncalled bet ($${(Number(raiseTo) - 0.1).toFixed(2)}) returned to p6`,
+							`p6 collected $${pot} from pot`,
+						],
+						pot,
+						winner: 'p6',
+					})
+				)[0]
+			);
+			expect(replay.reconciled).toBe(true);
+			return replay;
+		};
+		const min = iso('0.20');
+		const normal = iso('0.40');
+
+		it('reads the same chart as a raise of the usual size', () => {
+			const at = (replay: typeof min) =>
+				classifyPreflop(replay, decisionsOf(replay, 'hero')[0]).chart;
+			expect(at(min)).toBe(at(normal));
+		});
+
+		it('gives the raiser the same range', () => {
+			expect(rangeCombos(preflopRange(min, 'p6'))).toBeCloseTo(
+				rangeCombos(preflopRange(normal, 'p6')),
+				5
+			);
+		});
+	});
+});
+
+describe('the big blind over a lone small-blind limp', () => {
+	const bbAfter = (limps: string[], pot: string) => {
+		const replay = replayHand(
+			parseHistory(
+				handText({
+					heroCards: 'Kc 8d',
+					button: 5,
+					lines: [
+						'p6: posts small blind $0.05',
+						'hero: posts big blind $0.10',
+						'*** HOLE CARDS ***',
+						'p2: folds',
+						'p3: folds',
+						...limps,
+						'hero: raises $0.30 to $0.40',
+						'p6: folds',
+						...(limps.length > 3 ? ['p5: folds'] : []),
+						'Uncalled bet ($0.30) returned to hero',
+						`hero collected $${pot} from pot`,
+					],
+					pot,
+					winner: 'hero',
+				})
+			)[0]
+		);
+		expect(replay.reconciled).toBe(true);
+		return classifyPreflop(replay, decisionsOf(replay, 'hero')[0]);
+	};
+
+	it('is low confidence to raise, as a chart for five limpers cannot say', () => {
+		const spot = bbAfter(['p4: folds', 'p5: folds', 'p6: calls $0.05'], '0.20');
+		expect(spot).toMatchObject({ scenario: 'vsLimp', chart: 'bbVsLimp', limpers: 1 });
+		expect(spot.confidence).toBe('low');
+	});
+
+	it('stays medium over several limpers', () => {
+		const spot = bbAfter(['p4: folds', 'p5: calls $0.10', 'p6: calls $0.05'], '0.30');
+		expect(spot).toMatchObject({ scenario: 'vsLimp', limpers: 2, confidence: 'medium' });
+	});
+
+	it('is low confidence heads-up too, where the button posts the small blind', () => {
+		const replay = replayHand(
+			parseHistory(
+				handText({
+					heroCards: 'Kc 8d',
+					button: 2,
+					seats: ['hero', 'p2'],
+					lines: [
+						'p2: posts small blind $0.05',
+						'hero: posts big blind $0.10',
+						'*** HOLE CARDS ***',
+						'p2: calls $0.05',
+						'hero: raises $0.30 to $0.40',
+						'p2: folds',
+						'Uncalled bet ($0.30) returned to hero',
+						'hero collected $0.20 from pot',
+					],
+					pot: '0.20',
+					winner: 'hero',
+				})
+			)[0]
+		);
+		expect(replay.reconciled).toBe(true);
+		const spot = classifyPreflop(replay, decisionsOf(replay, 'hero')[0]);
+		expect(spot).toMatchObject({ scenario: 'vsLimp', limpers: 1, confidence: 'low' });
+	});
+
+	it('stays medium over a lone limp from another seat', () => {
+		const replay = replayHand(
+			parseHistory(
+				handText({
+					heroCards: 'Kc 8d',
+					button: 5,
+					lines: [
+						'p6: posts small blind $0.05',
+						'hero: posts big blind $0.10',
+						'*** HOLE CARDS ***',
+						'p2: folds',
+						'p3: folds',
+						'p4: calls $0.10',
+						'p5: folds',
+						'p6: folds',
+						'hero: raises $0.30 to $0.40',
+						'p4: folds',
+						'Uncalled bet ($0.30) returned to hero',
+						'hero collected $0.25 from pot',
+					],
+					pot: '0.25',
+					winner: 'hero',
+				})
+			)[0]
+		);
+		expect(replay.reconciled).toBe(true);
+		const spot = classifyPreflop(replay, decisionsOf(replay, 'hero')[0]);
+		expect(spot).toMatchObject({ scenario: 'vsLimp', limpers: 1, confidence: 'medium' });
+	});
+});

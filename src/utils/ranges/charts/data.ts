@@ -153,14 +153,20 @@ export const DEEP = {
 	},
 
 	// The 3-bettor, facing a 4-bet. A raise here is all-in.
-	vs4betTight: { raise: 'KK+,AKs:0.5', call: 'QQ:0.7,AKs,AKo:0.3,JJ:0.3' },
+	vs4betTight: {
+		raise: 'KK+,AKs:0.5',
+		call: 'QQ:0.7,JJ:0.6,TT:0.3,AKs,AKo:0.5,AQs:0.5',
+	},
 	vs4betWide: {
 		raise: 'KK+,QQ:0.5,AKs,AKo:0.7,A5s:0.3',
 		call: 'QQ,JJ,TT:0.5,AKo,AQs:0.7,KQs:0.3,AJs:0.3',
 	},
 
 	// An open and a 3-bet before the hand has acted.
-	cold4bet: { raise: 'KK+,QQ:0.7,AKs,AKo:0.5,A5s:0.2', call: 'QQ,JJ:0.3' },
+	cold4bet: {
+		raise: 'KK+,QQ:0.7,AKs,AKo:0.5,A5s:0.2',
+		call: 'QQ,JJ-77,66-55:0.5,AKo,AQo,AJo,AQs,AJs,ATs,A9s:0.5,A8s:0.5,A5s:0.5,KQs,KJs,KTs:0.5,QJs,QTs:0.5,JTs,T9s,98s:0.5,87s:0.5,KQo:0.3',
+	},
 
 	// Limped pots.
 	overLimp: {
@@ -212,7 +218,7 @@ export const MID: Partial<Record<ChartId, ChartEntry>> = {
 	},
 	vs4betTight: { raise: 'QQ+,AKs,AKo:0.7,JJ:0.3', call: '' },
 	vs4betWide: { raise: 'JJ+,AKs,AKo,AQs:0.5,TT:0.5', call: '' },
-	cold4bet: { raise: 'QQ+,AKs,AKo,JJ:0.5', call: '' },
+	cold4bet: { raise: 'QQ+,AKs,AKo,JJ:0.5', call: 'JJ,TT-88,AQs,AJs:0.5,KQs:0.5,AQo:0.5' },
 };
 
 /**

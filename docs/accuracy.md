@@ -16,8 +16,21 @@ when it still produces findings.
 
 ## Since the audit
 
-`REPORT_VERSION` 4 fixes the bugs, and only the bugs. Everything below this section
-describes version 3 and is left as it was measured.
+`REPORT_VERSION` 4 fixes the bugs, and only the bugs; version 9 makes changes A, C, E to I
+and K's alternative. Everything below this section describes version 3 and is left as it
+was measured.
+
+The two subsections on version 9 below were each measured with only their own half of
+it. Together (`scripts/accuracy/findings.ts`, both logs, seeds 1 to 20, 300 samples), at
+seed 1 the logs give 16 and 30 mistakes, preflop −5.18 and −7.23bb, postflop −9.86 and
+−20.56bb. The postflop figure is 1.97bb more than the postflop half alone: the narrower
+range for calling a 3-bet cold brings back the flop thin bet on 262360131440, at 7 seeds
+of 20. Of the audit's verdicts only the two wrong iso-raises remain, at low confidence.
+One cost of the equity pricing is noise: six preflop findings of 0.16 to 0.33bb now come
+and go with the seed, where no preflop finding flipped before. Each sits near the 0.15bb
+floor. Ending the initiative when the aggressor checks back a street (postflop-model.md)
+was added after these figures and changes none of them: on these logs no graded decision
+turns on a check made after one.
 
 | Finding | Fix                                                                                      | Measured after                                                    |
 | ------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
@@ -38,6 +51,69 @@ run in about 1.0s and 1.2s.
 Not fixed, because they are choices of model or of chart data and not code disagreeing
 with its doc: the multiway fold share in finding 10, the 12-combo threshold in finding 9,
 and the limp chart in the last row of finding 14. Changes A and C to K stand as written.
+
+### Checks in context, added in version 9
+
+Changes A and C with the pair guard, and I, as the cost-benefit below recommends; see
+[postflop-model.md](./postflop-model.md) for the rules. Measured with the harness in
+`scripts/accuracy/` (below), both logs, seeds 1 to 20 at 300 samples, against version 8:
+
+|                                            | Version 8         | Version 9      |
+| ------------------------------------------ | ----------------- | -------------- |
+| Mistakes, seed 1 (100-hand / 200-hand log) | 22 / 34           | 20 / 28        |
+| Good plays, seed 1                         | 3                 | 2              |
+| Preflop bb, seed 1                         | −18.09            | −18.09         |
+| Postflop bb, seed 1 (100-hand / 200-hand)  | −14.94 / −59.30   | −9.86 / −18.59 |
+| Postflop bb, both logs, mean of 20 seeds   | −74.25            | −29.49         |
+| Postflop findings, seed 1                  | 23                | 14             |
+| Findings judged wrong still made           | 7 (5 postflop)    | 2 (0 postflop) |
+| Mis-costed still made                      | 1                 | 0              |
+| Postflop wrong or mis-costed at medium     | 2                 | 0              |
+| Findings that flip across seeds            | 2 (19 seed-flips) | 2 (13)         |
+
+The forecast was about 31bb after the flop with no wrong medium finding; it came to
+28.45bb at seed 1 and none. Nine findings went and none appeared:
+
+- **The five wrong missed-value findings** (−5.47, −2.59, −2.47, −0.42 and −0.21bb), and
+  the mis-costed −30.72bb one, which is now silent. Three of the six went by A (the
+  opponent's check to the aggressor no longer strips their range) and three by C. The
+  three headline hands: 262359573123's river check with top pair is priced at 69% equity
+  and betting below checking; 262359664112's turn check with second pair is not found;
+  262300173917's river check with two pair after a check-raise is priced at 65% against
+  a check-raising range, not 92%.
+- **One defensible missed value** (262359902564, turn, −1.27bb), by C.
+- **One agreed thin bet** (262360131440, flop, −3.11bb): second pair bet into a 3-bettor
+  and a big blind who checked to them. The big blind's check no longer weakens their
+  range, and the margin fell to 1.65bb of a 1.92bb band. It is made at 9 seeds of 20, so
+  it is now the decision closest to the line. A loss, but a small one: the action was
+  agreed, the cost had been judged inflated.
+- **One agreed good play** (262300192860, river call, +16.45bb), as forecast. The
+  check-raise now keeps its strength, so the call is close: 22% equity against 21% needed,
+  inside the band, where it had been 31%. It is not a mistake, and not praised.
+
+Two costs moved: a flop call-without-odds from −1.98 to −2.48bb, and the flop good call
+from +0.89 to +0.66bb, which is now under the "mistake" scale at 2 seeds of 20. The pair
+guard took out two thin-bet findings on flop continuation bets with king and ace high
+(−0.59 and −0.49bb at seed 1, one of them the old 4-in-20 flipper) and changed nothing
+else. The two findings still judged wrong are the iso-raises of finding 12, which is
+preflop and not part of this change. No confidence was raised.
+
+**The harness.** `scripts/accuracy/findings.ts <log...> --seeds 1..20 --out file.json`
+runs `analyzeLog` at each seed and writes every finding, mistake or good play, keyed by
+hand, street and step, with its kind, confidence, cost and the seeds at which it differs.
+`scripts/accuracy/diff.ts before.json [after.json]` sums one run or compares two. Given a
+verdicts file (`scripts/accuracy/verdicts.json` by default, or `--verdicts`; git-ignored,
+since it names the logs' hands) holding this page's verdicts, it counts the findings
+judged wrong that are still made and lists any postflop finding with no verdict. Neither
+script is part of the bundle or of `npm test`, and their JSON stays out of the repository
+as the logs do.
+
+**Against the solver.** `scripts/accuracy/solverCompare.ts` then solved the 87 heads-up
+turn and river decisions of version 9 (289s natively): the solve agrees with 79 verdicts,
+all three medium thin bets among them, and finds the two low findings it does not agree
+with (a fold-with-odds and a turn missed value bet) within the band. One weight change was
+tried against it and not adopted. The tables and the reasoning are in "Checked against the
+solver" in [postflop-model.md](./postflop-model.md).
 
 ### The rounded rake, added in version 7
 
@@ -121,9 +197,82 @@ what else is stored, and would need its own confidence model here first.
 
 **A trend** claims only what "Trends" in [coach-model.md](./coach-model.md) sets out: a
 difference between two halves, past two standard errors, or nothing. It inherits every
-error in the gradings it sums. Missed value in particular is over-reported (finding 2
-below), so a player who checks less often to the aggressor will look as if they have
-improved by more than they have.
+error in the gradings it sums. Missed value was over-reported until version 9 (finding 2
+below), so across hands graded before and after it, missed value falls for a reason that
+is not the player's.
+
+### Preflop pricing, added in version 9
+
+Changes E, F, G, H and K below, in the form the audit preferred where it gave a choice.
+Nothing postflop was touched. The text of the findings and changes below still describes
+version 3.
+
+| Change | Done                                                                                                                                                  |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E      | a loose call against a raiser costs `realised equity × (pot + call) × (1 − rake) − call`, capped at 60% of the call as before; realisation is assumed |
+| G      | a fold against a raiser costs the same call's EV; a fold with no raiser costs the hand's tier value scaled by how far inside the range it sits        |
+| F      | a call or 3-bet against an open of 2.2bb or less is low confidence, **and** the opener is read one seat looser (unsourced; see preflop-model.md)      |
+| H      | `cold4bet` calls 8.9% of hands (was 0.3%) and `vs4betTight` calls 19.6 combos (was 11.6)                                                              |
+| K      | the alternative: a big blind's raise over a lone small-blind limp is low confidence. No new chart                                                     |
+
+The reasoning for the realisation factor and the min-raise rule is in
+[coach-model.md](./coach-model.md) and [preflop-model.md](./preflop-model.md), flagged
+there as assumptions. Nothing in this table was fitted to the sample logs.
+
+At seed 1, over the two sample logs, the preflop findings go from 36 mistakes and
+-18.09bb to 33 and -12.41bb (15 and -9.10 become 11 and -5.18 in one log; 21 and -8.99
+become 22 and -7.23 in the other). The postflop counts, 7 and 13, do not change.
+
+**The nine loose calls of finding 4** (10.1bb in all) now cost 2.19bb:
+
+| Hand | Spot                   | Before | After | Note                                            |
+| ---- | ---------------------- | ------ | ----- | ----------------------------------------------- |
+| 86o  | BTN vs HJ open         | 1.20   | 0.25  | a min-raise: low confidence                     |
+| Q4o  | BTN, raised after limp | 1.54   | 0     | the limp's chips are sunk; call is +0.66        |
+| J2s  | BTN vs CO open         | 1.20   | 0     | a min-raise; the call is -0.12, under the floor |
+| 65o  | BTN vs UTG open        | 1.44   | 0.52  |                                                 |
+| J2s  | BB vs HJ open          | 1.20   | 0.38  |                                                 |
+| 76o  | BB vs HJ open          | 0.90   | 0.42  |                                                 |
+| 86o  | BB vs HJ open          | 0.84   | 0     | the call is -0.09, under the floor              |
+| 98o  | SB vs BTN open         | 0.58   | 0.28  |                                                 |
+| 54o  | BB vs HJ open          | 1.20   | 0.34  |                                                 |
+
+None changes direction; four drop to nothing or under the 0.15bb floor, and only the
+65o is still a "mistake". Every row now sits inside the audit's own estimate of 0.1 to
+0.6bb for the big-blind calls and 0.3 to 1.1bb for the button calls. Other preflop moves:
+
+- The 4-bet call of 66 (SB vs BB) was 0.42bb and is 2.30bb, a blunder at medium
+  confidence: against a 4-bet to 23.6bb it has about 32% equity and needs 32% before any
+  realisation. The AJo call of a 3-bet from the cutoff (0.21bb) is 1.01bb. These are the
+  two pricings that rose, and the two with the most room in the realisation factor: at
+  1.0 the first would cost 0.83bb.
+- Six findings are gone because the equity says the call has the price: three calls of a
+  3-bet (A9o, K4s, K8s) and three cold calls (Q4o after a limp and a raise, J2s on the
+  button, 86o in the big blind). No finding changed from a mistake to a good play.
+- Three appear: 22 on the button against a hijack open (0.21bb), A5s on the button
+  folded to a 3-bet from the small blind (0.55bb, a "mistake" at medium), and the 3-bet
+  sizing of KTs in the small blind (0.20bb), which was not flagged until the min-raise's
+  chart moved. The A5s fold is the one priced fold in these logs.
+- 18 preflop decisions across the two logs are now low confidence, 8 and 10, from the
+  min-raise rule and the small-blind limp.
+
+**Folds.** The audit could not show change G on these logs, whose hero rarely folds a
+hand the chart plays. On synthetic hands under the gun, folding 99 costs 0.76bb, ATs 0.62bb, AJo 0.43bb
+and KQo 0.34bb, all now named "folded a standard open", where each was graded "ok" before;
+folding 6c5c, the last hand of the range, costs nothing. These are tests
+(`grade.test.ts`), not a measurement on a tight player's log, which this sample cannot
+provide.
+
+**Opponent ranges.** Of 239 opponent lines that reached a flop, 32 ended on the limp range
+by the strict test of `preflopRange` (24 by the audit's count, which also let the limp
+range pass where it was reached some other way). After the new calling ranges, 22 do: the
+10 that stopped were 6 big blinds and 3 other players calling an open and a 3-bet, and
+the one 3-bettor calling a 4-bet. The 17 small-blind calls and 5 open-limps that remain
+are the fair ones. What this does to the postflop verdicts was not measured.
+
+**Cost.** A priced spot is two thousand seeded deals, about 2ms. The first fold with no
+raiser to price also builds a table of the 169 hands' equity against a random hand, about
+0.2s, once a process.
 
 ## What was measured and how
 
@@ -149,7 +298,8 @@ with no unreconciled hand and no warning. Seed 1 at the default 300 samples give
 Of the 57 mistakes, 37 are preflop (−18.34bb) and 20 are postflop (−74.40bb), the latter
 out of 193 postflop decisions. With the three good plays that is 23 postflop findings.
 
-**Method**, in enough detail to rebuild the scripts (they are not committed):
+**Method**, in enough detail to rebuild the scripts (they were not committed; the
+stability run now is, as the harness in "Checks in context", with the verdicts beside it):
 
 - _Evaluator and equity._ A best-of-21 five-card evaluator written from scratch, and an
   exhaustive equity enumerator on top of it. Compared with `evaluate.ts` on 700,000 pairs
@@ -575,7 +725,7 @@ unless stated, the run time (about 1.9s and 2.4s for the two logs).
 | Cost        | About 15 lines in `grade.ts`, and an equity call per loose call if computed (a few tens of milliseconds a log). Tests. A realisation factor preflop is a new assumption needing its reasoning written. |
 | Risk        | The replacement number is this audit's estimate, not a published one. A lower cap is as arbitrary as the present one.                                                                                  |
 | Alternative | Leave the cost and say in the doc that it is a cap. Done under D.                                                                                                                                      |
-| Verdict     | **Do later**, when there is a reference to tune it against.                                                                                                                                            |
+| Verdict     | **Done** in version 9, with an assumed realisation factor. See "Preflop pricing, added in version 9".                                                                                                  |
 
 ### F. Take the open's size into account
 
@@ -586,7 +736,7 @@ unless stated, the run time (about 1.9s and 2.4s for the two logs).
 | Cost        | A size input to the chart lookup in `preflopSpot.ts` and `grade.ts`, about 25 lines, or a second set of charts. If applied to opponents' ranges too, every postflop equity moves. |
 | Risk        | A scaling rule invented without a source is one more unmeasured constant.                                                                                                         |
 | Alternative | Soften confidence to low for a call or 3-bet against an open of 2.2bb or less. A few lines.                                                                                       |
-| Verdict     | **Do later**; take the alternative first.                                                                                                                                         |
+| Verdict     | **Done** in version 9: the alternative, and the widening, which is unsourced. See "Preflop pricing, added in version 9".                                                          |
 
 ### G. Cost a fold by how often the chart continues
 
@@ -597,7 +747,7 @@ unless stated, the run time (about 1.9s and 2.4s for the two logs).
 | Cost        | 20 to 30 lines in `grade.ts` and `tiers.ts`; the fold tests rewritten; new doc reasoning.                                                                               |
 | Risk        | Margin hands are close by nature. A cost above the 0.15bb floor for folding 55 under the gun would be a new kind of noise.                                              |
 | Alternative | A flat inaccuracy, with no claim to a size, for folding a hand the chart plays every time.                                                                              |
-| Verdict     | **Do later**, and test it on a tight player's log first: this sample cannot show the gain.                                                                              |
+| Verdict     | **Done** in version 9, tested on synthetic hands only. See "Preflop pricing, added in version 9".                                                                       |
 
 ### H. A range for calling a 3-bet cold
 
@@ -608,7 +758,7 @@ unless stated, the run time (about 1.9s and 2.4s for the two logs).
 | Cost        | Two or three lines in `charts/data.ts`. The work is measuring the postflop verdicts before and after.                                  |
 | Risk        | At NL5 the players who call a 3-bet cold really are wide. A tighter range may be less true of them, not more.                          |
 | Alternative | Leave it; the doc already says the fallback is where real opponents depart furthest.                                                   |
-| Verdict     | **Do later**, after measuring.                                                                                                         |
+| Verdict     | **Done** in version 9, with the fallbacks measured; the postflop effect is not. See "Preflop pricing, added in version 9".             |
 
 ### I. Draw flop runouts without replacement
 
@@ -634,14 +784,14 @@ unless stated, the run time (about 1.9s and 2.4s for the two logs).
 
 ### K. A heads-up chart for the big blind against a limp
 
-| Field       | Content                                                                                         |
-| ----------- | ----------------------------------------------------------------------------------------------- |
-| Change      | A wider raising range when only the small blind limped. Answers finding 12.                     |
-| Benefit     | Two wrong findings removed, 0.56bb.                                                             |
-| Cost        | One chart and about 8 lines in `preflopSpot.ts`. No published range was found to write it from. |
-| Risk        | An unsourced chart.                                                                             |
-| Alternative | Low confidence for an iso-raise against one limper.                                             |
-| Verdict     | **Do later**; small.                                                                            |
+| Field       | Content                                                                                                    |
+| ----------- | ---------------------------------------------------------------------------------------------------------- |
+| Change      | A wider raising range when only the small blind limped. Answers finding 12.                                |
+| Benefit     | Two wrong findings removed, 0.56bb.                                                                        |
+| Cost        | One chart and about 8 lines in `preflopSpot.ts`. No published range was found to write it from.            |
+| Risk        | An unsourced chart.                                                                                        |
+| Alternative | Low confidence for an iso-raise against one limper.                                                        |
+| Verdict     | **Done** in version 9 as the alternative only (low confidence). See "Preflop pricing, added in version 9". |
 
 ### Not worth doing
 

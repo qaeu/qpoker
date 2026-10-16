@@ -19,9 +19,9 @@ once, when it is asked for. What the user gets, for the hero's actual hand at th
 ## What the solve cannot fix
 
 It solves the subgame that starts **with the model's ranges at the start of the street**.
-Those ranges are `postflop/villainRange.ts`'s, so [accuracy.md](./accuracy.md) finding 1
-(checks compound, so a range that checked twice is too weak) still distorts the starting
-point. What the solve removes is the model's heuristic reweighting _within_ the street
+Those ranges are `postflop/villainRange.ts`'s, so their errors are the starting point's.
+Since version 9 a check to the aggressor no longer weakens a range ([accuracy.md](./accuracy.md)
+finding 1), but every other check still does, and every weight there is an estimate. What the solve removes is the model's heuristic reweighting _within_ the street
 being solved, and all of the fixed realisation and cost constants of
 `postflop/decision.ts`. The panel and the CLI both say this. The solver is the exact
 answer to a question asked of estimated inputs.

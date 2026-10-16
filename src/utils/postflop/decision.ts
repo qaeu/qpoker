@@ -16,7 +16,7 @@ import type { ComboRange, EquityOptions } from '../cards/equity';
 import type { Replay, Step } from '../history/replay';
 import type { MistakeType } from '../coach/mistakes';
 import type { Confidence } from '../ranges/preflopSpot';
-import { describeDraws, describeHand, drawStrength } from './handClass';
+import { describeDraws, describeHand, drawStrength, pairOrBetter } from './handClass';
 import { textureOf } from './texture';
 import { rangeAt, responseToBet, standingIn } from './villainRange';
 
@@ -284,7 +284,9 @@ export function judgePostflop(
 			if (bluff && !headsUp && draw === 0 && equity < 0.2) {
 				return verdict('check', 0.3 * bet, 'bluff-multiway', 'low');
 			}
-			if (!bluff && checkEv - betEv > band) {
+			// A thin bet is a made hand's: without a pair, the hand is a bluff
+			// whose equity the model over-counts.
+			if (!bluff && pairOrBetter(hole, board) && checkEv - betEv > band) {
 				return verdict('check', checkEv - betEv, 'bet-thin', confidence);
 			}
 		}
@@ -295,7 +297,10 @@ export function judgePostflop(
 		return verdict('bet', 0, null, confidence);
 	}
 
-	if (value && equity >= 0.7 && betEv - checkEv > band) {
+	// Checking to the aggressor, who is still to act, is the standard line with
+	// a strong hand as with a weak one: `checkEv` cannot price what it collects.
+	const toAggressor = step.aggressorToAct;
+	if (value && equity >= 0.7 && betEv - checkEv > band && !toAggressor) {
 		// Out of position, or with cards to come, a check can still collect.
 		const closes = toCome === 0 && inPosition;
 		return verdict(

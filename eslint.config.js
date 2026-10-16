@@ -33,8 +33,8 @@ export default defineConfig([
 		},
 	},
 	{
-		// The CLI and its launcher are the only code that runs on Node alone.
-		files: ['src/cli/**/*.ts', 'bin/**/*.js'],
+		// The CLI, its launcher and the scripts are the only code that runs on Node alone.
+		files: ['src/cli/**/*.ts', 'scripts/**/*.ts', 'bin/**/*.js'],
 		languageOptions: { globals: globals.node },
 	},
 	{

@@ -11,7 +11,7 @@
 
 import { CLASS_COUNT, classSize } from '../cards/combos';
 import type { Position, Replay, Step } from '../history/replay';
-import { decisionsOf, POSITIONS } from '../history/replay';
+import { aggressorInto, decisionsOf, POSITIONS } from '../history/replay';
 import { classifyPreflop, preflopRange } from '../ranges/preflopSpot';
 import type { Range } from '../ranges/range';
 
@@ -255,9 +255,7 @@ export function tallyHand(replay: Replay, player: string): HandTally | null {
 		hand.board.length >= 3 && !preflop.some((s) => s.action.kind === 'fold');
 	if (!sawFlop) return tally;
 
-	const aggressor = replay.steps.findLast(
-		(step) => step.street === 'preflop' && step.action.kind === 'raise'
-	)?.action.player;
+	const aggressor = aggressorInto(replay, 'flop');
 	const flop = decisions.find((step) => step.street === 'flop');
 	if (flop && aggressor === player && flop.raisesBefore === 0) {
 		add('cbet', flop.action.kind === 'bet');

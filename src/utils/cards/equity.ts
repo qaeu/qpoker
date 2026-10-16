@@ -51,7 +51,10 @@ export const rangeWeight = (range: ComboRange): number => {
 	return total;
 };
 
-/** Every completion of `board` to five cards, or `samples` random ones. */
+/**
+ * Every completion of `board` to five cards, or `samples` random ones: distinct
+ * on the flop, where they are drawn without replacement; independent before it.
+ */
 function runouts(
 	board: readonly Card[],
 	deck: readonly Card[],
@@ -62,9 +65,25 @@ function runouts(
 	if (missing === 0) return [[]];
 	if (missing === 1) return deck.map((card) => [card]);
 	const out: Card[][] = [];
-	if (missing === 2 && samples >= (deck.length * (deck.length - 1)) / 2) {
+	if (missing === 2) {
+		const pairs = (deck.length * (deck.length - 1)) / 2;
+		if (samples >= pairs) {
+			for (let i = 0; i < deck.length; i++) {
+				for (let j = i + 1; j < deck.length; j++) out.push([deck[i], deck[j]]);
+			}
+			return out;
+		}
+		// A partial shuffle of the pairs' indices: `samples` distinct runouts.
+		const keys = new Int32Array(pairs);
+		let k = 0;
 		for (let i = 0; i < deck.length; i++) {
-			for (let j = i + 1; j < deck.length; j++) out.push([deck[i], deck[j]]);
+			for (let j = i + 1; j < deck.length; j++) keys[k++] = i * 64 + j;
+		}
+		for (let n = 0; n < samples; n++) {
+			const pick = n + Math.floor(random() * (pairs - n));
+			const key = keys[pick];
+			keys[pick] = keys[n];
+			out.push([deck[key >> 6], deck[key & 63]]);
 		}
 		return out;
 	}

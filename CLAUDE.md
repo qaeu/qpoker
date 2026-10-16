@@ -37,6 +37,8 @@ src/
     ├── solver.worker.ts
     └── solverWorkerProtocol.ts     # Likewise, taking the WASM module as a parameter
 solver/                    # The Rust crate (vendored postflop-solver) built to src/utils/solver/wasm
+scripts/accuracy/          # The accuracy harness (findings, diff, solverCompare): run with
+                           # tsx on local logs, outside the bundle and npm test
 tests/                     # Mirrors src/ by folder; tests/integration/ drives <App />
 docs/                      # Model and design reasoning (see below)
 ```
