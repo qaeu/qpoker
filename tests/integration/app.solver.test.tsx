@@ -170,7 +170,8 @@ describe('the solver in Review', () => {
 					}
 				);
 				expect(inputs).toHaveLength(1);
-				expect(inputs[0].raiseCap).toBe(0);
+				expect(inputs[0].river?.bet).toMatch(/^66%,/);
+				expect(inputs[0].turn?.bet).toBe('66%');
 				expect(settingsButton().getAttribute('aria-expanded')).toBe('false');
 			},
 			RUN_TIMEOUT_MS

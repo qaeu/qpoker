@@ -26,9 +26,9 @@ import { RangeKey } from '#c/ranges/RangesView';
 import { SOLVE_BUDGET_MB } from '#utils/app/solveClient';
 import type { TreePreference } from '#utils/app/storage';
 import type { HandReport } from '#utils/coach/report';
-import { describeClass, trimNote, type SolveResult } from '#utils/solver/result';
+import { bucketNote } from '#utils/solver/buckets';
+import { describeClass, type SolveResult } from '#utils/solver/result';
 import { DEFAULT_RAKE } from '#utils/solver/spot';
-import { MAX_TRIM } from '#utils/solver/trim';
 import {
 	MAX_ITERATIONS,
 	MAX_TARGET_PCT,
@@ -151,8 +151,8 @@ const SolvePanel: Component<SolvePanelProps> = (props) => {
 	const estimate = createMemo(() =>
 		estimateTree(tree(), props.street, { oop: TYPICAL_COMBOS, ip: TYPICAL_COMBOS })
 	);
-	/** The deepest rung of the ladder: 16-bit over ranges trimmed by `MAX_TRIM`. */
-	const smallestMb = () => (estimate().bytesCompressed * (1 - MAX_TRIM)) / MB;
+	/** The deepest rung of the ladder: 16-bit, the river in `MIN_BUCKETS` buckets. */
+	const smallestMb = () => estimate().bytesSmallest / MB;
 	const overBudget = () => smallestMb() > SOLVE_BUDGET_MB;
 	const used = () => Math.min(1, smallestMb() / SOLVE_BUDGET_MB);
 	const rake = () => props.hand.rake ?? DEFAULT_RAKE;
@@ -529,7 +529,7 @@ const SolvePanel: Component<SolvePanelProps> = (props) => {
 							/>
 						</div>
 						<p class="solve-panel__hint">
-							At the smallest: 16-bit, with the ranges trimmed.
+							At the smallest: 16-bit, with the river's hands in buckets of like strength.
 						</p>
 						<Show when={overBudget()}>
 							<p class="solve-panel__error" role="alert">
@@ -657,8 +657,8 @@ const Found: Component<{ result: SolveResult }> = (props) => {
 				{Math.max(1, Math.round(props.result.bytes / MB))} MB
 				{props.result.compressed ? ' (16-bit)' : ''}
 			</p>
-			<Show when={trimNote(props.result.trim)}>
-				{(note) => <p class="solve-panel__trim">{note()}</p>}
+			<Show when={bucketNote(props.result.riverBuckets, props.result.levelled)}>
+				{(note) => <p class="solve-panel__buckets">{note()}</p>}
 			</Show>
 		</div>
 	);

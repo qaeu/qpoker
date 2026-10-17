@@ -26,17 +26,18 @@ import { parseArgs } from 'node:util';
 
 import { nativeSolver, nativeSolverBuilt } from '#cli/solverNative';
 import { loadNodeSolver } from '#cli/solverNode';
-import { COMBO_COUNT, COMBOS } from '#utils/cards/combos';
+import { COMBO_COUNT } from '#utils/cards/combos';
 import type { Grading } from '#utils/coach/grade';
 import { analyzeLog } from '#utils/coach/report';
 import { parseHistory } from '#utils/history/parse';
 import { replayHand, type Replay } from '#utils/history/replay';
 import { applyAction, rankRange, responseToBet } from '#utils/postflop/villainRange';
 import { fromSolverOrder, SOLVER_OF } from '#utils/solver/cards';
+import { BUCKET_LADDER } from '#utils/solver/buckets';
 import { resultOf } from '#utils/solver/result';
 import { solverSpot, type SolverSpot } from '#utils/solver/spot';
-import { presetOf } from '#utils/solver/tree';
-import { TRIM_LADDER, trimInput } from '#utils/solver/trim';
+import { levelledOff } from '#utils/solver/target';
+import type { TreeSettings } from '#utils/solver/tree';
 import type {
 	SolverHandle,
 	SolverModule,
@@ -45,6 +46,20 @@ import type {
 	WasmInput,
 	WasmQuery,
 } from '#utils/solver/wasmApi';
+
+/**
+ * The tree the findings in docs/postflop-model.md were measured on: the
+ * `standard` preset as it was before the presets were cut to fit a flop. Turn
+ * and river spots fit it easily, and keeping it keeps runs comparable.
+ */
+const HARNESS_TREE: TreeSettings = {
+	flop: { bet: [0.5], raise: [3] },
+	turn: { bet: [0.5, 1], raise: [2.5] },
+	river: { bet: [0.33, 0.75, 1.25], raise: [2.5] },
+	raiseCap: 2,
+	allInThreshold: 0.15,
+	addAllIn: true,
+};
 
 /** The grader's indifference band, as a share of the pot. */
 const BAND = 0.07;
@@ -96,7 +111,8 @@ interface SpotRecord {
 	reached: boolean;
 	exploitabilityPct: number;
 	iterations: number;
-	trim: number;
+	/** The river's buckets a player a board, when 16-bit alone did not fit. */
+	riverBuckets: number | null;
 	ms: number;
 	villain: VillainNode | null;
 }
@@ -108,13 +124,13 @@ interface Solved {
 	nodes: number;
 	bytes: number;
 	compressed: boolean;
-	trim: number;
+	riverBuckets: number | null;
+	levelled: boolean;
 }
 
 async function solve(
 	module: SolverModule,
 	input: WasmInput,
-	heroClass: number,
 	budget: number,
 	target: number,
 	seconds: number
@@ -122,16 +138,17 @@ async function solve(
 	let handle: SolverHandle | null = null;
 	let estimate: WasmEstimate | null = null;
 	let compressed = false;
-	let trimShare = 0;
-	for (const share of [0, ...TRIM_LADDER]) {
-		const tried = share > 0 ? trimInput(input, share, heroClass).input : input;
+	let riverBuckets: number | null = null;
+	const ladder = input.board.length === 5 ? [0] : [0, ...BUCKET_LADDER];
+	for (const buckets of ladder) {
+		const tried = buckets > 0 ? { ...input, riverBuckets: buckets } : input;
 		const candidate = await module.createSolver(JSON.stringify(tried));
 		const sized = JSON.parse(await candidate.estimate()) as WasmEstimate;
 		if (sized.bytes <= budget || sized.bytesCompressed <= budget) {
 			handle = candidate;
 			estimate = sized;
 			compressed = sized.bytes > budget;
-			trimShare = share;
+			riverBuckets = buckets > 0 ? buckets : null;
 			break;
 		}
 		candidate.free();
@@ -142,13 +159,18 @@ async function solve(
 		const started = Date.now();
 		let iterations = 0;
 		let exploitability = Infinity;
+		const history: number[] = [];
+		let levelled = false;
 		while (
 			iterations < 1000
 			&& exploitability > target
+			&& !levelled
 			&& Date.now() - started < seconds * 1000
 		) {
 			exploitability = await handle.step(10);
 			iterations += 10;
+			history.push(exploitability);
+			levelled = riverBuckets !== null && levelledOff(history, 10);
 		}
 		const query = JSON.parse(await handle.query()) as WasmQuery;
 		return {
@@ -158,7 +180,8 @@ async function solve(
 			nodes: estimate.nodes,
 			bytes: compressed ? estimate.bytesCompressed : estimate.bytes,
 			compressed,
-			trim: trimShare,
+			riverBuckets,
+			levelled: levelled && exploitability > target,
 		};
 	} finally {
 		handle.free();
@@ -266,21 +289,14 @@ async function solveLogs(
 				if (!options.streets.includes(grading.street)) continue;
 				if (options.hands && !options.hands.includes(hand.id)) continue;
 				if (records.length >= options.max) return records;
-				const found = solverSpot(
-					replay,
-					grading.stepIndex,
-					presetOf('standard'),
-					report.rake
-				);
+				const found = solverSpot(replay, grading.stepIndex, HARNESS_TREE, report.rake);
 				if (!found.ok) continue;
 				const { spot } = found;
-				const heroClass = COMBOS[spot.heroCombo].cls;
 				const target = (spot.pot * options.dev) / 100;
 				const started = Date.now();
 				const solved = await solve(
 					module,
 					spot.input,
-					heroClass,
 					options.budget,
 					target,
 					options.seconds
@@ -289,17 +305,13 @@ async function solveLogs(
 					process.stderr.write(`${hand.id} #${grading.stepIndex}: over budget\n`);
 					continue;
 				}
-				const result = resultOf(spot, solved.query, {
-					...solved,
-					trim: null,
-				});
+				const result = resultOf(spot, solved.query, solved);
 				let villain: VillainNode | null = null;
 				const prefix = villainPrefix(replay, spot);
 				if (prefix) {
 					const atVillain = await solve(
 						module,
 						{ ...spot.input, prefix },
-						heroClass,
 						options.budget,
 						target,
 						options.seconds
@@ -331,7 +343,7 @@ async function solveLogs(
 					reached: result.reached,
 					exploitabilityPct: result.exploitabilityPct,
 					iterations: solved.iterations,
-					trim: solved.trim,
+					riverBuckets: solved.riverBuckets,
 					ms: Date.now() - started,
 					villain,
 				};

@@ -55,6 +55,9 @@ pub struct WasmInput {
     pub add_all_in: bool,
     #[serde(default)]
     pub prefix: Vec<WasmAction>,
+    /// Buckets a player a river board, river decisions stored per bucket; 0 for none.
+    #[serde(default)]
+    pub river_buckets: u32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -316,7 +319,8 @@ impl Solver {
             return Err("The prefix does not end at a decision on the root's street".to_string());
         }
 
-        let game = PostFlopGame::with_config(card_config, tree)?;
+        let game =
+            PostFlopGame::with_river_buckets(card_config, tree, input.river_buckets as usize)?;
         Ok(Self {
             game,
             line,

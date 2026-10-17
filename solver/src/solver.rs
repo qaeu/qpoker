@@ -210,6 +210,10 @@ fn solve_recursive<T: Game>(
             r.write(v as f32);
         });
     }
+    // qpoker: if the current player is `player` and the strategy is stored per bucket
+    else if node.player() == player && game.buckets(node).is_some() {
+        solve_bucketed(result, game, node, player, cfreach, params);
+    }
     // if the current player is `player`
     else if node.player() == player {
         // compute the counterfactual values of each action
@@ -313,6 +317,9 @@ fn solve_recursive<T: Game>(
         } else {
             regret_matching(node.regrets(), num_actions)
         };
+        if let Some((map, num_buckets)) = game.buckets(node) {
+            cfreach_actions = expand_buckets(&cfreach_actions, map, num_buckets, num_actions);
+        }
 
         // node-locking
         let locking = game.locking_strategy(node);
@@ -340,6 +347,92 @@ fn solve_recursive<T: Game>(
         let mut cfv_actions = cfv_actions.lock();
         unsafe { cfv_actions.set_len(num_actions * num_hands) };
         sum_slices_uninit(result, &cfv_actions);
+    }
+}
+
+/// qpoker: the update at a decision of `player` whose strategy is stored per bucket. Each
+/// hand plays its bucket's strategy, and a bucket's regret is CFR's on the abstracted game:
+/// the sum of its hands' counterfactual regrets, each weighted by the chance of holding the
+/// hand (its weight in the range). Not by the player's own reach: that changes with the
+/// strategy, and regrets weighted by it do not converge.
+fn solve_bucketed<T: Game>(
+    result: &mut [MaybeUninit<f32>],
+    game: &T,
+    node: &mut T::Node,
+    player: usize,
+    cfreach: &[f32],
+    params: &DiscountParams,
+) {
+    let num_actions = node.num_actions();
+    let num_hands = result.len();
+    let (map, num_buckets) = game.buckets(node).unwrap();
+
+    let mut bucket_strategy = if game.is_compression_enabled() {
+        regret_matching_compressed(node.regrets_compressed(), num_actions)
+    } else {
+        regret_matching(node.regrets(), num_actions)
+    };
+    let strategy = expand_buckets(&bucket_strategy, map, num_buckets, num_actions);
+
+    let cfv_actions = MutexLike::new(Vec::with_capacity(num_actions * num_hands));
+    for_each_child(node, |action| {
+        solve_recursive(
+            row_mut(cfv_actions.lock().spare_capacity_mut(), action, num_hands),
+            game,
+            &mut node.play(action),
+            player,
+            cfreach,
+            params,
+        );
+    });
+
+    let mut cfv_actions = cfv_actions.lock();
+    unsafe { cfv_actions.set_len(num_actions * num_hands) };
+    let result = fma_slices_uninit(result, &strategy, &cfv_actions);
+
+    cfv_actions.chunks_exact_mut(num_hands).for_each(|row| {
+        sub_slice(row, result);
+    });
+    let mut regrets = reduce_buckets(&cfv_actions, map, num_buckets, game.initial_weights(player));
+
+    if game.is_compression_enabled() {
+        let scale = node.strategy_scale();
+        let decoder = params.gamma_t * scale / u16::MAX as f32;
+        let cum_strategy = node.strategy_compressed_mut();
+        bucket_strategy
+            .iter_mut()
+            .zip(&*cum_strategy)
+            .for_each(|(x, y)| {
+                *x += (*y as f32) * decoder;
+            });
+        let new_scale = encode_unsigned_slice(cum_strategy, &bucket_strategy);
+        node.set_strategy_scale(new_scale);
+
+        let scale = node.regret_scale();
+        let alpha_decoder = params.alpha_t * scale / i16::MAX as f32;
+        let beta_decoder = params.beta_t * scale / i16::MAX as f32;
+        let cum_regret = node.regrets_compressed_mut();
+        regrets.iter_mut().zip(&*cum_regret).for_each(|(x, y)| {
+            *x += *y as f32 * if *y >= 0 { alpha_decoder } else { beta_decoder };
+        });
+        let new_scale = encode_signed_slice(cum_regret, &regrets);
+        node.set_regret_scale(new_scale);
+    } else {
+        let gamma = params.gamma_t;
+        let cum_strategy = node.strategy_mut();
+        cum_strategy
+            .iter_mut()
+            .zip(&bucket_strategy)
+            .for_each(|(x, y)| {
+                *x = *x * gamma + *y;
+            });
+
+        let (alpha, beta) = (params.alpha_t, params.beta_t);
+        let cum_regret = node.regrets_mut();
+        cum_regret.iter_mut().zip(&regrets).for_each(|(x, y)| {
+            let coef = if x.is_sign_positive() { alpha } else { beta };
+            *x = *x * coef + *y;
+        });
     }
 }
 

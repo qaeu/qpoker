@@ -1,4 +1,5 @@
 use super::*;
+use crate::interface::*;
 use crate::range::*;
 use crate::solver::*;
 use crate::utility::*;
@@ -1116,4 +1117,139 @@ fn solve_pio_preset_raked() {
     // verified by PioSOLVER Free (but not theoretically guaranteed to be the same)
     assert!((root_ev_oop - 95.57).abs() < 0.2);
     assert!((root_ev_ip - 66.98).abs() < 0.2);
+}
+
+/// qpoker: river buckets.
+mod river_buckets {
+    use super::*;
+
+    fn turn_game(river_buckets: usize) -> PostFlopGame {
+        let card_config = CardConfig {
+            range: [Range::ones(); 2],
+            flop: flop_from_str("Td9d6h").unwrap(),
+            turn: card_from_str("Qc").unwrap(),
+            ..Default::default()
+        };
+        let tree_config = TreeConfig {
+            initial_state: BoardState::Turn,
+            starting_pot: 60,
+            effective_stack: 970,
+            river_bet_sizes: [
+                ("50%", "").try_into().unwrap(),
+                ("50%", "").try_into().unwrap(),
+            ],
+            ..Default::default()
+        };
+        let action_tree = ActionTree::new(tree_config).unwrap();
+        PostFlopGame::with_river_buckets(card_config, action_tree, river_buckets).unwrap()
+    }
+
+    #[test]
+    fn keep_hands_of_one_strength_together_and_in_strength_order() {
+        for cap in [10, 100, 60000] {
+            let game = turn_game(cap);
+            let mut boards = 0;
+            for (pair, strength) in game.hand_strength.iter().enumerate() {
+                for player in 0..2 {
+                    let items = &strength[player];
+                    if items.len() < 2 {
+                        continue;
+                    }
+                    boards += 1;
+                    let map = &game.bucket_map[pair][player];
+                    let count = game.bucket_count[pair][player] as usize;
+                    assert!(count <= cap);
+                    let valid = &items[1..items.len() - 1];
+                    for w in valid.windows(2) {
+                        let (a, b) = (map[w[0].index as usize], map[w[1].index as usize]);
+                        if w[0].strength == w[1].strength {
+                            assert_eq!(a, b);
+                        } else {
+                            assert!(a <= b);
+                        }
+                    }
+                    assert_eq!(
+                        map[valid.last().unwrap().index as usize] as usize,
+                        count - 1
+                    );
+                    // Blocked hands have no bucket.
+                    let live = map.iter().filter(|&&b| b != u16::MAX).count();
+                    assert_eq!(live, valid.len());
+                }
+            }
+            assert_eq!(boards, 2 * 48);
+        }
+    }
+
+    #[test]
+    fn give_every_strength_its_own_bucket_when_the_cap_allows() {
+        let game = turn_game(60000);
+        for (pair, strength) in game.hand_strength.iter().enumerate() {
+            let items = &strength[0];
+            if items.len() < 2 {
+                continue;
+            }
+            let valid = &items[1..items.len() - 1];
+            let strengths = 1 + valid
+                .windows(2)
+                .filter(|w| w[0].strength != w[1].strength)
+                .count();
+            assert_eq!(game.bucket_count[pair][0] as usize, strengths);
+        }
+    }
+
+    #[test]
+    fn store_the_river_in_less_memory() {
+        let exact = turn_game(0).memory_usage().0;
+        let by_strength = turn_game(60000).memory_usage().0;
+        let coarse = turn_game(10).memory_usage().0;
+        assert!(by_strength < exact / 2, "{by_strength} vs {exact}");
+        assert!(coarse < by_strength);
+    }
+
+    #[test]
+    fn leave_a_river_root_whole() {
+        let game = |river_buckets| {
+            let card_config = CardConfig {
+                range: [Range::ones(); 2],
+                flop: flop_from_str("Td9d6h").unwrap(),
+                turn: card_from_str("Qc").unwrap(),
+                river: card_from_str("2s").unwrap(),
+            };
+            let tree_config = TreeConfig {
+                initial_state: BoardState::River,
+                starting_pot: 60,
+                effective_stack: 970,
+                river_bet_sizes: [
+                    ("50%", "").try_into().unwrap(),
+                    ("50%", "").try_into().unwrap(),
+                ],
+                ..Default::default()
+            };
+            let action_tree = ActionTree::new(tree_config).unwrap();
+            PostFlopGame::with_river_buckets(card_config, action_tree, river_buckets).unwrap()
+        };
+        assert_eq!(game(10).memory_usage(), game(0).memory_usage());
+        assert!(!game(10).is_bucketed());
+    }
+
+    #[test]
+    fn solve_and_read_the_root_with_every_storage() {
+        for compressed in [false, true] {
+            let mut game = turn_game(10);
+            game.allocate_memory(compressed);
+            let exploitability = solve(&mut game, 300, 60.0 * 0.01, false);
+            assert!(exploitability < 60.0 * 0.05, "{exploitability}");
+            game.cache_normalized_weights();
+            let strategy = game.strategy();
+            let num_hands = game.num_private_hands(0);
+            for hand in 0..num_hands {
+                let sum: f32 = (0..game.available_actions().len())
+                    .map(|a| strategy[a * num_hands + hand])
+                    .sum();
+                assert!((sum - 1.0).abs() < 1e-3);
+            }
+            assert_eq!(game.expected_values(0).len(), num_hands);
+        }
+    }
 }

@@ -51,10 +51,14 @@ export function loadTreePreference(): TreePreference {
 		if (preset !== 'custom' && !(typeof preset === 'string' && preset in TREE_PRESETS)) {
 			return defaultTree();
 		}
+		// A named preset is the preset as it is now, not as it was when saved.
+		if (preset !== 'custom') {
+			return { preset: preset as TreePreset, tree: presetOf(preset as TreePreset) };
+		}
 		const settings = tree as TreeSettings;
 		// A value edited by hand or by an older build may not hold up.
 		if (validateTree(settings).length > 0) return defaultTree();
-		return { preset: preset as TreePreference['preset'], tree: settings };
+		return { preset, tree: settings };
 	} catch {
 		return defaultTree();
 	}

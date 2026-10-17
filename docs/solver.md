@@ -57,16 +57,53 @@ without fetching the hand's text; it also refuses a **flop** where the page has 
 
 Bet sizes are fractions of the pot; raise sizes are multiples of the bet answered (`2.5x`);
 a raise cap, an all-in threshold (a bet leaving less than that share of the pot behind
-goes all-in) and an all-in at every node (`addAllIn`) are shared by the streets. Presets:
-`simple` (one size a street and no raises), `standard`, `detailed`. `withActualSizes` adds every size actually bet on the
-solved line, so the line is a branch of the tree and the hero's action has a row to be
+goes all-in) and an all-in at every node (`addAllIn`) are shared by the streets. Presets
+are below. `withActualSizes` adds every size actually bet on the solved line, so the line is a branch of the tree and the hero's action has a row to be
 compared with; the played action is matched to the nearest bet in the tree otherwise
 (`matchAction`), an all-in to the all-in.
+
+### The presets
+
+|            | Flop bets | Turn bets | River bets     | Raises             |
+| ---------- | --------- | --------- | -------------- | ------------------ |
+| `simple`   | 50%       | 66%       | 66%            | one a street, 2.5x |
+| `standard` | 50%       | 50%, 100% | 33%, 75%, 125% | one a street, 2.5x |
+| `detailed` | 33%, 75%  | 50%, 100% | 33%, 75%, 125% | one a street, 2.5x |
+
+Each holds the one before it, and none adds an all-in at every node; a bet leaving under
+15% of the pot behind still goes all-in. They are sized so that every one fits a wide flop
+in the page's 1500 MB, on the memory ladder below. Measured on twelve flops of the two
+sample logs (the solver's own estimate, 16-bit, median and largest):
+
+|            | Per hand       | A bucket a strength | 25 buckets   |
+| ---------- | -------------- | ------------------- | ------------ |
+| `simple`   | 773, 3788 MB   | 188, 674 MB         | 130, 299 MB  |
+| `standard` | 3303, 14452 MB | 788, 2544 MB        | 534, 1075 MB |
+| `detailed` | 4703, 20236 MB | 1219, 3361 MB       | 735, 1422 MB |
+
+So `simple` solves every one of these flops with only hands of equal strength grouped;
+`standard` and `detailed` solve the median one that way too, and the widest only at the
+coarsest rung, with the floor that leaves. A turn needs at most 46 MB on any of them, per
+hand. Fitting is not being quick: `detailed` on the widest of these flops (529/582 combos, 9M nodes) took 15 minutes natively on 16 threads, shared
+with other work (an upper bound), under a 1500 MB budget, at 25 buckets, and levelled off
+at 1.56% of the pot.
+
+What multiplies a flop is the raise cap and the all-in at every node: each multiplies
+every betting round of all three streets, and the flop's rounds are repeated for every
+turn and river card. The presets used to allow two raises (three in `detailed`) and an
+all-in everywhere; `detailed` also had four or five sizes a street. That `standard` was
+up to 36 GB per hand on these flops, and 2.1 GB even with the river in 25 buckets: two of
+the twelve did not fit the page. `detailed`'s flop tree, on ten of them, had more nodes
+than the solver builds (`MAX_NODES`, 16 million: past it the game is refused before its
+node arena is allocated, which asked for 27 GB on one and aborted the process).
+A custom tree can still have them, for a turn or a river, or for the CLI's native solver
+on a machine with the memory.
 
 `validateTree` refuses a nonsense tree before any WASM is touched. `estimateTree` counts
 the betting rounds exactly and takes the ranges at a flat 700 combos a side: a warning for
 the page, replaced by the solver's own `estimate()` once the tree is built. It is an upper
-bound in spirit: the page blocks a run whose smallest estimate is over the budget, and the
+bound in spirit: the page blocks a run whose smallest estimate (`bytesSmallest`, the last
+rung of the ladder below, the river at 25 buckets a player) is over the budget, and the
 worker blocks on the exact one.
 
 ## The result (`solver/result.ts`)
@@ -101,7 +138,7 @@ The target dEV (`solver/target.ts`) is the exploitability to stop at, as a perce
 street's starting pot: how much a best response would win against the strategy found.
 It defaults to 0.5%, and may be set from 0.05% to 10%: in the panel's settings (kept in
 `localStorage` beside the tree, and part of the result cache's key) or with the CLI's
-`--dev`. Iterations grow faster as the target falls: a turn on the `simple` tree took 30
+`--dev`. Iterations grow faster as the target falls: a turn on the then `simple` tree (no raises) took 30
 iterations to 2%, 50 to 0.5% and 110 to 0.1%. A shallow solve has the EVs nearly right
 sooner than the mixes: between two actions of near-equal EV the split keeps moving well
 below 0.5% (54s's two turn bets went from 39/61 at 2% to 0/100 at 0.1%, 0.02 bb apart),
@@ -116,40 +153,66 @@ memory on the native solver and 3000 MB on the WASM (`--budget`). The driver
 
 1. 32-bit storage;
 2. 16-bit storage (postflop-solver's compression: 16-bit integers a node, one float scale);
-3. 16-bit, with each range trimmed by 10% of its weight;
-4. 16-bit, trimmed by 25% (`TRIM_LADDER` in `solver/trim.ts`).
+3. the river's decisions stored per **bucket of hands** of equal strength;
+4. the river in at most 50 buckets a player a board;
+5. at most 25 (`BUCKET_LADDER` in `solver/buckets.ts`).
 
-Past the last rung the solve is refused. A trim is reported with the result
-(`SolveResult.trim`, the share and the combos each side lost) and printed under it, in
-the panel and the CLI; a tree that fits at rung 2 solves exactly as it would without the
-ladder. A looser target dEV is not a rung: it saves time, not memory.
+Each bucket rung takes 32-bit storage if that fits, else 16-bit.
 
-**Why the trim is what it is.** The model's flop ranges are the preflop charts' weights:
-across 60 flop spots of a real log, 25.1k of 31.2k combos weigh 1.0 and 4.5k weigh 0.5,
-so cutting combos under a small weight (the usual pruning) would remove almost nothing.
-Saving memory means leaving out real hands, so the trim is a stated cut, not a free one:
+Past the last rung the solve is refused. A river root stops at rung 2: there is no later
+river to bucket, and a river fits anyway. The rung is reported with the result
+(`SolveResult.riverBuckets`) and printed under it, in the panel and the CLI; a tree that
+fits at rung 2 solves exactly as it would without the ladder. A looser target dEV is not
+a rung: it saves time, not memory.
 
-- **Whole classes.** postflop-solver merges suit-isomorphic turns and rivers only when
-  both ranges are symmetric under the suit swap; taking single combos could break that
-  and cost memory instead of saving it. A class's combos go together.
-- **Lightest first.** Classes are taken by mean weight a combo, lowest first: the most
-  combos (memory) for the least weight (accuracy).
-- **An even spread of strength within a weight.** Among classes of one weight, sorted by
-  their combos' hand-strength rank on the board, the taken ones are spread evenly
-  (a golden-ratio sequence), so the range keeps its shape rather than losing its air or
-  its value. Taking the weakest first would make the range look stronger than the model
-  has it.
-- **Never the hero's class**, in either range: the hero's own hand must stay in the game.
-- It stops at the first class that reaches the share, so a range loses the share plus at
-  most one class.
+**Why the river, and why buckets.** Every action node stores a strategy and a regret for
+each hand and action, and in a flop or turn tree almost all the nodes are on the river (a
+turn card and a river card for each line). The ranges stay whole and the flop and turn
+are solved per hand as before; only the river's nodes keep a row per bucket instead. This
+replaced trimming the ranges (dropping the lightest hand classes), which saved 13 to 35%
+by leaving real hands out of the game.
 
-What it buys, measured on eight flops of a real log (`simple` tree with one raise,
-16-bit): the 10% rung saved 13 to 19% of the memory, the 25% rung 26 to 35% (a 343/268
-combo flop went from 1753 to 1418 to 1211 MB). The memory scales with the combos left,
-not the weight, so the light classes going first is why the saving runs ahead of the
-share. A trimmed solve is a solve of a slightly different, narrower game: its answer for
-the hero's hand is good as far as the classes left out would not have changed the
-opponent's strategy, which is why the trim is printed and not hidden.
+**How the buckets are made** (`init_buckets` in `solver/src/game/base.rs`). On each river
+board, each player's hands are sorted by showdown strength. Hands of equal strength always
+share a bucket: they tie against every hand and differ only in what they block. When a
+board has more strengths than the rung allows, adjacent strengths are merged into buckets
+of about equal range weight, never splitting a strength. Buckets by strength are the same
+under a suit swap, so postflop-solver's merging of isomorphic runouts still holds.
+
+**How a bucket is solved** (`solve_bucketed` in `solver/src/solver.rs`). Each hand plays
+its bucket's strategy. A bucket's regret is CFR's on the abstracted game: the sum of its
+hands' counterfactual regrets, each weighted by its weight in the range (the chance of
+holding it). Weighting them by the player's own reach as well was tried and does not
+converge: that weight moves with the strategy, and the solve stalled at 2% of the pot on
+a turn that reaches 0.1% per hand. The showdowns stay per hand, card removal included. The
+exploitability is still a best response in the whole game, hand by hand, so the dEV
+printed is the bucketed strategy's true distance from an equilibrium. A bucketed river
+keeps no per-hand values, so the interpreter refuses to walk into one (the query never
+does: the hero's node is on the root's street).
+
+**What it costs.** Measured on eight flops of the two sample logs (`simple` with a 3x raise,
+16-bit, native, against the exact solve of each):
+
+|                     | Memory                                            | dEV it levels off at | Hero's EV, from exact        |
+| ------------------- | ------------------------------------------------- | -------------------- | ---------------------------- |
+| Exact               | 182 to 3542 MB                                    | under 0.5% (target)  | —                            |
+| A bucket a strength | 3.6 to 9.2 times less (3542 → 631, 2413 → 263 MB) | 0.63 to 1.00%        | 0.01 to 0.20 bb, median 0.03 |
+| 50 buckets          | 0 to 33% less again                               | 0.63 to 1.06%        | about the same               |
+| 25 buckets          | 2 to 33% less again                               | 0.64 to 1.42%        | about the same               |
+
+The action the hero's hand should take was the same as the exact solve's in all eight, at
+every rung. Mixes between two actions of near-equal EV moved more (0.40/0.60 to 0.51/0.49):
+read those as "either", as below. The two large EV differences (0.16 bb on a 122/126
+flop, 0.20 bb on the 529/582 one) did not change which action was best, but they are the
+size of an error the readout can carry; nothing here says when to expect one.
+
+**A floor above the target.** Merging hands leaves a best response an edge the solve
+cannot remove, so a bucketed solve levels off, usually above the 0.5% default. It would
+otherwise run the full 1000 iterations for nothing: on one flop it was at 0.82% after 100
+iterations and 0.69% after 250. So a bucketed solve also stops once its best dEV has
+improved by less than 5% over the last 50 iterations (`levelledOff` in
+`solver/target.ts`), and the result says it stopped there (`SolveResult.levelled`). An
+iteration costs 10 to 15% more than an exact solve's (the spreading and summing of buckets).
 
 **Cancelling terminates the worker** (a solver cannot be interrupted mid-iteration) and
 the next solve starts a new one. The page (`utils/app/solveClient.ts`) reads the hand
@@ -203,7 +266,7 @@ the WASM handle; `cli/solverNative.ts` spawns it and is a `SolverModule` like th
 
 Why: wasm32 cannot address more than 4 GB, and Node runs the single-threaded build. The
 native process has no cap but the machine's memory, uses rayon on every core, and gets
-the CPU's full SIMD width. On a 255/254 combo flop (`simple`, 16-bit, 16 threads) an
+the CPU's full SIMD width. On a 255/254 combo flop (`simple` with no raises, 16-bit, 16 threads) an
 iteration took 36 ms natively against 517 ms on the single-threaded WASM, at the same
 exploitability. The two engines agree to rounding, and `tests/utils/solver/wasm.test.ts`
 checks it; a floating-point library function may differ in its last bit between them,
@@ -231,10 +294,11 @@ gone. `worker.format` is `es` so a worker can import the WASM glue.
 
 Rough single-thread cost: a river well under a second, a turn and river five to thirty
 seconds, a flop minutes. The flop needs threads. Measured in Chromium on 16 threads, a
-single-raised SB-vs-BB flop (557 and 607 combos) on the `simple` tree: 320k nodes, 1.37 GB,
-28 seconds to 0.5% of the pot. The same flop with one raise allowed is 1.5M nodes and
-3.3 GB even at 16-bit: over the page's budget even trimmed, which is why `simple` has no
-raises; the native CLI solves it on a machine with the memory.
+single-raised SB-vs-BB flop (557 and 607 combos) with one size a street and no raises:
+320k nodes, 1.37 GB, 28 seconds to 0.5% of the pot. The same flop with one raise allowed
+is 1.5M nodes and 3.3 GB at 16-bit; with the river in buckets a flop that size fits the
+page (the 529/582-combo flop above took 631 MB), at the cost of the floor the buckets
+leave, which is how `simple` came to have a raise.
 
 ## CLI
 

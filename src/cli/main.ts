@@ -69,8 +69,9 @@ Solve options:
   --dev <pct>            Stop once exploitable by under this % of the pot
                          (default: 0.5; lower is deeper and slower)
   --budget <mb>          Memory the solve may take; over it, 16-bit storage and
-                         then trimmed ranges (default: 3/4 of the machine's
-                         memory natively, 3000 on the WASM)
+                         then the river's hands in buckets of like strength
+                         (default: 3/4 of the machine's memory natively, 3000
+                         on the WASM)
   --wasm                 Use the WASM solver even when the native one is built
                          (npm run build:solver:native)
 

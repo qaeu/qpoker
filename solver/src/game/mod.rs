@@ -61,6 +61,14 @@ pub struct PostFlopGame {
     isomorphism_card_river: [Vec<Card>; 4],
     isomorphism_swap_river: [[SwapList; 4]; 4],
 
+    // qpoker: river buckets. With `river_buckets > 0` and a flop or turn root, a river
+    // decision's strategy and regrets are stored per bucket of hands, not per hand.
+    // `bucket_map[pair][player]` is each hand's bucket on the river board `pair` (the
+    // `hand_strength` index), `u16::MAX` for a hand the board blocks.
+    river_buckets: usize,
+    bucket_map: Vec<[Vec<u16>; 2]>,
+    bucket_count: Vec<[u16; 2]>,
+
     // store options
     num_nodes: [u64; 3],
     is_compression_enabled: bool,

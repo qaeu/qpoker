@@ -31,7 +31,8 @@ const STATS: SolveStats = {
 	nodes: 55,
 	bytes: 2_000_000,
 	compressed: false,
-	trim: null,
+	riverBuckets: null,
+	levelled: false,
 };
 
 /** A query holding only the hero’s hand, with the given frequencies and EVs in cents. */

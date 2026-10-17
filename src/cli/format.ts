@@ -11,7 +11,8 @@ import type { OpeningSummary } from '#utils/coach/openings';
 import { tableSizesText } from '#utils/ui/format';
 import { STREETS } from '#utils/history/hand';
 import type { PreflopChoice } from '#utils/ranges/range';
-import { trimNote, type SolveResult } from '#utils/solver/result';
+import { bucketNote } from '#utils/solver/buckets';
+import type { SolveResult } from '#utils/solver/result';
 
 export interface FormatOptions {
 	/** How many mistakes, and how many good plays, to print in full. */
@@ -379,7 +380,9 @@ export function formatSolve(result: SolveResult, options: SolveFormatOptions): s
 			'dim',
 			`${result.iterations} iterations · exploitable by ${result.exploitabilityPct.toFixed(2)}% of the pot · ${result.nodes.toLocaleString()} nodes · ${Math.max(1, Math.round(result.bytes / 1048576))} MB${result.compressed ? ' (16-bit)' : ''}`
 		),
-		...[trimNote(result.trim)].flatMap((note) => (note ? [paint('yellow', note)] : [])),
+		...[bucketNote(result.riverBuckets, result.levelled)].flatMap((note) =>
+			note ? [paint('yellow', note)] : []
+		),
 		paint(
 			'dim',
 			'Solved from the start of the street with the coach’s modelled ranges: an estimate of the ranges, not of the solve. See docs/solver.md.'

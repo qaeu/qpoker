@@ -26,6 +26,18 @@ describe('the stored solver tree', () => {
 		expect(JSON.parse(localStorage.getItem(KEY)!).version).toBe(1);
 	});
 
+	it('reads a named preset as it is now, not as it was saved', () => {
+		const old = { ...presetOf('detailed'), raiseCap: 3, addAllIn: true };
+		localStorage.setItem(
+			KEY,
+			JSON.stringify({ version: 1, preset: 'detailed', tree: old })
+		);
+		expect(loadTreePreference()).toEqual({
+			preset: 'detailed',
+			tree: presetOf('detailed'),
+		});
+	});
+
 	describe('a value it cannot use', () => {
 		it.each([
 			['not JSON', '{'],

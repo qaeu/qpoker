@@ -3,6 +3,10 @@ use crate::interface::*;
 use crate::utility::*;
 use std::mem::{self, MaybeUninit};
 
+/// qpoker: the most nodes a game is built with. Past it the per-hand storage alone would
+/// be tens of gigabytes; see docs/solver.md.
+pub const MAX_NODES: u64 = 16_000_000;
+
 #[derive(Default)]
 struct BuildTreeInfo {
     flop_index: usize,
@@ -106,6 +110,25 @@ impl Game for PostFlopGame {
     fn is_compression_enabled(&self) -> bool {
         self.is_compression_enabled
     }
+
+    #[inline]
+    fn is_bucketed(&self) -> bool {
+        self.river_buckets > 0 && self.card_config.river == NOT_DEALT
+    }
+
+    #[inline]
+    fn buckets(&self, node: &Self::Node) -> Option<(&[u16], usize)> {
+        if !self.is_bucketed() || node.river == NOT_DEALT || node.is_terminal() || node.is_chance()
+        {
+            return None;
+        }
+        let pair = card_pair_to_index(node.turn, node.river);
+        let player = node.player as usize;
+        Some((
+            &self.bucket_map[pair][player],
+            self.bucket_count[pair][player] as usize,
+        ))
+    }
 }
 
 impl PostFlopGame {
@@ -126,6 +149,23 @@ impl PostFlopGame {
     #[inline]
     pub fn with_config(card_config: CardConfig, action_tree: ActionTree) -> Result<Self, String> {
         let mut game = Self::new();
+        game.update_config(card_config, action_tree)?;
+        Ok(game)
+    }
+
+    /// qpoker: like [`with_config`], with each river decision's strategy stored per bucket
+    /// of at most `river_buckets` hands of like strength (0 for none). A river root is never
+    /// bucketed. See docs/solver.md.
+    ///
+    /// [`with_config`]: #method.with_config
+    #[inline]
+    pub fn with_river_buckets(
+        card_config: CardConfig,
+        action_tree: ActionTree,
+        river_buckets: usize,
+    ) -> Result<Self, String> {
+        let mut game = Self::new();
+        game.river_buckets = river_buckets.min(u16::MAX as usize - 1);
         game.update_config(card_config, action_tree)?;
         Ok(game)
     }
@@ -457,6 +497,72 @@ impl PostFlopGame {
             self.isomorphism_card_river,
             self.isomorphism_swap_river,
         ) = self.card_config.isomorphism(&self.private_cards);
+
+        self.init_buckets();
+    }
+
+    /// qpoker: groups each river board's hands into at most `river_buckets` buckets of
+    /// adjacent strength: hands of equal strength always share one, and when there are more
+    /// strengths than buckets, adjacent ones are merged into buckets of about equal weight.
+    fn init_buckets(&mut self) {
+        self.bucket_map = Vec::new();
+        self.bucket_count = Vec::new();
+        if !self.is_bucketed() {
+            return;
+        }
+
+        let max_buckets = self.river_buckets;
+        self.bucket_map = vec![Default::default(); self.hand_strength.len()];
+        self.bucket_count = vec![[0; 2]; self.hand_strength.len()];
+
+        for (pair, strength) in self.hand_strength.iter().enumerate() {
+            for player in 0..2 {
+                let items = &strength[player];
+                if items.len() < 2 {
+                    continue;
+                }
+                let valid = &items[1..items.len() - 1];
+                let weights = &self.initial_weights[player];
+                let mut map = vec![u16::MAX; weights.len()];
+
+                let num_groups = 1 + valid
+                    .windows(2)
+                    .filter(|w| w[0].strength != w[1].strength)
+                    .count();
+                let total: f64 = valid.iter().map(|i| weights[i.index as usize] as f64).sum();
+                let step = total / max_buckets as f64;
+
+                let mut bucket = 0;
+                let mut cumulative = 0.0;
+                for (i, item) in valid.iter().enumerate() {
+                    if i > 0 && item.strength != valid[i - 1].strength {
+                        let next = if num_groups <= max_buckets {
+                            true
+                        } else {
+                            cumulative >= (bucket + 1) as f64 * step
+                        };
+                        if next && bucket + 1 < max_buckets {
+                            bucket += 1;
+                        }
+                    }
+                    map[item.index as usize] = bucket as u16;
+                    cumulative += weights[item.index as usize] as f64;
+                }
+
+                self.bucket_map[pair][player] = map;
+                self.bucket_count[pair][player] = bucket as u16 + 1;
+            }
+        }
+    }
+
+    /// qpoker: how many rows of storage a decision node of `player` keeps: its hands, or
+    /// its buckets on a bucketed river.
+    fn num_storage_rows(&self, node: &PostFlopNode, player: usize) -> usize {
+        if self.is_bucketed() && node.river != NOT_DEALT {
+            self.bucket_count[card_pair_to_index(node.turn, node.river)][player] as usize
+        } else {
+            self.num_private_hands(player)
+        }
     }
 
     /// Initializes the root node of game tree.
@@ -468,6 +574,14 @@ impl PostFlopGame {
             || mem::size_of::<PostFlopNode>() as u64 * total_num_nodes > isize::MAX as u64
         {
             return Err("Too many nodes".to_string());
+        }
+
+        // qpoker: refuse before the node arena is allocated, which would abort the process
+        // (or the page's worker) on a tree far past any budget.
+        if total_num_nodes > MAX_NODES {
+            return Err(format!(
+                "The tree has {total_num_nodes} nodes, over the {MAX_NODES} the solver builds"
+            ));
         }
 
         self.num_nodes = num_nodes;
@@ -612,6 +726,12 @@ impl PostFlopGame {
 
         memory_usage += vec_memory_usage(&self.node_arena);
 
+        memory_usage += vec_memory_usage(&self.bucket_map);
+        memory_usage += vec_memory_usage(&self.bucket_count);
+        for maps in &self.bucket_map {
+            memory_usage += vec_memory_usage(&maps[0]) + vec_memory_usage(&maps[1]);
+        }
+
         memory_usage
     }
 
@@ -731,10 +851,14 @@ impl PostFlopGame {
             child.river = node.river;
         }
 
-        let num_private_hands = self.num_private_hands(node.player as usize);
-        node.num_elements = (node.num_actions() * num_private_hands) as u32;
+        let num_rows = self.num_storage_rows(&node, node.player as usize);
+        node.num_elements = (node.num_actions() * num_rows) as u32;
+        // A bucketed river keeps no per-hand values to read back (see `buckets`).
+        let bucketed = self.is_bucketed() && node.river != NOT_DEALT;
         node.num_elements_ip = match node.prev_action {
-            Action::None | Action::Chance(_) => self.num_private_hands(PLAYER_IP as usize) as u16,
+            Action::None | Action::Chance(_) if !bucketed => {
+                self.num_private_hands(PLAYER_IP as usize) as u16
+            }
             _ => 0,
         };
 
@@ -807,7 +931,7 @@ impl PostFlopGame {
 
         // STEP 1
         let mut info = BuildTreeInfo {
-            num_storage: self.num_private_hands(node.player as usize) as u64,
+            num_storage: self.num_storage_rows(node, node.player as usize) as u64,
             ..Default::default()
         };
 
@@ -827,7 +951,7 @@ impl PostFlopGame {
         node.num_children -= 1;
 
         // STEP 3
-        node.num_elements -= self.num_private_hands(node.player as usize) as u32;
+        node.num_elements -= self.num_storage_rows(node, node.player as usize) as u32;
 
         Ok(info)
     }

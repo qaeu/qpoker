@@ -162,7 +162,7 @@ describe('qpoker solve', () => {
 				expect(solved.status).toBe(0);
 				const tiny = run('solve', '7001', '--step', '12', '--wasm', '--budget', '0.001');
 				expect(tiny.status).toBe(1);
-				expect(tiny.stderr).toMatch(/trimmed by 25%/);
+				expect(tiny.stderr).toMatch(/over the 0.001 MB budget/);
 				expect(tiny.stderr).toMatch(/build:solver:native/);
 			}, 120_000);
 

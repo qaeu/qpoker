@@ -156,3 +156,49 @@ pub(crate) fn row<T>(slice: &[T], index: usize, row_size: usize) -> &[T] {
 pub(crate) fn row_mut<T>(slice: &mut [T], index: usize, row_size: usize) -> &mut [T] {
     &mut slice[index * row_size..(index + 1) * row_size]
 }
+
+/// qpoker: spreads a per-bucket `num_actions × num_buckets` strategy over the hands, as
+/// `num_actions × map.len()`. A hand in no bucket gets the uniform strategy.
+#[inline]
+pub(crate) fn expand_buckets(
+    src: &[f32],
+    map: &[u16],
+    num_buckets: usize,
+    num_actions: usize,
+) -> Vec<f32> {
+    let num_hands = map.len();
+    let uniform = 1.0 / num_actions as f32;
+    let mut dst = Vec::with_capacity(num_actions * num_hands);
+    for action in 0..num_actions {
+        let bucket_row = row(src, action, num_buckets);
+        dst.extend(map.iter().map(|&b| match b {
+            u16::MAX => uniform,
+            b => bucket_row[b as usize],
+        }));
+    }
+    dst
+}
+
+/// qpoker: sums a per-hand `num_actions × map.len()` array into its buckets, each hand
+/// weighted by `weights`, as `num_actions × num_buckets`.
+#[inline]
+pub(crate) fn reduce_buckets(
+    src: &[f32],
+    map: &[u16],
+    num_buckets: usize,
+    weights: &[f32],
+) -> Vec<f32> {
+    let num_hands = map.len();
+    let num_actions = src.len() / num_hands;
+    let mut sums = vec![0.0f64; num_actions * num_buckets];
+    for action in 0..num_actions {
+        let hand_row = row(src, action, num_hands);
+        let sum_row = row_mut(&mut sums, action, num_buckets);
+        for ((&b, &v), &w) in map.iter().zip(hand_row).zip(weights) {
+            if b != u16::MAX {
+                sum_row[b as usize] += v as f64 * w as f64;
+            }
+        }
+    }
+    sums.into_iter().map(|v| v as f32).collect()
+}

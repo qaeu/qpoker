@@ -244,9 +244,10 @@ flush is possible and the board is sized as wet.
 
 `scripts/accuracy/solverCompare.ts` solves, offline, every heads-up turn and river
 decision of the hero's in the two sample logs (87 spots), from the model's ranges at the
-street's start, on the `standard` tree with the line's own sizes, natively, to 0.5% of the
+street's start, on the tree `standard` was then (two raises and an all-in at every node;
+`HARNESS_TREE` in the script) with the line's own sizes, natively, to 0.5% of the
 pot; and solves again to the villain's first decision on the street, to read the
-equilibrium's strategy there. Every spot reached its target untrimmed; the run took 289s
+equilibrium's strategy there. Every spot reached its target solved per hand; the run took 289s
 on 16 threads. It was measured on version 9 and **changed nothing**: no weight and no
 cost. The solve is never part of a grade.
 

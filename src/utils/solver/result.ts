@@ -10,7 +10,6 @@ import { CLASS_COUNT, classOf, className, COMBO_COUNT, COMBOS } from '../cards/c
 import { emptyRange, type Strategy } from '../ranges/range';
 import { SOLVER_OF } from './cards';
 import type { SolverSpot } from './spot';
-import type { SolveTrim } from './trim';
 import type { WasmAction, WasmQuery } from './wasmApi';
 
 export interface SolveActionRow {
@@ -33,8 +32,10 @@ export interface SolveStats {
 	nodes: number;
 	bytes: number;
 	compressed: boolean;
-	/** How much was cut from the ranges to fit the budget; null if nothing. */
-	trim: SolveTrim | null;
+	/** The river's buckets a player a board, to fit the budget; null if solved per hand. */
+	riverBuckets: number | null;
+	/** Stopped above the target where the bucketed solve levelled off (`levelledOff`). */
+	levelled: boolean;
 }
 
 export interface SolveResult {
@@ -76,7 +77,9 @@ export interface SolveResult {
 	nodes: number;
 	bytes: number;
 	compressed: boolean;
-	trim: SolveTrim | null;
+	/** The river's buckets a player a board (`bucketNote`); null if solved per hand. */
+	riverBuckets: number | null;
+	levelled: boolean;
 }
 
 const AGGRESSIVE: ReadonlySet<WasmAction['kind']> = new Set(['bet', 'raise', 'allin']);
@@ -220,14 +223,10 @@ export function resultOf(
 		nodes: stats.nodes,
 		bytes: stats.bytes,
 		compressed: stats.compressed,
-		trim: stats.trim,
+		riverBuckets: stats.riverBuckets,
+		levelled: stats.levelled,
 	};
 }
-
-/** What a trim cut, in words, or null when the ranges were solved whole. */
-export const trimNote = (trim: SolveTrim | null): string | null =>
-	trim
-	&& `To fit in memory, ${Math.round(trim.share * 100)}% of each range’s weight was left out: ${trim.oop} out-of-position and ${trim.ip} in-position combos, the lightest classes first.`;
 
 /** A range-grid cell's tooltip: how the class plays here, or that it is not in the range. */
 export function describeClass(result: SolveResult, cls: number): string {

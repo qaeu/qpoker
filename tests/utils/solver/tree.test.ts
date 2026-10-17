@@ -25,9 +25,27 @@ describe('the solver tree', () => {
 			expect(TREE_PRESETS[DEFAULT_PRESET].river.bet).not.toContain(9);
 		});
 
+		it('each hold the one before it', () => {
+			const order = [presetOf('simple'), presetOf('standard'), presetOf('detailed')];
+			for (let i = 1; i < order.length; i++) {
+				const [smaller, larger] = [order[i - 1], order[i]];
+				for (const street of ['flop', 'turn', 'river'] as const) {
+					expect(larger[street].bet.length).toBeGreaterThanOrEqual(
+						smaller[street].bet.length
+					);
+				}
+				expect(larger.raiseCap).toBeGreaterThanOrEqual(smaller.raiseCap);
+			}
+		});
+
+		it('add no all-in at every node, which multiplies a flop', () => {
+			for (const preset of Object.values(TREE_PRESETS))
+				expect(preset.addAllIn).toBe(false);
+		});
+
 		it('grow from simple to detailed', () => {
 			const size = (tree: ReturnType<typeof presetOf>) =>
-				estimateTree(tree, 'river', { oop: 700, ip: 700 }).bytes;
+				estimateTree(tree, 'flop', { oop: 700, ip: 700 }).bytes;
 			expect(size(presetOf('simple'))).toBeLessThan(size(presetOf('standard')));
 			expect(size(presetOf('standard'))).toBeLessThan(size(presetOf('detailed')));
 		});
@@ -91,7 +109,7 @@ describe('the solver tree', () => {
 				{ kind: 'bet', to: 100, before: 0, facing: 0, pot: 200 },
 				{ kind: 'raise', to: 350, before: 0, facing: 100, pot: 300 },
 			]);
-			expect(next.turn.raise).toEqual([3, 3.5]);
+			expect(next.turn.raise).toEqual([2.5, 3.5]);
 			expect(next.turn.bet).toContain(0.5);
 		});
 
@@ -141,6 +159,18 @@ describe('the solver tree', () => {
 		it('halves under compression', () => {
 			const estimate = estimateTree(presetOf('standard'), 'turn', ranges);
 			expect(estimate.bytesCompressed).toBe(estimate.bytes / 2);
+		});
+
+		describe('at the last rung', () => {
+			it('stores less than 16-bit alone when a river follows the root', () => {
+				const estimate = estimateTree(presetOf('standard'), 'flop', ranges);
+				expect(estimate.bytesSmallest).toBeLessThan(estimate.bytesCompressed / 2);
+			});
+
+			it('is 16-bit alone for a river root, which is never bucketed', () => {
+				const estimate = estimateTree(presetOf('standard'), 'river', ranges);
+				expect(estimate.bytesSmallest).toBe(estimate.bytesCompressed);
+			});
 		});
 
 		it('grows with the raise cap', () => {

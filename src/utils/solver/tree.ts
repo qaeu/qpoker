@@ -7,6 +7,7 @@
  */
 
 import type { Street } from '../history/hand';
+import { MIN_BUCKETS } from './buckets';
 import type { WasmAction, WasmStreetSizes } from './wasmApi';
 
 export interface StreetSizes {
@@ -34,31 +35,35 @@ export interface TreeSettings {
 
 export type TreePreset = 'simple' | 'standard' | 'detailed';
 
+/**
+ * Each preset holds the one before it, and each fits a wide flop in the page's
+ * budget: one raise a street, and no all-in added at every node, since those are
+ * what multiply a flop's nodes (docs/solver.md, "The presets").
+ */
 export const TREE_PRESETS: Record<TreePreset, TreeSettings> = {
 	simple: {
-		flop: { bet: [0.5], raise: [3] },
-		turn: { bet: [0.66], raise: [3] },
-		river: { bet: [0.66], raise: [3] },
-		// No raises: the one tree that fits a wide flop in memory (docs/solver.md).
-		raiseCap: 0,
+		flop: { bet: [0.5], raise: [2.5] },
+		turn: { bet: [0.66], raise: [2.5] },
+		river: { bet: [0.66], raise: [2.5] },
+		raiseCap: 1,
 		allInThreshold: 0.15,
 		addAllIn: false,
 	},
 	standard: {
-		flop: { bet: [0.5], raise: [3] },
+		flop: { bet: [0.5], raise: [2.5] },
 		turn: { bet: [0.5, 1], raise: [2.5] },
 		river: { bet: [0.33, 0.75, 1.25], raise: [2.5] },
-		raiseCap: 2,
+		raiseCap: 1,
 		allInThreshold: 0.15,
-		addAllIn: true,
+		addAllIn: false,
 	},
 	detailed: {
-		flop: { bet: [0.25, 0.5, 0.75, 1], raise: [2.5, 4] },
-		turn: { bet: [0.33, 0.66, 1, 1.5], raise: [2.5, 4] },
-		river: { bet: [0.25, 0.5, 0.75, 1, 1.5], raise: [2.5, 4] },
-		raiseCap: 3,
+		flop: { bet: [0.33, 0.75], raise: [2.5] },
+		turn: { bet: [0.5, 1], raise: [2.5] },
+		river: { bet: [0.33, 0.75, 1.25], raise: [2.5] },
+		raiseCap: 1,
 		allInThreshold: 0.15,
-		addAllIn: true,
+		addAllIn: false,
 	},
 };
 
@@ -180,6 +185,8 @@ export interface TreeEstimate {
 	/** Bytes the solve would take, 32-bit and with 16-bit compression. */
 	bytes: number;
 	bytesCompressed: number;
+	/** At the ladder's last rung: 16-bit, the river in `MIN_BUCKETS` buckets a player. */
+	bytesSmallest: number;
 }
 
 /** Cards that can still come: after a flop, a turn and then a river. */
@@ -228,14 +235,24 @@ export function estimateTree(
 
 	let nodes = 0;
 	let bytes = 0;
+	let smallest = 0;
 	let reach = 1;
 	for (let at: SolveStreet | null = street; at; at = AFTER[at]) {
 		const { nodes: inRound, ends } = round(at);
 		nodes += reach * inRound;
 		// An action's regret and strategy slot per hand: two 4-byte floats.
 		bytes += reach * inRound * 3 * hands * 8;
+		// A river after the root's street is stored per bucket at the last rung.
+		const rows =
+			at === 'river' && street !== 'river' ? Math.min(hands, 2 * MIN_BUCKETS) : hands;
+		smallest += reach * inRound * 3 * rows * 4;
 		const next = AFTER[at];
 		reach *= next ? ends * DEALS[at] : 1;
 	}
-	return { nodes: Math.round(nodes), bytes, bytesCompressed: bytes / 2 };
+	return {
+		nodes: Math.round(nodes),
+		bytes,
+		bytesCompressed: bytes / 2,
+		bytesSmallest: smallest,
+	};
 }

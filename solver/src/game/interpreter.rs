@@ -322,6 +322,9 @@ impl PostFlopGame {
 
             // cache the counterfactual values
             let node = self.node();
+            if self.buckets(&node).is_some() {
+                panic!("A bucketed river decision keeps no values per hand");
+            }
             let vec = if self.is_compression_enabled {
                 let slice = row(node.cfvalues_compressed(), action, num_hands);
                 let scale = node.cfvalue_scale();
@@ -645,6 +648,9 @@ impl PostFlopGame {
                 node.cfvalues_ip().to_vec()
             }
         } else if player == self.current_player() {
+            if self.buckets(&node).is_some() {
+                panic!("A bucketed river decision keeps no values per hand");
+            }
             have_actions = true;
             if self.is_compression_enabled {
                 let slice = node.cfvalues_compressed();
@@ -711,11 +717,8 @@ impl PostFlopGame {
         let num_actions = node.num_actions();
         let num_hands = self.num_private_hands(player);
 
-        let mut ret = if self.is_compression_enabled {
-            normalized_strategy_compressed(node.strategy_compressed(), num_actions)
-        } else {
-            normalized_strategy(node.strategy(), num_actions)
-        };
+        let mut ret = average_strategy(self, &node);
+        debug_assert_eq!(ret.len(), num_actions * num_hands);
 
         let locking = self.locking_strategy(&node);
         apply_locking_strategy(&mut ret, locking);
@@ -769,6 +772,10 @@ impl PostFlopGame {
         let player = self.current_player();
         let num_actions = node.num_actions();
         let num_hands = self.num_private_hands(player);
+
+        if self.buckets(&node).is_some() {
+            panic!("A bucketed river decision cannot be locked");
+        }
 
         if strategy.len() != num_actions * num_hands {
             panic!("Invalid strategy length");

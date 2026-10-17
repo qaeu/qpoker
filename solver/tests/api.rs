@@ -416,6 +416,21 @@ mod input {
     }
 
     #[test]
+    fn refuses_a_tree_too_big_to_build_before_allocating_it() {
+        let b = board("Td9d6h");
+        let wide = range(&b, &[("AA", 1.0), ("KK", 1.0), ("AK", 1.0), ("QJ", 1.0)]);
+        let sizes = json!({ "bet": "25%, 50%, 75%, 100%, 150%", "raise": "2.5x, 4x" });
+        let input = json!({
+            "board": b, "oopRange": wide, "ipRange": wide,
+            "pot": 1000, "stack": 100000, "rakeRate": 0.0, "rakeCap": 0,
+            "flop": sizes, "turn": sizes, "river": sizes,
+            "raiseCap": 3, "allInThreshold": 0.0, "addAllIn": true, "prefix": [],
+        });
+        let error = Solver::new(&input.to_string()).err().unwrap();
+        assert!(error.contains("nodes, over the"), "{error}");
+    }
+
+    #[test]
     fn refuses_steps_before_allocation_and_after_the_query() {
         let mut solver = Solver::new(&base().to_string()).unwrap();
         assert!(solver.step(1).is_err());
@@ -461,5 +476,125 @@ mod unreached {
             ev[NUM_PAIRS + kk]
         );
         assert_eq!(ev[kk], 0.0);
+    }
+}
+
+mod river_buckets {
+    use super::*;
+
+    /// A turn spot, wide enough that a river board has many strengths.
+    fn turn_input(buckets: u32) -> Value {
+        let b = board("Ks7h4cQd");
+        json!({
+            "board": b,
+            "oopRange": range(&b, &[("KK", 1.0), ("QQ", 1.0), ("77", 1.0), ("AK", 1.0), ("KQ", 1.0),
+                ("QJ", 1.0), ("JT", 1.0), ("65", 1.0), ("A5", 0.5), ("98", 1.0)]),
+            "ipRange": range(&b, &[("AA", 1.0), ("AK", 1.0), ("KJ", 1.0), ("QJ", 1.0), ("JT", 1.0),
+                ("T9", 1.0), ("87", 1.0), ("76", 1.0), ("A4", 0.5), ("55", 1.0)]),
+            "pot": 1000,
+            "stack": 5000,
+            "rakeRate": 0.0,
+            "rakeCap": 0,
+            "turn": { "bet": "75%", "raise": "" },
+            "river": { "bet": "75%", "raise": "" },
+            "raiseCap": 0,
+            "allInThreshold": 0.0,
+            "addAllIn": false,
+            "prefix": [],
+            "riverBuckets": buckets,
+        })
+    }
+
+    /// A flop spot on a board with suit-isomorphic turns and rivers.
+    fn flop_input(buckets: u32) -> Value {
+        let b = board("Td9d6h");
+        json!({
+            "board": b,
+            "oopRange": range(&b, &[("TT", 1.0), ("99", 1.0), ("AT", 1.0), ("QJ", 1.0), ("87", 1.0),
+                ("A5", 0.5)]),
+            "ipRange": range(&b, &[("AA", 1.0), ("KT", 1.0), ("J8", 1.0), ("98", 1.0), ("66", 1.0),
+                ("KQ", 0.5)]),
+            "pot": 1000,
+            "stack": 3000,
+            "rakeRate": 0.0,
+            "rakeCap": 0,
+            "flop": { "bet": "50%", "raise": "" },
+            "turn": { "bet": "75%", "raise": "" },
+            "river": { "bet": "75%", "raise": "" },
+            "raiseCap": 0,
+            "allInThreshold": 0.0,
+            "addAllIn": false,
+            "prefix": [],
+            "riverBuckets": buckets,
+        })
+    }
+
+    fn bytes(input: &Value) -> u64 {
+        Solver::new(&input.to_string()).unwrap().estimate().bytes
+    }
+
+    /// The root's mean EV of each action and mean frequency of the second, over the range.
+    fn root(input: &Value, target: f32) -> (Vec<f64>, f64, f32) {
+        let (mut solver, expl) = solve(input, target);
+        let q = query(&mut solver);
+        let (ev, w, st) = (
+            floats(&q["ev"]),
+            floats(&q["weights"]),
+            floats(&q["strategy"]),
+        );
+        let evs = (0..q["actions"].as_array().unwrap().len())
+            .map(|a| mean(&ev, &w, a, |_| true))
+            .collect();
+        (evs, mean(&st, &w, 1, |_| true), expl)
+    }
+
+    #[test]
+    fn store_the_river_in_less_memory() {
+        let exact = bytes(&turn_input(0));
+        assert!(bytes(&turn_input(65534)) < exact / 2);
+        assert!(bytes(&turn_input(4)) < bytes(&turn_input(65534)));
+        assert!(bytes(&flop_input(65534)) < bytes(&flop_input(0)) / 2);
+    }
+
+    #[test]
+    fn leave_a_river_root_whole() {
+        let mut bucketed = toy_input("75%", json!([]));
+        bucketed["riverBuckets"] = json!(4);
+        assert_eq!(bytes(&bucketed), bytes(&toy_input("75%", json!([]))));
+    }
+
+    #[test]
+    fn agree_with_the_exact_solve_at_one_bucket_a_strength() {
+        for input in [turn_input, flop_input] {
+            let (exact_ev, exact_bet, _) = root(&input(0), 5.0);
+            let (ev, bet, expl) = root(&input(65534), 5.0);
+            // Exploitability is a best response in the whole game, hand by hand.
+            assert!(expl <= 5.0, "{expl}");
+            for (a, b) in ev.iter().zip(&exact_ev) {
+                assert!((a - b).abs() < 10.0, "{ev:?} vs {exact_ev:?}");
+            }
+            assert!((bet - exact_bet).abs() < 0.03, "{bet} vs {exact_bet}");
+        }
+    }
+
+    #[test]
+    fn stay_close_with_coarse_buckets_though_not_exact() {
+        let (exact_ev, _, _) = root(&turn_input(0), 5.0);
+        let (ev, _, expl) = root(&turn_input(4), 5.0);
+        // Four buckets cannot reach 0.5%: the abstraction leaves the best response an
+        // edge. It stays a few percent of the pot.
+        assert!(expl > 5.0 && expl < 40.0, "{expl}");
+        for (a, b) in ev.iter().zip(&exact_ev) {
+            assert!((a - b).abs() < 25.0, "{ev:?} vs {exact_ev:?}");
+        }
+    }
+
+    #[test]
+    fn are_deterministic() {
+        let run = || {
+            let (mut solver, _) = solve(&flop_input(8), 10.0);
+            solver.query_json().unwrap()
+        };
+        assert_eq!(run(), run());
     }
 }

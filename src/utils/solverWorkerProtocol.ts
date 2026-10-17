@@ -10,14 +10,18 @@
  * stop a solver in the middle of an iteration. See docs/solver.md.
  */
 
-import { COMBOS } from './cards/combos';
 import { parseHistory } from './history/parse';
 import { replayHand } from './history/replay';
 import { resultOf, type SolveResult } from './solver/result';
 import { solverSpot, type SolveRefusal, type SolverSpot } from './solver/spot';
-import { DEFAULT_TARGET_PCT, MAX_ITERATIONS, targetProblem } from './solver/target';
+import {
+	DEFAULT_TARGET_PCT,
+	levelledOff,
+	MAX_ITERATIONS,
+	targetProblem,
+} from './solver/target';
 import { validateTree, type TreeSettings } from './solver/tree';
-import { MAX_TRIM, TRIM_LADDER, trimInput, type SolveTrim } from './solver/trim';
+import { BUCKET_LADDER, MIN_BUCKETS } from './solver/buckets';
 import type {
 	SolverHandle,
 	SolverModule,
@@ -53,8 +57,8 @@ export type SolverWorkerResponse =
 			nodes: number;
 			/** Whether 16-bit storage was chosen to fit the budget. */
 			compressed: boolean;
-			/** The ranges' trim, when 16-bit alone did not fit; null if none. */
-			trim: SolveTrim | null;
+			/** The river's buckets a player a board, when 16-bit alone did not fit; null if none. */
+			riverBuckets: number | null;
 	  }
 	| {
 			type: 'progress';
@@ -97,25 +101,26 @@ interface Fitted {
 	handle: SolverHandle;
 	estimate: WasmEstimate;
 	compressed: boolean;
-	trim: SolveTrim | null;
+	riverBuckets: number | null;
 }
 
 /**
  * Builds the game on the first rung of the ladder that fits `budget` bytes:
- * 32-bit, 16-bit, then 16-bit over ranges trimmed by each of `TRIM_LADDER`.
+ * 32-bit, 16-bit, then 16-bit with the river in each of `BUCKET_LADDER`'s
+ * buckets. A river root has no river after it to bucket, so it stops at 16-bit.
  */
 async function fit(
 	module: SolverModule,
 	spot: SolverSpot,
 	budget: number
 ): Promise<Fitted> {
-	const heroClass = COMBOS[spot.heroCombo].cls;
+	const ladder = spot.street === 'river' ? [0] : [0, ...BUCKET_LADDER];
 	let smallest = Infinity;
-	for (const share of [0, ...TRIM_LADDER]) {
-		const trimmed = share > 0 ? trimInput(spot.input, share, heroClass) : null;
+	for (const buckets of ladder) {
+		const input = buckets > 0 ? { ...spot.input, riverBuckets: buckets } : spot.input;
 		let handle: SolverHandle;
 		try {
-			handle = await module.createSolver(JSON.stringify(trimmed?.input ?? spot.input));
+			handle = await module.createSolver(JSON.stringify(input));
 		} catch (error) {
 			throw new Stop(`The solver could not build this tree: ${messageOf(error)}`, 'tree');
 		}
@@ -126,15 +131,20 @@ async function fit(
 			handle.free();
 			throw error;
 		}
-		const trim = trimmed?.trim ?? null;
-		if (estimate.bytes <= budget) return { handle, estimate, compressed: false, trim };
+		const riverBuckets = buckets > 0 ? buckets : null;
+		if (estimate.bytes <= budget)
+			return { handle, estimate, compressed: false, riverBuckets };
 		if (estimate.bytesCompressed <= budget)
-			return { handle, estimate, compressed: true, trim };
+			return { handle, estimate, compressed: true, riverBuckets };
 		smallest = estimate.bytesCompressed;
 		handle.free();
 	}
+	const deepest =
+		spot.street === 'river' ?
+			''
+		:	` and with the river's hands in ${MIN_BUCKETS} buckets of like strength`;
 	throw new Stop(
-		`This tree needs about ${Math.ceil(smallest / MB)} MB even compressed and with the ranges trimmed by ${MAX_TRIM * 100}%, over the ${budget / MB} MB budget. Use fewer sizes, or no raises (the Simple tree).`,
+		`This tree needs about ${Math.ceil(smallest / MB)} MB even compressed${deepest}, over the ${budget / MB} MB budget. Use fewer sizes, or no raises (the Simple tree).`,
 		'budget'
 	);
 }
@@ -175,7 +185,7 @@ export function handleSolverMessage(
 
 		const module = await load();
 		const fitted = await fit(module, spot, message.budgetMb * MB);
-		const { handle, estimate, compressed, trim } = fitted;
+		const { handle, estimate, compressed, riverBuckets } = fitted;
 		try {
 			send({
 				type: 'estimate',
@@ -184,19 +194,23 @@ export function handleSolverMessage(
 				bytesCompressed: estimate.bytesCompressed,
 				nodes: estimate.nodes,
 				compressed,
-				trim,
+				riverBuckets,
 			});
 			await handle.allocate(compressed);
 
 			let iteration = 0;
 			let exploitability = Infinity;
 			const target = (spot.pot * targetPct) / 100;
-			while (iteration < MAX_ITERATIONS && exploitability > target) {
+			const history: number[] = [];
+			let levelled = false;
+			while (iteration < MAX_ITERATIONS && exploitability > target && !levelled) {
 				await yieldToQueue();
 				if (abandoned) return;
 				const n = Math.min(CHUNK, MAX_ITERATIONS - iteration);
 				exploitability = await handle.step(n);
 				iteration += n;
+				history.push(exploitability);
+				levelled = riverBuckets !== null && levelledOff(history, CHUNK);
 				send({
 					type: 'progress',
 					requestId,
@@ -211,7 +225,8 @@ export function handleSolverMessage(
 				nodes: estimate.nodes,
 				bytes: compressed ? estimate.bytesCompressed : estimate.bytes,
 				compressed,
-				trim,
+				riverBuckets,
+				levelled: levelled && exploitability > target,
 			});
 			send({ type: 'complete', requestId, result, elapsedMs: Date.now() - started });
 		} finally {

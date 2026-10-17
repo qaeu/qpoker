@@ -48,6 +48,11 @@ export interface WasmInput {
 	addAllIn: boolean;
 	/** The street's actual actions up to the hero's decision; added to the tree (`add_line`). */
 	prefix: WasmAction[];
+	/**
+	 * With a flop or turn root, store each river decision per bucket of at most this
+	 * many hands of like strength a player, not per hand (`buckets.ts`); 0 or absent for none.
+	 */
+	riverBuckets?: number;
 }
 
 export interface WasmEstimate {

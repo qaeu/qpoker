@@ -257,6 +257,22 @@ pub fn finalize<T: Game>(game: &mut T) {
     // free buffer
 }
 
+/// qpoker: a node's average strategy, normalised, one row of hands an action (spread from
+/// its buckets when it has them).
+#[inline]
+pub(crate) fn average_strategy<T: Game>(game: &T, node: &T::Node) -> Vec<f32> {
+    let num_actions = node.num_actions();
+    let strategy = if game.is_compression_enabled() {
+        normalized_strategy_compressed(node.strategy_compressed(), num_actions)
+    } else {
+        normalized_strategy(node.strategy(), num_actions)
+    };
+    match game.buckets(node) {
+        Some((map, num_buckets)) => expand_buckets(&strategy, map, num_buckets, num_actions),
+        None => strategy,
+    }
+}
+
 /// Computes the exploitability of the current strategy.
 #[inline]
 pub fn compute_exploitability<T: Game>(game: &T) -> f32 {
@@ -438,11 +454,7 @@ fn compute_cfvalue_recursive<T: Game>(
         });
 
         // obtain the strategy
-        let mut strategy = if game.is_compression_enabled() {
-            normalized_strategy_compressed(node.strategy_compressed(), num_actions)
-        } else {
-            normalized_strategy(node.strategy(), num_actions)
-        };
+        let mut strategy = average_strategy(game, node);
 
         // node-locking
         let locking = game.locking_strategy(node);
@@ -453,8 +465,8 @@ fn compute_cfvalue_recursive<T: Game>(
         unsafe { cfv_actions.set_len(num_actions * num_hands) };
         fma_slices_uninit(result, &strategy, &cfv_actions);
 
-        // save the counterfactual values
-        if save_cfvalues {
+        // save the counterfactual values (qpoker: a bucketed node has no room for them)
+        if save_cfvalues && game.buckets(node).is_none() {
             if game.is_compression_enabled() {
                 let cfv_scale = encode_signed_slice(node.cfvalues_compressed_mut(), &cfv_actions);
                 node.set_cfvalue_scale(cfv_scale);
@@ -476,11 +488,7 @@ fn compute_cfvalue_recursive<T: Game>(
         );
     } else {
         // obtain the strategy
-        let mut cfreach_actions = if game.is_compression_enabled() {
-            normalized_strategy_compressed(node.strategy_compressed(), num_actions)
-        } else {
-            normalized_strategy(node.strategy(), num_actions)
-        };
+        let mut cfreach_actions = average_strategy(game, node);
 
         // node-locking
         let locking = game.locking_strategy(node);
@@ -629,11 +637,7 @@ fn compute_best_cfv_recursive<T: Game>(
     // opponent node
     else {
         // obtain the strategy
-        let mut cfreach_actions = if game.is_compression_enabled() {
-            normalized_strategy_compressed(node.strategy_compressed(), num_actions)
-        } else {
-            normalized_strategy(node.strategy(), num_actions)
-        };
+        let mut cfreach_actions = average_strategy(game, node);
 
         // node-locking
         let locking = game.locking_strategy(node);

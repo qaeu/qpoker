@@ -6,6 +6,7 @@
  */
 
 import { COMBO_COUNT } from '#utils/cards/combos';
+import { BUCKET_LADDER } from '#utils/solver/buckets';
 import type {
 	SolverHandle,
 	SolverModule,
@@ -21,6 +22,10 @@ export interface FakeOptions {
 	bytes?: number;
 	/** Bytes the estimate reports for each combo in the two ranges, instead of `bytes`. */
 	bytesPerCombo?: number;
+	/** With `bytesPerCombo`: the share the first bucketed rung keeps (0.5); each later one halves it. */
+	bucketedShare?: number;
+	/** With river buckets: the dEV, a share of the pot, it levels off at. */
+	bucketedFloor?: number;
 	/** Called as each handle is made, for a test to look at the input. */
 	onCreate?: (input: WasmInput) => void;
 	/** Called when a handle is freed. */
@@ -57,16 +62,19 @@ export function createFakeSolver(options: FakeOptions = {}): FakeModule {
 				:	[{ kind: 'check' }, { kind: 'bet', to: Math.round(input.pot / 2) }];
 
 			const combos = [...input.oopRange, ...input.ipRange].filter((w) => w > 0).length;
+			const rung = input.riverBuckets ? BUCKET_LADDER.indexOf(input.riverBuckets) : -1;
+			const bucketed = rung < 0 ? 1 : (options.bucketedShare ?? 0.5) * 0.5 ** rung;
 			const bytes =
 				options.bytesPerCombo ?
-					options.bytesPerCombo * combos
+					options.bytesPerCombo * combos * bucketed
 				:	(options.bytes ?? 4_000_000);
 			return {
 				estimate: () => JSON.stringify({ bytes, bytesCompressed: bytes / 2, nodes: 42 }),
 				allocate: () => undefined,
 				step(n) {
 					iterations += n;
-					return (input.pot * 0.02) / (1 + iterations / 10);
+					const floor = input.riverBuckets ? (options.bucketedFloor ?? 0) : 0;
+					return input.pot * (floor + 0.02 / (1 + iterations / 10));
 				},
 				query() {
 					const range = player === 0 ? input.oopRange : input.ipRange;

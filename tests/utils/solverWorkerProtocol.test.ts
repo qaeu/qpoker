@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { BUCKET_LADDER, MIN_BUCKETS } from '#utils/solver/buckets';
 import { presetOf } from '#utils/solver/tree';
 import type { SolverModule, WasmInput } from '#utils/solver/wasmApi';
 import {
@@ -190,44 +191,60 @@ describe('handleSolverMessage', () => {
 			expect(allocate).not.toHaveBeenCalled();
 		});
 
-		describe('the trim ladder', () => {
-			/** Runs with a fake sized by combos; returns the sizes of the games built. */
-			const ladder = async (budgetMb: number) => {
-				const built: number[] = [];
+		describe('the bucket ladder', () => {
+			const turnBet = stepOf(RIVER_HERO_CALL, 'turn', 'bet');
+
+			/** Runs with a fake sized by combos; returns the river buckets of each game built. */
+			const ladder = async (budgetMb: number, stepIndex = turnBet) => {
+				const built: (number | undefined)[] = [];
 				const onFree = vi.fn();
 				const responses = await drive(
-					request({ budgetMb }),
+					request({ budgetMb, stepIndex }),
 					createFakeSolver({
 						bytesPerCombo: 1e5,
 						onFree,
-						onCreate: (input) =>
-							built.push(
-								[...input.oopRange, ...input.ipRange].filter((w) => w > 0).length
-							),
+						onCreate: (input) => built.push(input.riverBuckets),
 					})
 				);
 				return { built, responses, onFree };
 			};
 
-			it('trims nothing when 16-bit fits', async () => {
+			/** The fake's 16-bit megabytes for the turn spot's game, per hand. */
+			const wholeMb = async () => {
+				let bytes = 0;
+				await drive(
+					request({ stepIndex: turnBet }),
+					createFakeSolver({
+						bytesPerCombo: 1e5,
+						onCreate: (input) =>
+							(bytes =
+								[...input.oopRange, ...input.ipRange].filter((w) => w > 0).length * 1e5),
+					})
+				);
+				return bytes / 2 / 1024 / 1024;
+			};
+
+			it('buckets nothing when 16-bit fits', async () => {
 				const { built, responses } = await ladder(1500);
-				expect(built).toHaveLength(1);
+				expect(built).toEqual([undefined]);
 				const done = last(responses);
-				expect(done.type === 'complete' && done.result.trim).toBeNull();
+				expect(done.type === 'complete' && done.result.riverBuckets).toBeNull();
 			});
 
-			it('trims the ranges by the first rung that fits, and says so', async () => {
-				const whole = (await ladder(1500)).built[0];
+			it('buckets the river by the first rung that fits, and says so', async () => {
 				// Just under the whole tree at 16-bit: the first rung must fit.
 				const { built, responses, onFree } = await ladder(
-					Math.floor((whole * 1e5) / 2 / 1024 / 1024) - 1
+					Math.floor(await wholeMb()) - 1
 				);
-				expect(built).toHaveLength(2);
-				expect(built[1]).toBeLessThan(whole);
+				expect(built).toEqual([undefined, BUCKET_LADDER[0]]);
 				const estimate = responses[0];
-				expect(estimate.type === 'estimate' && estimate.trim?.share).toBe(0.1);
+				expect(estimate.type === 'estimate' && estimate.riverBuckets).toBe(
+					BUCKET_LADDER[0]
+				);
 				const done = last(responses);
-				expect(done.type === 'complete' && done.result.trim?.share).toBe(0.1);
+				expect(done.type === 'complete' && done.result.riverBuckets).toBe(
+					BUCKET_LADDER[0]
+				);
 				expect(done.type === 'complete' && done.result.compressed).toBe(true);
 				// Every game built is freed, the one that did not fit included.
 				expect(onFree).toHaveBeenCalledTimes(2);
@@ -235,11 +252,46 @@ describe('handleSolverMessage', () => {
 
 			it('refuses once the last rung does not fit either', async () => {
 				const { built, responses, onFree } = await ladder(1);
-				expect(built).toHaveLength(3);
-				expect(onFree).toHaveBeenCalledTimes(3);
+				expect(built).toEqual([undefined, ...BUCKET_LADDER]);
+				expect(onFree).toHaveBeenCalledTimes(BUCKET_LADDER.length + 1);
 				const failure = last(responses);
 				expect(failure.type === 'error' && failure.reason).toBe('budget');
-				expect(failure.type === 'error' && failure.message).toMatch(/trimmed by 25%/);
+				expect(failure.type === 'error' && failure.message).toMatch(
+					new RegExp(`${MIN_BUCKETS} buckets`)
+				);
+			});
+
+			describe('where buckets level off above the target', () => {
+				const floored = async (bucketedFloor: number) => {
+					const budgetMb = Math.floor(await wholeMb()) - 1;
+					const responses = await drive(
+						request({ budgetMb, stepIndex: turnBet }),
+						createFakeSolver({ bytesPerCombo: 1e5, bucketedFloor })
+					);
+					const done = last(responses);
+					if (done.type !== 'complete') throw new Error('no result');
+					return done.result;
+				};
+
+				it('stops there, well short of the cap, and says so', async () => {
+					const result = await floored(0.01);
+					expect(result.iterations).toBeLessThan(MAX_ITERATIONS / 2);
+					expect(result.exploitabilityPct).toBeGreaterThan(0.5);
+					expect(result.levelled).toBe(true);
+				});
+
+				it('is not called levelled when it reaches the target', async () => {
+					const result = await floored(0);
+					expect(result.exploitabilityPct).toBeLessThanOrEqual(0.5);
+					expect(result.levelled).toBe(false);
+				});
+			});
+
+			it('never buckets a river root, which has no river after it', async () => {
+				const { built, responses } = await ladder(1, 14);
+				expect(built).toEqual([undefined]);
+				const failure = last(responses);
+				expect(failure.type === 'error' && failure.message).not.toMatch(/buckets/);
 			});
 		});
 	});

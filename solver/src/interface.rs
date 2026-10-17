@@ -77,6 +77,19 @@ pub trait Game: Send + Sync {
     fn is_compression_enabled(&self) -> bool {
         false
     }
+
+    /// qpoker: whether some node stores its strategy per bucket of hands.
+    #[doc(hidden)]
+    fn is_bucketed(&self) -> bool {
+        false
+    }
+
+    /// qpoker: for a node that stores its strategy per bucket, each of the acting
+    /// player's hands' bucket (`u16::MAX` for none) and the number of buckets.
+    #[doc(hidden)]
+    fn buckets(&self, _node: &Self::Node) -> Option<(&[u16], usize)> {
+        None
+    }
 }
 
 /// The trait representing a node in game tree.
