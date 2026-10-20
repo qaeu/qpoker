@@ -32,16 +32,17 @@ interface AppHeaderProps {
 	onLoad: () => void;
 }
 
-const TAB_LABELS: Record<AppTab, string> = {
+export const TAB_LABELS: Record<AppTab, string> = {
 	summary: 'Summary',
 	review: 'Review',
 	openings: 'Openings',
 	trends: 'Trends',
 	players: 'Players',
 	ranges: 'Ranges',
+	train: 'Train',
 };
 
-/** The one view that is about the baseline rather than the log. */
+/** Where the views about the baseline rather than the log begin: Ranges and Train. */
 const REFERENCE_TAB: AppTab = 'ranges';
 
 const AppHeader: Component<AppHeaderProps> = (props) => (

@@ -1,0 +1,47 @@
+@use '../base' as *;
+
+@layer screen {
+	// The question's spot, set down on the felt: the seat and stack, then the cards.
+	.train-spot {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 14px;
+		padding: 20px 16px;
+		text-align: center;
+
+		&__label {
+			@include print(14px, 0.18em);
+			margin: 0;
+			font-weight: 600;
+			color: $ink;
+		}
+
+		&__cards {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: flex-end;
+			justify-content: center;
+			gap: 16px 28px;
+		}
+
+		&__group {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 6px;
+		}
+
+		&__name {
+			@include print(10px, 0.16em);
+			color: $ink-muted;
+		}
+
+		&__facts {
+			@include print(12px, 0.06em, $caps: false);
+			margin: 0;
+			color: $ink-muted;
+			font-variant-numeric: tabular-nums;
+		}
+	}
+}

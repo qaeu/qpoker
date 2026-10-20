@@ -1,0 +1,67 @@
+@use '../base' as *;
+
+@layer screen {
+	// After an answer: right or missed on the edge and the label, never a fill.
+	.train-verdict {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 14px;
+		padding: 12px 16px;
+		border: 1px solid $rule;
+		border-left-width: 3px;
+		border-radius: 3px;
+		background-color: oklch(from $panel l c h / 0.5);
+
+		&.is-right {
+			border-left-color: get($successes, 'base');
+		}
+
+		&.is-miss {
+			border-left-color: get($errors, 'base');
+		}
+
+		&__label {
+			@include print(12px, 0.18em);
+			font-weight: 700;
+		}
+
+		&.is-right &__label {
+			color: get($successes, 'fg-light');
+		}
+
+		&.is-miss &__label {
+			color: get($errors, 'fg-light');
+		}
+
+		&__text {
+			@include print(14px, 0.01em, $caps: false);
+			flex: 1 1 220px;
+			color: $ink;
+			font-variant-numeric: tabular-nums;
+		}
+
+		&__next {
+			margin-left: auto;
+			min-height: $control-height-touch;
+
+			@include phone {
+				width: 100%;
+				margin-left: 0;
+			}
+		}
+
+		&__cap {
+			@include key-cap;
+			margin-right: 8px;
+		}
+	}
+
+	// The chart the hand was drawn from, under the verdict.
+	.train-reveal {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		margin-top: 14px;
+	}
+}

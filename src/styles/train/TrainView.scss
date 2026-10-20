@@ -1,0 +1,65 @@
+@use '../base' as *;
+
+@layer screen {
+	// The Train view: one screen at a time, centred on a drill's own width and
+	// widened for the picker and the results, which lay panels side by side.
+	.train-view {
+		display: flex;
+		flex-direction: column;
+		flex: 1 1 0%;
+		min-width: 0;
+
+		&__screen {
+			width: 100%;
+			max-width: 720px;
+			margin: 0 auto;
+			padding: 0 16px;
+
+			&.is-wide {
+				max-width: 980px;
+			}
+		}
+
+		// Under a drill, at the drill's own gap from the shelf above it.
+		&__quit {
+			display: flex;
+			justify-content: center;
+			margin-top: 18px;
+		}
+
+		// Quitting is always there but never the thing to press: printed, not raised.
+		// Armed, it takes gold, the colour of the one in play.
+		&__link {
+			@include print(11px, 0.16em);
+			display: inline-flex;
+			align-items: center;
+			min-height: 0;
+			padding: 6px 8px;
+			border: 0;
+			background: none;
+			box-shadow: none;
+			color: $ink-faint;
+
+			&:hover:not(:disabled, .active) {
+				border: 0;
+				background: none;
+				color: get($neutrals, 'fg-light');
+			}
+
+			&:active:not(:disabled) {
+				background: none;
+				box-shadow: none;
+			}
+
+			&.is-armed,
+			&.is-armed:hover:not(:disabled, .active) {
+				color: get($primaries, 'fg-light');
+			}
+		}
+
+		&__key {
+			@include key-cap;
+			margin-right: 8px;
+		}
+	}
+}

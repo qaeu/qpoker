@@ -2,8 +2,8 @@
  * What is left in `localStorage` now that the hands live in the library
  * (`store/idbStore.ts`): nothing but the last report an older build cached,
  * which is dropped. It held no hand text, so there is nothing to carry over.
- * And two small per-viewer preferences: the solver's betting tree, and how deep
- * it solves.
+ * And small per-viewer preferences: the solver's betting tree, how deep it
+ * solves, and the Train view's modes and score boards.
  */
 
 import {
@@ -15,6 +15,8 @@ import {
 	type TreeSettings,
 } from '../solver/tree';
 import { DEFAULT_TARGET_PCT, targetProblem } from '../solver/target';
+import { DRILL_IDS, DRILL_MODES, type DrillId, type DrillMode } from '../train/drills';
+import { isScoreBoards, type ScoreBoards } from '../train/scores';
 
 const LEGACY_REPORT_KEY = 'qpoker:report';
 
@@ -98,5 +100,87 @@ export function saveSolveTarget(pct: number): void {
 		localStorage.setItem(TARGET_KEY, JSON.stringify({ version: TARGET_SCHEMA, pct }));
 	} catch {
 		// The choice lasts until the page is closed.
+	}
+}
+
+const TRAIN_CONFIG_KEY = 'qpoker:trainConfig';
+const TRAIN_CONFIG_SCHEMA = 1;
+
+/** The mode each drill was last played in. */
+export interface TrainConfig {
+	modes: Readonly<Record<DrillId, DrillMode>>;
+}
+
+export const DEFAULT_TRAIN_CONFIG: TrainConfig = {
+	modes: Object.fromEntries(DRILL_IDS.map((id) => [id, 'easy'])) as Record<
+		DrillId,
+		DrillMode
+	>,
+};
+
+export function loadTrainConfig(): TrainConfig {
+	try {
+		const stored: unknown = JSON.parse(localStorage.getItem(TRAIN_CONFIG_KEY) ?? 'null');
+		if (typeof stored !== 'object' || stored === null) return DEFAULT_TRAIN_CONFIG;
+		const { version, modes } = stored as Record<string, unknown>;
+		if (version !== TRAIN_CONFIG_SCHEMA || typeof modes !== 'object' || modes === null) {
+			return DEFAULT_TRAIN_CONFIG;
+		}
+		const saved = modes as Record<string, unknown>;
+		// A drill missing or unknown keeps its default; the others are kept.
+		const read = (id: DrillId): DrillMode => {
+			const mode = saved[id];
+			return (
+					typeof mode === 'string' && (DRILL_MODES as readonly string[]).includes(mode)
+				) ?
+					(mode as DrillMode)
+				:	DEFAULT_TRAIN_CONFIG.modes[id];
+		};
+		return {
+			modes: Object.fromEntries(DRILL_IDS.map((id) => [id, read(id)])) as Record<
+				DrillId,
+				DrillMode
+			>,
+		};
+	} catch {
+		return DEFAULT_TRAIN_CONFIG;
+	}
+}
+
+export function saveTrainConfig(config: TrainConfig): void {
+	try {
+		localStorage.setItem(
+			TRAIN_CONFIG_KEY,
+			JSON.stringify({ version: TRAIN_CONFIG_SCHEMA, modes: config.modes })
+		);
+	} catch {
+		// The choice lasts until the page is closed.
+	}
+}
+
+const TRAIN_SCORES_KEY = 'qpoker:trainScores';
+const TRAIN_SCORES_SCHEMA = 1;
+
+/** The viewer's score boards, keyed by `boardKey`; a key of an older drill is kept but unread. */
+export function loadTrainScores(): ScoreBoards {
+	try {
+		const stored: unknown = JSON.parse(localStorage.getItem(TRAIN_SCORES_KEY) ?? 'null');
+		if (typeof stored !== 'object' || stored === null) return {};
+		const { version, boards } = stored as Record<string, unknown>;
+		if (version !== TRAIN_SCORES_SCHEMA || !isScoreBoards(boards)) return {};
+		return boards;
+	} catch {
+		return {};
+	}
+}
+
+export function saveTrainScores(boards: ScoreBoards): void {
+	try {
+		localStorage.setItem(
+			TRAIN_SCORES_KEY,
+			JSON.stringify({ version: TRAIN_SCORES_SCHEMA, boards })
+		);
+	} catch {
+		// The scores last until the page is closed.
 	}
 }

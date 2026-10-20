@@ -1,0 +1,63 @@
+@use '../base' as *;
+
+@layer screen {
+	// The answers as a row of keys, wrapping on a phone.
+	.train-choice {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 8px;
+
+		// The hue says what the key does; the edge says whether it was right.
+		&__key {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			min-width: 112px;
+			min-height: $control-height-touch;
+			justify-content: center;
+
+			&.is-raise {
+				color: get($primaries, 'fg-light');
+			}
+
+			&.is-call {
+				color: get($successes, 'fg-light');
+			}
+
+			// Locked after an answer: kept at full strength so the marks read.
+			&:disabled {
+				opacity: 1;
+			}
+
+			&.is-right,
+			&.is-right:disabled {
+				border-color: get($successes, 'base');
+				box-shadow: inset 0 0 0 1px get($successes, 'base');
+			}
+
+			&.is-miss,
+			&.is-miss:disabled {
+				border-color: get($errors, 'base');
+				box-shadow: inset 0 0 0 1px get($errors, 'base');
+			}
+		}
+
+		&__cap {
+			@include key-cap;
+		}
+
+		&__tag {
+			@include print(9px, 0.14em);
+			font-weight: 600;
+		}
+
+		&__key.is-right &__tag {
+			color: get($successes, 'fg-light');
+		}
+
+		&__key.is-miss &__tag {
+			color: get($errors, 'fg-light');
+		}
+	}
+}

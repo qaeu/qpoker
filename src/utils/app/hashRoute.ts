@@ -1,6 +1,6 @@
 /**
  * The top-level views, addressed by a URL fragment (`#summary` / `#review` /
- * `#openings` / `#trends` / `#players` / `#ranges`) rather than an always-mounted tab-panel
+ * `#openings` / `#trends` / `#players` / `#ranges` / `#train`) rather than an always-mounted tab-panel
  * set, so switching is a real navigation, the view is linkable, and it
  * survives a reload. Review carries its whole state after a `?`
  * (`#review?show=mistakes&street=post&hand=5001&step=7`), so a filtered list,
@@ -14,7 +14,10 @@
  * Ranges carries the chart on show and its stack depth the same way
  * (`#ranges?chart=btnVsCo&depth=mid`), `chart` before `depth`.
  *
- * Every view carries the scope -- which of the library's hands the report is
+ * Train is the plain `#train`: its drill is a stored preference, a running
+ * drill is not addressable, and it is over no hands, so it carries no scope.
+ *
+ * Every other view carries the scope -- which of the library's hands the report is
  * over -- as `scope`, written first and left out when it is every hand
  * (`#summary?scope=latest`). Players carries the player being read as `name`.
  */
@@ -48,6 +51,7 @@ export const APP_TABS = [
 	'trends',
 	'players',
 	'ranges',
+	'train',
 ] as const;
 
 export type AppTab = (typeof APP_TABS)[number];
@@ -103,6 +107,7 @@ function oneOf<T extends string>(options: readonly T[], value: string | null): T
 /** The scope and the player of a fragment: what it carries whatever the view. */
 function sharedOf(tab: AppTab, params: URLSearchParams): Pick<Route, 'scope' | 'player'> {
 	const scope = params.get('scope') ?? '';
+	if (tab === 'train') return {};
 	const player = tab === 'players' ? params.get('name') : null;
 	const named = oneOf(SCOPE_PRESETS, scope) ?? (isTimestamp(scope) ? scope : null);
 	return {
@@ -160,6 +165,7 @@ export function parseRoute(hash: string): Route {
 /** The canonical fragment for a route: defaults are left out. */
 export function formatRoute(route: Route): string {
 	const params = new URLSearchParams();
+	if (route.tab === 'train') return '#train';
 	if (route.scope && route.scope !== DEFAULT_SCOPE) params.set('scope', route.scope);
 	if (route.tab === 'ranges') {
 		const { chart, depth } = route.ranges;

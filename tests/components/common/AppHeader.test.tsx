@@ -29,7 +29,7 @@ const mount = (
 
 describe('AppHeader', () => {
 	describe('the views', () => {
-		it('offers all of them, Ranges last', () => {
+		it('offers all of them, Ranges and Train last', () => {
 			mount(null);
 			expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
 				'Summary',
@@ -38,10 +38,11 @@ describe('AppHeader', () => {
 				'Trends',
 				'Players',
 				'Ranges',
+				'Train',
 			]);
 		});
 
-		it('rules Ranges off from the views that read the log', () => {
+		it('rules Ranges and Train off from the views that read the log', () => {
 			const { container } = mount(null);
 			const rule = container.querySelector('.app-header__rule')!;
 			expect(rule.previousElementSibling!.textContent).toBe('Players');

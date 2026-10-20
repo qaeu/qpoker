@@ -9,6 +9,7 @@ import {
 	drawsOf,
 	drawStrength,
 } from '#utils/postflop/handClass';
+import { priceCall, realisation, type CallSpot } from '#utils/postflop/decision';
 import { textureOf } from '#utils/postflop/texture';
 import {
 	applyAction,
@@ -153,5 +154,75 @@ describe('the opponent model', () => {
 		expect(standingIn(opener, cards('4s 3s'), board)).toBeLessThan(0.1);
 		const kings = combosOfClass(classFromName('KK'));
 		expect(kings).toHaveLength(6);
+	});
+});
+
+describe('pricing a call', () => {
+	// A half-pot river bet into 10: 15 in the middle, 5 to call.
+	const river: CallSpot = {
+		equity: 0.5,
+		pot: 15,
+		call: 5,
+		uncovered: 0,
+		inPosition: false,
+		cardsToCome: 0,
+		allIn: false,
+		strongDraw: false,
+		behind: 50,
+		rake: 0,
+	};
+
+	describe('on the river', () => {
+		it('sets the equity against the pot it plays for', () => {
+			const price = priceCall(river);
+			expect(price.stake).toBe(20);
+			expect(price.potOdds).toBeCloseTo(0.25);
+			expect(price.callEv).toBeCloseTo(5);
+			expect(price.band).toBeCloseTo(1.4);
+		});
+
+		it('is worth nothing at exactly the pot odds', () => {
+			expect(priceCall({ ...river, equity: 0.25 }).callEv).toBeCloseTo(0);
+		});
+
+		it('takes the rake out of what is won', () => {
+			expect(priceCall({ ...river, rake: 0.05 }).callEv).toBeCloseTo(4.5);
+		});
+
+		it('plays only for the part of a bet the hero covers', () => {
+			const price = priceCall({ ...river, pot: 20, uncovered: 5 });
+			expect(price.stake).toBe(20);
+			expect(price.potOdds).toBeCloseTo(0.25);
+		});
+	});
+
+	describe('with cards to come', () => {
+		const turn: CallSpot = { ...river, cardsToCome: 1 };
+
+		it('discounts the equity out of position', () => {
+			expect(priceCall(turn).callEv).toBeCloseTo(0.9 * 0.5 * 20 - 5);
+			expect(priceCall({ ...turn, inPosition: true }).callEv).toBeCloseTo(5);
+		});
+
+		it('realises it all when the call is all-in', () => {
+			expect(priceCall({ ...turn, allIn: true }).callEv).toBeCloseTo(5);
+		});
+
+		it('pays a strong draw again only with a pot behind', () => {
+			const draw = { ...turn, inPosition: true, strongDraw: true };
+			expect(priceCall(draw).callEv).toBeCloseTo(1.05 * 0.5 * 20 - 5);
+			expect(priceCall({ ...draw, behind: 10 }).callEv).toBeCloseTo(5);
+			expect(priceCall({ ...draw, allIn: true }).callEv).toBeCloseTo(5);
+		});
+	});
+
+	describe('realisation', () => {
+		it('is whole on the river, and less out of position', () => {
+			expect(realisation(false, 0)).toBe(1);
+			expect(realisation(true, 1)).toBe(1);
+			expect(realisation(true, 2)).toBe(0.95);
+			expect(realisation(false, 1)).toBe(0.9);
+			expect(realisation(false, 2)).toBe(0.8);
+		});
 	});
 });

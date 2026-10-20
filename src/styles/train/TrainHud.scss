@@ -1,0 +1,100 @@
+@use '../base' as *;
+
+@layer screen {
+	// A drill's instrument strip, read across the top of the felt.
+	.train-hud {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px 14px;
+		padding-bottom: 12px;
+		border-bottom: 1px solid $rule;
+
+		&__drill {
+			@include print(11px, 0.16em);
+			font-weight: 600;
+			color: $ink;
+			white-space: nowrap;
+
+			em {
+				font-style: normal;
+				font-weight: 500;
+				color: get($primaries, 'fg-light');
+			}
+		}
+
+		&__read {
+			@include print(11px, 0.16em);
+			color: $ink-muted;
+			font-variant-numeric: tabular-nums;
+			white-space: nowrap;
+
+			b {
+				font-size: 15px;
+				letter-spacing: 0.02em;
+				color: $ink;
+			}
+		}
+
+		// The far end: the score and the clock, pushed right.
+		&__end {
+			display: flex;
+			align-items: center;
+			gap: 14px;
+			margin-left: auto;
+
+			@include phone {
+				width: 100%;
+				margin-left: 0;
+				justify-content: space-between;
+			}
+		}
+
+		// One tick per hand, cut into the felt.
+		&__steps {
+			display: flex;
+			gap: 3px;
+			flex: 1 1 120px;
+			min-width: 90px;
+			max-width: 280px;
+
+			&.is-dense {
+				gap: 2px;
+			}
+
+			@include phone {
+				max-width: none;
+			}
+		}
+
+		&__step {
+			flex: 1;
+			height: 7px;
+			border-radius: 2px;
+			background-color: $cut-deep;
+			box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.4);
+
+			&.is-right {
+				background-color: get($successes, 'base');
+			}
+
+			&.is-miss {
+				background-color: get($errors, 'base');
+			}
+
+			// A Test holds its verdicts back, so an answered tick says only that.
+			&.is-done {
+				background-color: oklch(from $foreground l c h / 0.55);
+			}
+
+			&.is-current {
+				box-shadow: inset 0 0 0 1px get($primaries, 'base');
+			}
+		}
+
+		// The Test's time left, as text; ruby once it is nearly gone.
+		&__countdown.is-low b {
+			color: get($errors, 'fg-light');
+		}
+	}
+}

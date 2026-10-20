@@ -1,0 +1,43 @@
+@use '../base' as *;
+
+@layer screen {
+	// The typed estimate: a field cut into the felt and the key that sends it.
+	.train-estimate {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+
+		&__label {
+			@include print(11px, 0.16em);
+			color: $ink-muted;
+		}
+
+		&__field {
+			@include form-control;
+			width: 104px;
+			min-height: 44px;
+			padding: 5px 9px;
+			font-family: 'Archivo Narrow', 'Archivo', sans-serif;
+			font-variant-numeric: tabular-nums;
+			font-size: 22px;
+			font-weight: 700;
+			text-align: center;
+
+			&:disabled {
+				opacity: 1;
+			}
+		}
+
+		&__unit {
+			@include print(14px, 0.04em, $caps: false);
+			color: $ink-muted;
+		}
+
+		&__cap {
+			@include key-cap;
+			margin-right: 8px;
+		}
+	}
+}

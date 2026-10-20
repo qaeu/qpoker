@@ -86,10 +86,54 @@ export const UNDERDOG = 0.45;
 const STRONG_STANDING = 0.5;
 
 /** How much of its equity a hand gets to realise when it does not close the hand. */
-function realisation(inPosition: boolean, cardsToCome: number): number {
+export function realisation(inPosition: boolean, cardsToCome: number): number {
 	if (cardsToCome === 0) return 1;
 	if (inPosition) return cardsToCome === 1 ? 1 : 0.95;
 	return cardsToCome === 1 ? 0.9 : 0.8;
+}
+
+export interface CallSpot {
+	/** Showdown equity against the bettor's range. */
+	equity: number;
+	/** The pot before the call, the bet faced included. */
+	pot: number;
+	/** What calling costs. */
+	call: number;
+	/** The part of the bet beyond what the hero can call: not in play. */
+	uncovered: number;
+	inPosition: boolean;
+	cardsToCome: number;
+	/** No betting is left after the call. */
+	allIn: boolean;
+	/** The hand holds a strong draw (`drawStrength` of 2). */
+	strongDraw: boolean;
+	/** The hero's stack left after the call. */
+	behind: number;
+	/** Share of the pot the house takes. */
+	rake: number;
+}
+
+export interface CallPrice {
+	/** The pot the call plays for: what is in it plus the call. */
+	stake: number;
+	/** The equity a call needs. */
+	potOdds: number;
+	/** What calling is worth, in the spot's chips. */
+	callEv: number;
+	/** The indifference band either side of zero, in chips. */
+	band: number;
+}
+
+/** What a call is worth: equity realised, a strong draw's implied odds, and the rake. */
+export function priceCall(spot: CallSpot): CallPrice {
+	const { equity, pot, call, allIn, cardsToCome } = spot;
+	const stake = pot - spot.uncovered + call;
+	const realised = allIn ? 1 : realisation(spot.inPosition, cardsToCome);
+	// A strong draw with money behind is paid again when it gets there.
+	const implied =
+		!allIn && spot.strongDraw && spot.behind >= pot ? 0.05 * cardsToCome : 0;
+	const callEv = (realised + implied) * equity * stake * (1 - spot.rake) - call;
+	return { stake, potOdds: call / stake, callEv, band: BAND * stake };
 }
 
 /** Judges one postflop action by the hero. */
@@ -156,18 +200,23 @@ export function judgePostflop(
 		const call = step.toCall;
 		// A bet bigger than the hero's stack is only in play up to that stack.
 		const uncovered = Math.max(0, step.streetBet - step.committedBefore - call);
-		const stake = pot - uncovered + call;
 		// All-in for the hero, or for everyone else: no betting is left either way.
 		const allIn = call >= step.stackBefore || step.canAct.every((name) => name === hero);
-		const realised = allIn ? 1 : realisation(inPosition, toCome);
-		// A strong draw with money behind is paid again when it gets there.
-		const implied =
-			!allIn && draw === 2 && step.stackBefore - call >= pot ? 0.05 * toCome : 0;
-		const callEv = (realised + implied) * equity * stake * keep - call;
-		const band = BAND * stake;
+		const { potOdds, callEv, band } = priceCall({
+			equity,
+			pot,
+			call,
+			uncovered,
+			inPosition,
+			cardsToCome: toCome,
+			allIn,
+			strongDraw: draw === 2,
+			behind: step.stackBefore - call,
+			rake: options.rake,
+		});
 		const confidence: Confidence = headsUp && (allIn || toCome === 0) ? 'medium' : 'low';
 
-		facts.potOdds = call / stake;
+		facts.potOdds = potOdds;
 		facts.callEvBb = callEv / bb;
 		const best: PostflopChoice = callEv > 0 ? 'call' : 'fold';
 

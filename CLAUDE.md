@@ -18,14 +18,15 @@ src/
 ├── cli/                   # main.ts (args, commands), format.ts + libraryFormat.ts (text),
 │                          # fileStore.ts (the library on disk)
 ├── App.tsx, index.tsx     # Shell and bootstrap (index registers the isolation service worker)
-├── components/<view>/     # common, upload, report, review, hand, ranges, trends, players,
-│                          # library
+├── components/<view>/     # common, upload, report, review, hand, ranges, train, trends,
+│                          # players, library
 ├── styles/                # _palette, _theme, _base; <view>/ mirrors components/
 └── utils/
     ├── history/           # decode -> parse -> replay: text to hands to decision points
     ├── cards/             # cards, 7-card evaluator, combos, equity
     ├── ranges/            # notation, charts/ (the preflop baseline, as data), spot classifier
     ├── postflop/          # opponent-range model, texture, the postflop judgement
+    ├── train/             # The drills: drills (seeded questions), grade, run, scores
     ├── coach/             # grade, mistakes, goodPlays, explain, session, openings, report,
     │                      # sessions (sittings, scope), trend
     ├── store/             # The hand library: types (HandStore), ingest, library, players,
@@ -62,12 +63,14 @@ docs/                      # Model and design reasoning (see below)
 - **Subpath imports**: `#c/*` → `src/components/*`, `#styles/*` → `src/styles/*.scss`,
   `#*` → `src/*`. Use them instead of `../../`. In `vitest.config.ts` aliases, list the
   most specific prefix first.
-- **The views are Summary, Review, Openings, Trends, Players and Ranges**, addressed by the URL hash
+- **The views are Summary, Review, Openings, Trends, Players, Ranges and Train**, addressed by the URL hash
   (`utils/app/hashRoute.ts`). Review keeps its whole state there
   (`#review?show=…&hand=…&step=…`, `step` being where the hand's replay stands): add a
   filter to `ReviewQuery` and the route, not to a signal in the view. Ranges does the
-  same with its chart and depth (`#ranges?chart=…&depth=…`, `RangesQuery`). Which of the
-  library's hands the views are over is the `scope`, in the address on every view.
+  same with its chart and depth (`#ranges?chart=…&depth=…`, `RangesQuery`). Train is the
+  plain `#train`: drills on the model's own ranges, which work with an empty library and
+  never enter a grade. Which of the library's hands the views are over is the `scope`, in
+  the address on every view but Train.
 - Hand-history `.txt` files in the repo root are git-ignored: they carry other players'
   screen names. Tests use `tests/fixtures/` (anonymised) and `tests/utils/history/handText.ts`.
 
@@ -116,5 +119,6 @@ CLI's native solver for this platform, checked in to `solver/bin/`),
 - `src/utils/postflop/`: [docs/postflop-model.md](./docs/postflop-model.md)
 - `src/utils/coach/`: [docs/coach-model.md](./docs/coach-model.md)
 - `src/utils/store/`, `src/cli/fileStore.ts`: [docs/library.md](./docs/library.md)
+- `src/utils/train/`: [docs/train-model.md](./docs/train-model.md)
 - `src/utils/solver/`, `solver/`: [docs/solver.md](./docs/solver.md)
 - Any grade, weight or confidence: [docs/accuracy.md](./docs/accuracy.md)

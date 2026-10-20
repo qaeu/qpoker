@@ -1,0 +1,32 @@
+@use '../base' as *;
+
+@layer screen {
+	// A drill on the felt: the strip, the spot, the keys and the verdict.
+	.train-drill {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+
+		// Reserved to a verdict's height, so one arriving never moves what is under it.
+		&__verdict {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			min-height: 64px;
+		}
+
+		&__hint {
+			@include print(12px, 0.14em);
+			margin: 0;
+			color: $ink-faint;
+			text-align: center;
+		}
+
+		// A hint's words about the keyboard, gone with the key caps on touch.
+		&__keys {
+			@include touch {
+				display: none;
+			}
+		}
+	}
+}

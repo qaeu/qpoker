@@ -17,7 +17,7 @@ import {
 	type Component,
 } from 'solid-js';
 
-import AppHeader from '#c/common/AppHeader';
+import AppHeader, { TAB_LABELS } from '#c/common/AppHeader';
 import type { SelectOption } from '#c/common/Select';
 import { SolverContext } from '#c/hand/solverContext';
 import LibraryPanel from '#c/library/LibraryPanel';
@@ -26,6 +26,7 @@ import OpeningsView from '#c/ranges/OpeningsView';
 import RangesView from '#c/ranges/RangesView';
 import SummaryView from '#c/report/SummaryView';
 import ReviewView from '#c/review/ReviewView';
+import TrainView from '#c/train/TrainView';
 import TrendsView from '#c/trends/TrendsView';
 import LogDrop, {
 	createFilePicker,
@@ -69,7 +70,18 @@ const SCOPED_TABS: readonly AppTab[] = ['summary', 'review', 'openings'];
 const App: Component = () => {
 	const [route, navigate] = createHashRoute();
 	const tab = () => route().tab;
-	const setTab = (next: AppTab) => navigate({ tab: next });
+	// The check Train hands up while a drill is on, which a tab switch asks first.
+	let leaveGuard: ((to: string) => boolean) | null = null;
+	const setTab = (next: AppTab) => {
+		if (
+			tab() === 'train'
+			&& next !== 'train'
+			&& leaveGuard?.(TAB_LABELS[next]) === false
+		) {
+			return;
+		}
+		navigate({ tab: next });
+	};
 	const store = openIdbStore();
 	const details = createDetailCache(store);
 	const solver = createSolveClient(store);
@@ -308,6 +320,13 @@ const App: Component = () => {
 								against these ranges.
 							</p>
 						</Show>
+					</Match>
+					<Match when={tab() === 'train'}>
+						<TrainView
+							onLeaveGuard={(guard) => {
+								leaveGuard = guard;
+							}}
+						/>
 					</Match>
 					<Match when={report()} keyed>
 						{(loaded) => (

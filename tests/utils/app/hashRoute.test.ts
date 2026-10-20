@@ -126,6 +126,25 @@ describe('the hash route', () => {
 			});
 		});
 
+		describe('Train', () => {
+			it('reads as the plain tab, and drops a query and a scope', () => {
+				const bare = { tab: 'train', ranges: DEFAULT_RANGES, review: DEFAULT_REVIEW };
+				expect(parseRoute('#train')).toEqual(bare);
+				expect(parseRoute('#train?scope=latest&chart=bbVsSb&hand=1')).toEqual(bare);
+			});
+
+			it('is written as #train, whatever the route carries', () => {
+				expect(
+					formatRoute({
+						tab: 'train',
+						ranges: DEFAULT_RANGES,
+						review: DEFAULT_REVIEW,
+						scope: 'latest',
+					})
+				).toBe('#train');
+			});
+		});
+
 		describe('legacy tabs', () => {
 			it.each([
 				['#mistakes', 'mistakes'],

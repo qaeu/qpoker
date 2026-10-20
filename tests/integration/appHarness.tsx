@@ -89,7 +89,7 @@ export function queryHeld(hands: number): HTMLElement | null {
 }
 
 export async function switchTo(
-	tab: 'Summary' | 'Review' | 'Openings' | 'Trends' | 'Players' | 'Ranges'
+	tab: 'Summary' | 'Review' | 'Openings' | 'Trends' | 'Players' | 'Ranges' | 'Train'
 ): Promise<void> {
 	fireEvent.click(screen.getByRole('tab', { name: tab }));
 	await settle();
